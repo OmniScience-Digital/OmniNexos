@@ -14,9 +14,10 @@ export default defineConfig({
       "@types": path.resolve(__dirname, "./src/types"),
       "@services": path.resolve(__dirname, "./src/services"),
     },
-  },build: {
-    chunkSizeWarningLimit: 1600,
   },
-
- 
+  
+  build: {
+    chunkSizeWarningLimit: 1600,
+    outDir: "dist"
+  }
 })
