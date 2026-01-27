@@ -13,12 +13,12 @@ import { useMemo, useState, useEffect } from "react";
 import {
   BooleanQuestion,
   booleanQuestions as initialQuestions,
-  PhotoUpload,
-  PhotoState
+  PhotoUpload
 } from "./questions";
-import { vifForm } from "@/types/vifForm.types";
+import type { PhotoState } from "./questions";
+import type { vifForm } from "@/types/vifForm.types";
 import { client } from "@/services/schema";
-import Loading from "@/components/widgets/loading";
+
 
 interface VifFormProps {
   onVehicleChange: (vehicleId: string, vehicleReg: string, vehicleVin: string) => void;
@@ -46,9 +46,8 @@ export default function VifForm({
   vehicles
 }: VifFormProps) {
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
-  const [vehiclesLoading, setvehiclesLoading] = useState(false);
   const [recentInspection, setRecentInspection] = useState<any>(null);
-  const [loadingInspection, setLoadingInspection] = useState(false);
+
 
   const filteredVehicles = useMemo(() => {
     return vehicles.filter(vehicle =>
@@ -64,7 +63,6 @@ export default function VifForm({
         return;
       }
 
-      setLoadingInspection(true);
       try {
         // Use the GSI to get inspections sorted by inspection number (highest first)
         const { data: inspections } = await client.models.Inspection.inspectionsByFleetAndNumber(
@@ -85,7 +83,7 @@ export default function VifForm({
             onOdometerChange(mostRecent.odometerStart.toString());
           }
 
-          const updatedQuestions = initialQuestions.map((question, index: number) => { 
+          const updatedQuestions = initialQuestions.map((question, index: number) => {
             const inspection: any = mostRecent;
             const fieldNames = [
               'oilAndCoolant', 'fuelLevel', 'seatbeltDoorsMirrors', 'handbrake',
@@ -108,8 +106,6 @@ export default function VifForm({
         }
       } catch (error) {
         console.error('Error fetching inspection:', error);
-      } finally {
-        setLoadingInspection(false);
       }
     };
 
@@ -188,19 +184,12 @@ export default function VifForm({
                 </div>
               </div>
 
-              {vehiclesLoading ? (
-                <div className="p-4 text-center">
-                  <Loading />
-                </div>
-              ) : (
-                <>
-                  {filteredVehicles.map((vehicle: any) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.vehicleReg}
-                    </SelectItem>
-                  ))}
-                </>
-              )}
+              {filteredVehicles.map((vehicle: any) => (
+                <SelectItem key={vehicle.id} value={vehicle.id}>
+                  {vehicle.vehicleReg}
+                </SelectItem>
+              ))}
+
             </SelectContent>
           </Select>
         </div>
@@ -269,8 +258,8 @@ export default function VifForm({
           </div>
 
           <div className={`p-3 rounded-md border ${canSubmit
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-amber-50 border-amber-200 text-amber-800'
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-amber-50 border-amber-200 text-amber-800'
             }`}>
             <p className="text-sm font-medium">
               {canSubmit

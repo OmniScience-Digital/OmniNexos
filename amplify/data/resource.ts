@@ -412,6 +412,15 @@ const schema = a.schema({
     index("complianceid"),
   ]).authorization((allow) => [allow.publicApiKey()]),
 
+  Permission: a.model({
+    userId: a.string().required(),
+    permissions: a.string().array(),// ["hrd.edit", "crm.assets.view"]
+  })
+    .authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [
+      index("userId") //
+    ])
+
 });
 
 export type Schema = ClientSchema<typeof schema>;

@@ -6,6 +6,7 @@ import Footer from './components/layout/footer';
 import FormsLanding from './app/forms';
 import Landing from './app/landing';
 import ComponentForm from './app/stockcontrolform/page';
+import AdminPermissionsPage from './app/admin/page';
 
 
 function Layout() {
@@ -41,6 +42,7 @@ function Layout() {
         <Route path="/landing" element={isAuthenticated ? <Landing /> : <Navigate to="/" replace />} />
         <Route path="/forms" element={isAuthenticated ? <FormsLanding /> : <Navigate to="/" replace />} />
         <Route path="/stockcontrolform" element={isAuthenticated ? <ComponentForm /> : <Navigate to="/" replace />} />
+        <Route path="/admin" element={isAuthenticated ? <AdminPermissionsPage /> : <Navigate to="/" replace />} />
       </Routes>
       {!isAuthPage && <Footer />}
     </div>

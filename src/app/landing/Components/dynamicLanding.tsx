@@ -15,13 +15,13 @@ import { ConfirmDialog } from "@/components/widgets/deletedialog";
 import React from "react";
 
 export default function Home() {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
     const [dashboards, setDashboards] = useState<Dashboard[]>([]);
     const [open, setOpen] = useState(false);
     const [opendelete, setOpendelete] = useState(false);
     const [name, setName] = useState("");
     const [loading, setLoading] = useState(true);
-    const [dataArray, setData] = useState<Dashboard[]>([]);
+    // const [dataArray, setData] = useState<Dashboard[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [dashboardToDelete, setDashboardToDelete] = useState<number | null>(null);
 
@@ -36,12 +36,12 @@ export default function Home() {
                     .sort((a, b) => (a.items || "").localeCompare(b.items || ""));
 
                 const cleanDashboardData: Dashboard[] = dashboardData
-                .filter(d => !/form$/i.test((d.items??"").trim())) // exclude items ending with 'Form'
-                .map(d => ({
-                    ...d,
-                    key: d.key ?? "",
-                    items: d.items ?? ""
-                }));
+                    .filter(d => !/form$/i.test((d.items ?? "").trim())) // exclude items ending with 'Form'
+                    .map(d => ({
+                        ...d,
+                        key: d.key ?? "",
+                        items: d.items ?? ""
+                    }));
 
                 setDashboards(cleanDashboardData);
                 setLoading(false);
@@ -87,41 +87,14 @@ export default function Home() {
 
     // Redirect to dashboard
     const redirectToDashboard = (name: Dashboard) => {
-
         const path = (name.items.toLocaleLowerCase()).replace(/\s+/g, "");
         navigate(`/${path}`);
-    };
-    // Delete dashboard at a specific index
-    const deleteDashboard = async (index: number) => {
-        const dashboardName = dashboards[index].items; // Get the name of the dashboard to delete
-
-        const foundItem = dataArray.find(
-            (item) => item.items.toUpperCase() === dashboardName.toUpperCase(),
-        ); // Find the item in dataArray
-        console.log(foundItem);
-        setLoading(true);
-        if (foundItem) {
-            // Delete from the database
-            const { errors } = await client.models.Landing.delete({
-                id: foundItem.id,
-            });
-
-            if (errors) {
-                console.error("Error deleting dashboard:", errors);
-            } else {
-                // Update local state
-                const updatedDashboards = dashboards.filter((_, i) => i !== index);
-                setDashboards(updatedDashboards);
-                console.log("Dashboard deleted:", foundItem);
-            }
-        }
-        setLoading(false);
     };
 
     // Handle delete confirmation
     const handleDeleteConfirmation = () => {
         if (dashboardToDelete !== null) {
-            deleteDashboard(dashboardToDelete);
+
             setDashboardToDelete(null);
             setOpendelete(false);
         }
@@ -183,12 +156,12 @@ export default function Home() {
                     <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
                         <CardContent className="p-1 sm:p-2">
                             <div className="space-y-1">
-                                
+
                                 {filteredDashboards.map((dashboard, index) => (
                                     <React.Fragment key={dashboard.id}>
                                         <div className="group p-2 sm:p-3 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-colors duration-200 cursor-pointer rounded-lg border border-transparent hover:border-blue-200 dark:hover:border-blue-800 "
-                                        >  
-                                            <div className="flex items-center justify-between">  
+                                        >
+                                            <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                                     {/* Icon */}
                                                     <div className="hidden xs:block p-1.5 sm:p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
@@ -198,20 +171,20 @@ export default function Home() {
 
                                                     {/* Content */}
                                                     <div className="flex-1 min-w-0" onClick={() => redirectToDashboard(dashboard)}>
-                                                     
+
                                                         <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
                                                             <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate text-xs sm:text-sm">
                                                                 {dashboard.items}
                                                             </h3>
                                                             {/* Badge - Now using the actual key */}
-                                                            {(getCategory(dashboard.key).length>2) &&
-                                                            <Badge
-                                                                variant="secondary"
-                                                                className={`${getCategoryColor(dashboard.key)} text-xs font-normal px-1.5 py-0 hidden sm:inline-flex`}
-                                                            >
-                                                                {getCategory(dashboard.key)}
-                                                            </Badge>
-                                                        }
+                                                            {(getCategory(dashboard.key).length > 2) &&
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className={`${getCategoryColor(dashboard.key)} text-xs font-normal px-1.5 py-0 hidden sm:inline-flex`}
+                                                                >
+                                                                    {getCategory(dashboard.key)}
+                                                                </Badge>
+                                                            }
                                                         </div>
                                                     </div>
                                                 </div>

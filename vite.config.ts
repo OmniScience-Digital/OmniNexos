@@ -5,6 +5,7 @@ import { defineConfig } from "vite"
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -13,5 +14,9 @@ export default defineConfig({
       "@types": path.resolve(__dirname, "./src/types"),
       "@services": path.resolve(__dirname, "./src/services"),
     },
+  },build: {
+    chunkSizeWarningLimit: 1600,
   },
+
+ 
 })

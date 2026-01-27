@@ -186,7 +186,7 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
     };
   }, []);
 
-  const generateS3Key = useCallback((file: File, index: number): string => {
+  const generateS3Key = useCallback(( index: number): string => {
     const timestamp = Date.now();
     const cleanVehicleReg = vehicleReg.replace(/[^a-zA-Z0-9]/g, '-');
     const fileExtension = 'jpg'; // Always use jpeg after resizing
@@ -244,7 +244,7 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
         return {
           id: Math.random().toString(36).substring(2, 9),
           file,
-          s3Key: generateS3Key(file, photos.length + index),
+          s3Key: generateS3Key( photos.length + index),
           status: 'uploading',
           previewUrl
         };

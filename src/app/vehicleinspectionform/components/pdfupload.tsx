@@ -29,7 +29,6 @@ interface PDFUploadProps {
 
 export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFUploadProps) => {
   const [pdfs, setPdfs] = useState<PDFState[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
@@ -159,8 +158,6 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFU
     if (pdfFiles.length === 0) return;
 
     const newFile = pdfFiles[0];
-    setIsUploading(true);
-
     // Clean up existing file
     if (pdfs.length > 0) {
       const existingPdf = pdfs[0];
@@ -188,7 +185,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFU
     setPdfs([newPDF]);
     await uploadToS3(newPDF);
 
-    setIsUploading(false);
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
