@@ -13,6 +13,7 @@ frontend:
     build:
       commands:
         - npm run build
+        - echo '{}' > dist/deploy-manifest.json
   artifacts:
     baseDirectory: dist
     files:
