@@ -1,21 +1,3 @@
-// import { ListUsersCommand, CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
-
-// const client = new CognitoIdentityProviderClient()
-
-// export const handler = async () => {
-//   const userPoolId = process.env.AMPLIFY_AUTH_USERPOOL_ID;
-  
-//   const command = new ListUsersCommand({ 
-//     UserPoolId: userPoolId,
-//     Limit: 60
-//   });
-  
-//   const response = await client.send(command);
-  
-//   // Return array directly, not object with users property
-//   return response.Users || [];
-// }
-
 import { 
   ListUsersCommand, 
   AdminListGroupsForUserCommand,
@@ -79,3 +61,4 @@ export const handler = async () => {
   console.log('Final users with groups:', usersWithGroups);
   return usersWithGroups;
 }
+

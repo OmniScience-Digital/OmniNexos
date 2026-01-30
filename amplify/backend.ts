@@ -9,7 +9,7 @@ const backend = defineBackend({
   auth,
   data,
   storage,
-  listUsers  // Add your listUsers function
+  listUsers  
 });
 
 // Grant listUsers function permission to read groups
