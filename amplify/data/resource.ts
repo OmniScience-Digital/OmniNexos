@@ -1,6 +1,13 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { listUsers } from "../function/listUsers/resource";
 
 const schema = a.schema({
+   usersList: a
+  .query()
+  .returns(a.json().array())  
+  .authorization((allow) => [allow.publicApiKey()])
+  .handler(a.handler.function(listUsers)),
+
   Landing: a
     .model({
       key: a.string(),
@@ -419,7 +426,8 @@ const schema = a.schema({
     .authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
       index("userId") //
-    ])
+    ]),
+   
 
 });
 

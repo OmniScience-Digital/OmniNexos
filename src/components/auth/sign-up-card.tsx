@@ -20,17 +20,17 @@ interface FormValues {
     confirmPassword: string;
 }
 
-// Update the validationSchema to include domain validation
+//validationSchema 
 const validationSchema = Yup.object({
     email: Yup.string()
         .email('Invalid email address')
         .test(
             'domain-check',
-            'Email must contain department domain',
+            'Only company emails are accepted',
             (value) => {
                 if (!value) return false;
                 const domain = value.split('@')[1];
-                return domain?.includes('omniscience') || domain?.includes('mass');
+                  return domain?.includes('omniscience') || domain?.includes('mass')|| domain?.includes('sb-plant.com');
             }
         )
         .required('Email is required'),

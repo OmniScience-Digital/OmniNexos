@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import ResponseModal from '@/components/widgets/response'
 import { client } from '@/services/schema'
 
+
 // Types
 type Access = 'view' | 'edit' | 'none'
 
@@ -65,6 +66,7 @@ const allPermissions = [
 ]
 
 export default function UserPermissionsAssign() {
+
   const [users, setUsers] = useState<User[]>([
     { id: 'thabio@co.com', email: 'thabio@co.com', name: 'Thabio', permissions: [] },
     { id: 'john@co.com', email: 'john@co.com', name: 'John', permissions: [] },
@@ -363,6 +365,7 @@ export default function UserPermissionsAssign() {
 
   return (
     <main className="flex-1 p-6 mt-20 pb-20">
+      
 
       {showResponse && (
         <ResponseModal

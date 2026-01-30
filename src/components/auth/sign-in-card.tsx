@@ -65,7 +65,6 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
     });
 
     const handleGoogleSignIn = async () => {
-        console.log('Google sign-in clicked');
         await signInWithRedirect({ provider: "Google" });
     };
 
@@ -83,7 +82,7 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
             <CardHeader className="px-0 pt-3 my-5">
                 <CardTitle>Login to continue</CardTitle>
                 <CardDescription>
-                    Use your email or another service to continue
+                   NB: Only Company domains are accepted
                 </CardDescription>
             </CardHeader>
 
@@ -153,7 +152,6 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
                     <Button
                         id='googleSignInButton'
                         disabled={isSubmitting || isSuccess}
-                        // disabled={true}
                         onClick={handleGoogleSignIn}
                         variant="outline"
                         size="lg"
