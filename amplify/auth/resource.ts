@@ -121,7 +121,8 @@ export const auth = defineAuth({
     externalProviders: {
       google: {
         clientId: secret("GOOGLE_CLIENT_ID"),
-        clientSecret: secret("GOOGLE_SECRET"),
+        clientSecret: secret("GOOGLE_CLIENT_SECRET"),
+
         scopes: ["profile", "email"],
         attributeMapping: {
           email: "email",
@@ -138,7 +139,7 @@ export const auth = defineAuth({
 
       ],
     },
-  },  userAttributes: {
+  }, userAttributes: {
     preferredUsername: {
       mutable: true,
       required: true

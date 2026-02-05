@@ -26,7 +26,7 @@ const validationSchema = Yup.object({
 
 export const SignInCard = ({ setState }: SignInCardProps) => {
     const navigate = useNavigate();
-    const { checkAuth } = useAuth(); // Add this
+    const { checkAuth } = useAuth(); 
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);

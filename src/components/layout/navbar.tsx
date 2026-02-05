@@ -34,16 +34,21 @@ export default function Navbar() {
     document.documentElement.classList.toggle("dark", newMode);
   };
 
+
   const handleSignOut = async () => {
-    setIsSigningOut(true);
-    try {
-      await logout(); // Use context logout
-      window.location.href = '/';
-    } catch (error) {
-      console.error("Sign out error:", error);
-      setIsSigningOut(false);
-    }
-  };
+   setIsSigningOut(true);
+  try {
+    // Clear everything
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    await logout(); // Use context logout
+    window.location.href = '/'; 
+  } catch (error) {
+    console.error("Sign out error:", error);
+  }
+};
+
 
   if (isDarkMode === null) return null;
 
