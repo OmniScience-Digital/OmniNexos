@@ -18,6 +18,7 @@ interface FormValues {
     email: string;
     password: string;
     confirmPassword: string;
+    preferredUsername: string; 
 }
 
 //validationSchema 
@@ -40,6 +41,9 @@ const validationSchema = Yup.object({
     confirmPassword: Yup.string()
         .oneOf([Yup.ref('password')], 'Passwords must match')
         .required('Please confirm your password'),
+         preferredUsername: Yup.string()
+        .required('Preferred username is required')
+        .min(2, 'Username must be at least 2 characters')
 });
 
 export const SignUpCard = ({ setState }: SignUpCardProps) => {
@@ -52,7 +56,8 @@ export const SignUpCard = ({ setState }: SignUpCardProps) => {
         initialValues: {
             email: '',
             password: '',
-            confirmPassword: ''
+            confirmPassword: '',
+            preferredUsername: ''
         },
         validationSchema,
         onSubmit: async (values) => {
@@ -65,6 +70,7 @@ export const SignUpCard = ({ setState }: SignUpCardProps) => {
                     options: {
                         userAttributes: {
                             email: values.email, // Store as email attribute
+                             preferred_username: values.preferredUsername // Store preferred username separately
                         },
                         autoSignIn: true
                     }
@@ -151,6 +157,21 @@ export const SignUpCard = ({ setState }: SignUpCardProps) => {
                         />
                         {formik.touched.email && formik.errors.email ? (
                             <div className="text-red-500 text-xs mt-1">{formik.errors.email}</div>
+                        ) : null}
+                    </div>
+                         <div>
+                        <Input
+                            id="preferredUsername"
+                            name="preferredUsername"
+                            type="text"
+                            placeholder="Username"
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            value={formik.values.preferredUsername}
+                            disabled={isSubmitting}
+                        />
+                        {formik.touched.preferredUsername && formik.errors.preferredUsername ? (
+                            <div className="text-red-500 text-xs mt-1">{formik.errors.preferredUsername}</div>
                         ) : null}
                     </div>
        
