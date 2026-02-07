@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { SignInFlow } from "@/types/schema";
-import {  signIn, signInWithRedirect } from "aws-amplify/auth";
+import { signIn, signInWithRedirect } from "aws-amplify/auth";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useAuth } from "@/contexts/auth-context";
@@ -26,7 +26,7 @@ const validationSchema = Yup.object({
 
 export const SignInCard = ({ setState }: SignInCardProps) => {
     const navigate = useNavigate();
-    const { checkAuth } = useAuth(); 
+    const { checkAuth } = useAuth();
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -65,7 +65,11 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
     });
 
     const handleGoogleSignIn = async () => {
-        await signInWithRedirect({ provider: "Google" });
+        await signInWithRedirect({
+            provider: "Google", options: {
+                prompt: "SELECT_ACCOUNT", // forces account selection on each login
+            },
+        });
     };
 
     return (
@@ -82,7 +86,7 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
             <CardHeader className="px-0 pt-3 my-5">
                 <CardTitle>Login to continue</CardTitle>
                 <CardDescription>
-                   NB: Only Company domains are accepted
+                    NB: Only Company domains are accepted
                 </CardDescription>
             </CardHeader>
 

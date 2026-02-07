@@ -41,8 +41,8 @@ export default function Navbar() {
     // Clear everything
     localStorage.clear();
     sessionStorage.clear();
-    
-    await logout(); // Use context logout
+    // Use context logout
+    await logout(); 
     window.location.href = '/'; 
   } catch (error) {
     console.error("Sign out error:", error);
