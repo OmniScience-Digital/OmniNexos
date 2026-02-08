@@ -1,5 +1,5 @@
 // Navbar.tsx
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Sun, Moon, User, Settings, LogOut, Menu, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/contexts/auth-context"; 
+import { useAuth } from "@/contexts/auth-context";
 import Breadcrumbs from "./breadcrumbs";
 
 export default function Navbar() {
@@ -25,7 +25,7 @@ export default function Navbar() {
     const isDark = savedDarkMode === "true";
     setIsDarkMode(isDark);
     document.documentElement.classList.toggle("dark", isDark);
-  }, []); 
+  }, []);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -36,18 +36,18 @@ export default function Navbar() {
 
 
   const handleSignOut = async () => {
-   setIsSigningOut(true);
-  try {
-    // Clear everything
-    localStorage.clear();
-    sessionStorage.clear();
-    // Use context logout
-    await logout(); 
-    window.location.href = '/'; 
-  } catch (error) {
-    console.error("Sign out error:", error);
-  }
-};
+    setIsSigningOut(true);
+    try {
+      // Clear everything
+      localStorage.clear();
+      sessionStorage.clear();
+      // Use context logout
+      await logout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
 
 
   if (isDarkMode === null) return null;
@@ -86,7 +86,7 @@ export default function Navbar() {
 
               <DropdownMenuItem className="text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer">
                 <User className="h-4 w-4" />
-                {user?.email || "User"}
+                {user?.preferred_username || "User"}
               </DropdownMenuItem>
 
               <DropdownMenuItem>
@@ -122,7 +122,7 @@ export default function Navbar() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem className="text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer">
                 <User className="h-4 w-4" />
-                {user?.email || "User"}
+                {user?.preferred_username || "User"}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer">
                 <Settings className="h-4 w-4" />

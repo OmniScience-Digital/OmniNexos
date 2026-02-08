@@ -25,6 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const attributes = await fetchUserAttributes();
         setUser(attributes);
         setIsAuthenticated(true);
+        //preferred_username
+        localStorage.setItem('user_name', attributes.preferred_username || '');
         localStorage.setItem('user_email', attributes.email || '');
       } else {
         setUser(null);
