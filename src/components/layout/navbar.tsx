@@ -1,7 +1,7 @@
 // Navbar.tsx
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Sun, Moon, User, Settings, LogOut, Menu, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Sun, Moon, User, Settings, LogOut, Menu, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -17,7 +17,8 @@ export default function Navbar() {
   const [isDarkMode, setIsDarkMode] = useState<boolean | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const { user, logout } = useAuth(); // Get user and logout from context
+  const { user, logout, permission } = useAuth();
+  const navigate = useNavigate();
 
   // Dark mode initialization
   useEffect(() => {
@@ -34,21 +35,17 @@ export default function Navbar() {
     document.documentElement.classList.toggle("dark", newMode);
   };
 
-
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
-      // Clear everything
       localStorage.clear();
       sessionStorage.clear();
-      // Use context logout
       await logout();
       window.location.href = '/';
     } catch (error) {
       console.error("Sign out error:", error);
     }
   };
-
 
   if (isDarkMode === null) return null;
 
@@ -86,13 +83,30 @@ export default function Navbar() {
 
               <DropdownMenuItem className="text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer">
                 <User className="h-4 w-4" />
-                {user?.preferred_username || "User"}
+                {permission?.name || user?.preferred_username || "User"}
               </DropdownMenuItem>
+
+              {/* ADMIN MENU ITEM - FIXED */}
+              {permission?.isAdmin && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    navigate('/admin');
+                    setMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <div className="flex items-center gap-1 bg-blue-800 px-2 py-1 rounded text-xs">
+                    <Shield className="h-3 w-3" />
+                    Admin 
+                  </div>
+                </DropdownMenuItem>
+              )}
 
               <DropdownMenuItem>
                 <Settings className="h-4 w-4" />
                 Settings
               </DropdownMenuItem>
+
               <DropdownMenuItem
                 onClick={handleSignOut}
                 disabled={isSigningOut}
@@ -113,6 +127,17 @@ export default function Navbar() {
             <Moon className="h-4 w-4 text-white" />
           </div>
 
+          {/* Show admin badge on desktop */}
+          {permission?.isAdmin && (
+            <div 
+              onClick={() => navigate('/admin')}
+              className="flex items-center gap-1 bg-blue-800 px-2 py-1 rounded text-xs text-white cursor-pointer hover:bg-blue-700"
+            >
+              <Shield className="h-3 w-3" />
+              Admin
+            </div>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild className="cursor-pointer">
               <Button variant="ghost" size="icon" className="focus:outline-none focus:ring-0 hover:bg-transparent">
@@ -122,12 +147,24 @@ export default function Navbar() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem className="text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer">
                 <User className="h-4 w-4" />
-                {user?.preferred_username || "User"}
+                {permission?.name || user?.preferred_username || "User"}
               </DropdownMenuItem>
+              
+              {permission?.isAdmin && (
+                <DropdownMenuItem
+                  onClick={() => navigate('/admin')}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span>Admin </span>
+                </DropdownMenuItem>
+              )}
+
               <DropdownMenuItem className="cursor-pointer">
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
+              
               <DropdownMenuItem
                 onClick={handleSignOut}
                 disabled={isSigningOut}

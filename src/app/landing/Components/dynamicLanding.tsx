@@ -252,12 +252,12 @@ export default function Home() {
 
                     </Card>
 
-                    {/* <Button
+                    <Button
                         className="fixed bottom-5 right-3 sm:bottom-4 sm:right-4 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 hover:bg-blue-700 border-0 cursor-pointer"
                         onClick={() => setOpen(true)}
                     >
                         <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    </Button> */}
+                    </Button>
 
                     <DialogDashboard
                         open={open}

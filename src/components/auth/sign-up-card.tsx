@@ -164,7 +164,7 @@ export const SignUpCard = ({ setState }: SignUpCardProps) => {
                             id="preferredUsername"
                             name="preferredUsername"
                             type="text"
-                            placeholder="Username"
+                            placeholder="Fullname"
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
                             value={formik.values.preferredUsername}

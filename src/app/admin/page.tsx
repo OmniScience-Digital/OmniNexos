@@ -1,31 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Search, Save, Copy, Trash2, Plus, Users, AlertCircle, Loader2 } from 'lucide-react'
+import { Search, Save, Trash2, Plus, Users, AlertCircle, Loader2, ChevronRight, Filter, X, Minimize2 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import ResponseModal from '@/components/widgets/response'
 import { client } from '@/services/schema'
+import { useAuth } from "@/contexts/auth-context";
+import { allPermissions, type Access, type Permission, type User } from '@/types/user.permissions'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import Loading from '@/components/widgets/loading'
 
-
-// Types
-type Access = 'view' | 'edit' | 'none'
-
-interface Permission {
-  module: string
-  subModule?: string
-  access: Access
-}
-
-interface User {
-  id: string
-  email: string
-  name: string
-  permissions: Permission[]
-}
-
-// Permission mapping helpers - FIXED NULL TYPE
+// Permission mapping helpers
 const permissionToString = (perm: Permission): string => {
   if (perm.module === 'admin') return 'admin'
   if (perm.subModule) {
@@ -47,73 +34,63 @@ const stringToPermission = (str: string | null | undefined): Permission => {
   return { module: 'unknown', access: 'none' }
 }
 
-// All possible permissions
-const allPermissions = [
-  { module: 'admin', label: 'Admin Access', description: 'Full system administrator' },
-  { module: 'hrd', label: 'HR Department', description: 'Human Resources module' },
-  { module: 'hrd', subModule: 'employees', label: 'HRD - Employees', description: 'Employee management' },
-  { module: 'hrd', subModule: 'payroll', label: 'HRD - Payroll', description: 'Payroll system' },
-  { module: 'fms', label: 'Fleet Management', description: 'Vehicle fleet module' },
-  { module: 'fms', subModule: 'vehicles', label: 'FMS - Vehicles', description: 'Vehicle management' },
-  { module: 'fms', subModule: 'inspections', label: 'FMS - Inspections', description: 'Vehicle inspections' },
-  { module: 'crm', label: 'CRM Module', description: 'Customer Relations module' },
-  { module: 'crm', subModule: 'assets', label: 'CRM - Assets', description: 'Customer assets' },
-  { module: 'crm', subModule: 'compliance', label: 'CRM - Compliance', description: 'Compliance tracking' },
-  { module: 'crm', subModule: 'site', label: 'CRM - Site', description: 'Customer sites' },
-  { module: 'ims', label: 'Inventory Management', description: 'Inventory module' },
-  { module: 'ims', subModule: 'components', label: 'IMS - Components', description: 'Components inventory' },
-  { module: 'ims', subModule: 'suppliers', label: 'IMS - Suppliers', description: 'Supplier management' }
-]
-
 export default function UserPermissionsAssign() {
-
-  const [users, setUsers] = useState<User[]>([
-    { id: 'thabio@co.com', email: 'thabio@co.com', name: 'Thabio', permissions: [] },
-    { id: 'john@co.com', email: 'john@co.com', name: 'John', permissions: [] },
-    { id: 'sarah@co.com', email: 'sarah@co.com', name: 'Sarah', permissions: [] }
-  ])
+  const { allUsers } = useAuth();
+  const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [search, setSearch] = useState('')
-  const [copyDropdownOpen, setCopyDropdownOpen] = useState(false)
+  const [roleFilter, setRoleFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-
+  const [page, setPage] = useState(1)
   const [showResponse, setShowResponse] = useState(false)
   const [responseSuccessful, setResponseSuccessful] = useState(false)
   const [responseMessage, setResponseMessage] = useState('')
+  const [expandedPermissions, setExpandedPermissions] = useState<Set<string>>(new Set())
 
-  // Load permissions from DB
+  const usersPerPage = 15
+
   useEffect(() => {
-    loadPermissionsFromDB()
-  }, [])
+    const loadData = async () => {
+      try {
+        setLoading(true)
 
-  const loadPermissionsFromDB = async () => {
-    try {
-      setLoading(true)
+        if (!allUsers) return
 
-      // Get all permissions from your Permission table
-      const { data: permissionsData } = await client.models.Permission.list()
+        const initialUsers = allUsers.map(user => ({
+          id: user.email,
+          email: user.email,
+          name: user.name,
+          permissions: []
+        }))
 
-      // Create users with their permissions from DB
-      const usersWithPermissions = users.map(user => {
-        const userPermission = permissionsData.find(p => p.userId === user.id)
-        // FIX: Handle nullable strings properly
-        const permissionStrings = userPermission?.permissions?.filter((p): p is string => p !== null) || []
+        const { data: permissionsData } = await client.models.Permission.list()
 
-        return {
-          ...user,
-          permissions: permissionStrings.map(stringToPermission)
+        const usersWithPermissions = initialUsers.map(user => {
+          const userPermission = permissionsData.find(p => p.userId === user.id)
+          const permissionStrings = userPermission?.permissions?.filter((p): p is string => p !== null) || []
+          return {
+            ...user,
+            permissions: permissionStrings.map(stringToPermission)
+          }
+        })
+
+        setUsers(usersWithPermissions)
+
+        if (usersWithPermissions.length > 0 && !selectedUser) {
+          setSelectedUser(usersWithPermissions[0])
         }
-      })
 
-      setUsers(usersWithPermissions)
-    } catch (error) {
-      console.error('Error loading permissions:', error)
-      showResponseMessage('Failed to load permissions from database', false)
-    } finally {
-      setLoading(false)
+      } catch (error) {
+        console.error('Error loading data:', error)
+        showResponseMessage('Failed to load users and permissions', false)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+
+    loadData()
+  }, [allUsers])
 
   const showResponseMessage = (message: string, successful: boolean) => {
     setResponseMessage(message)
@@ -121,104 +98,117 @@ export default function UserPermissionsAssign() {
     setShowResponse(true)
   }
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(search.toLowerCase()) ||
-    user.email.toLowerCase().includes(search.toLowerCase())
-  )
-
-  const getAvailablePermissions = (user: User) => {
-    return allPermissions.filter(perm => {
-      return !user.permissions.find(userPerm =>
-        userPerm.module === perm.module &&
-        userPerm.subModule === perm.subModule
-      )
-    })
-  }
-
   const isAdmin = (user: User): boolean => {
     return user.permissions.some(p => p.module === 'admin' && p.access === 'edit')
   }
 
-  const addPermission = (user: User, permission: { module: string; subModule?: string }) => {
-    setUsers(prevUsers => prevUsers.map(u => {
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch =
+        user.name.toLowerCase().includes(search.toLowerCase()) ||
+        user.email.toLowerCase().includes(search.toLowerCase())
+
+      const matchesRole = roleFilter === 'all' ||
+        (roleFilter === 'admin' && isAdmin(user)) ||
+        (roleFilter === 'user' && !isAdmin(user))
+
+      return matchesSearch && matchesRole
+    })
+  }, [users, search, roleFilter])
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (page - 1) * usersPerPage
+    return filteredUsers.slice(startIndex, startIndex + usersPerPage)
+  }, [filteredUsers, page])
+
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage)
+
+  const toggleExpandPermission = (permissionKey: string) => {
+    setExpandedPermissions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(permissionKey)) {
+        newSet.delete(permissionKey)
+      } else {
+        newSet.add(permissionKey)
+      }
+      return newSet
+    })
+  }
+
+  const handlePermissionAccess = (user: User, permission: { module: string; subModule?: string }, access: Access) => {
+    setUsers(prev => prev.map(u => {
       if (u.id !== user.id) return u
 
-      const exists = u.permissions.find(p =>
+      const existingIndex = u.permissions.findIndex(p =>
         p.module === permission.module && p.subModule === permission.subModule
       )
-      if (exists) return u
 
-      const newPermission: Permission = {
-        module: permission.module,
-        subModule: permission.subModule,
-        access: permission.module === 'admin' ? 'edit' : 'view'
+      if (existingIndex !== -1) {
+        const newPermissions = [...u.permissions]
+        newPermissions[existingIndex] = { ...permission, access }
+        return { ...u, permissions: newPermissions }
+      } else {
+        return { ...u, permissions: [...u.permissions, { ...permission, access }] }
       }
-
-      return { ...u, permissions: [...u.permissions, newPermission] }
     }))
 
     if (selectedUser?.id === user.id) {
-      const newPerm: Permission = {
-        module: permission.module,
-        subModule: permission.subModule,
-        access: permission.module === 'admin' ? 'edit' : 'view'
+      const existingIndex = selectedUser.permissions.findIndex(p =>
+        p.module === permission.module && p.subModule === permission.subModule
+      )
+
+      if (existingIndex !== -1) {
+        const newPermissions = [...selectedUser.permissions]
+        newPermissions[existingIndex] = { ...permission, access }
+        setSelectedUser({ ...selectedUser, permissions: newPermissions })
+      } else {
+        setSelectedUser({
+          ...selectedUser,
+          permissions: [...selectedUser.permissions, { ...permission, access }]
+        })
       }
-      setSelectedUser(prev => prev ? {
-        ...prev,
-        permissions: [...prev.permissions, newPerm]
-      } : null)
     }
+
   }
 
-  const removePermission = (user: User, permissionIndex: number) => {
-    setUsers(prevUsers => prevUsers.map(u => {
+  const removePermission = (user: User, permission: { module: string; subModule?: string }) => {
+    setUsers(prev => prev.map(u => {
       if (u.id !== user.id) return u
-      return { ...u, permissions: u.permissions.filter((_, index) => index !== permissionIndex) }
+      return {
+        ...u,
+        permissions: u.permissions.filter(p =>
+          !(p.module === permission.module && p.subModule === permission.subModule)
+        )
+      }
     }))
 
     if (selectedUser?.id === user.id) {
-      setSelectedUser(prev => prev ? {
-        ...prev,
-        permissions: prev.permissions.filter((_, index) => index !== permissionIndex)
-      } : null)
+      setSelectedUser({
+        ...selectedUser,
+        permissions: selectedUser.permissions.filter(p =>
+          !(p.module === permission.module && p.subModule === permission.subModule)
+        )
+      })
     }
   }
 
-  const updatePermissionAccess = (user: User, permissionIndex: number, newAccess: Access) => {
-    setUsers(prevUsers => prevUsers.map(u => {
-      if (u.id !== user.id) return u
-      const newPermissions = [...u.permissions]
-      newPermissions[permissionIndex] = { ...newPermissions[permissionIndex], access: newAccess }
-      return { ...u, permissions: newPermissions }
-    }))
-
-    if (selectedUser?.id === user.id) {
-      const newPermissions = [...selectedUser.permissions]
-      newPermissions[permissionIndex] = { ...newPermissions[permissionIndex], access: newAccess }
-      setSelectedUser({ ...selectedUser, permissions: newPermissions })
-    }
+  const getPermissionKey = (perm: { module: string; subModule?: string }) => {
+    return perm.subModule ? `${perm.module}.${perm.subModule}` : perm.module
   }
 
-  const copyPermissionsFromUser = (sourceUser: User) => {
-    if (!selectedUser) return
-
-    setUsers(prevUsers => prevUsers.map(u => {
-      if (u.id !== selectedUser.id) return u
-      return { ...u, permissions: [...sourceUser.permissions] }
-    }))
-
-    setSelectedUser({ ...selectedUser, permissions: [...sourceUser.permissions] })
-    setCopyDropdownOpen(false)
+  const getCurrentAccess = (permission: { module: string; subModule?: string }) => {
+    if (!selectedUser) return null
+    const perm = selectedUser.permissions.find(p =>
+      p.module === permission.module && p.subModule === permission.subModule
+    )
+    return perm?.access || null
   }
 
   const toggleAdmin = (user: User, makeAdmin: boolean) => {
     if (makeAdmin) {
-      addPermission(user, { module: 'admin' })
+      handlePermissionAccess(user, { module: 'admin' }, 'edit')
     } else {
-      const adminIndex = user.permissions.findIndex(p => p.module === 'admin')
-      if (adminIndex !== -1) {
-        removePermission(user, adminIndex)
-      }
+      removePermission(user, { module: 'admin' })
     }
   }
 
@@ -236,28 +226,20 @@ export default function UserPermissionsAssign() {
           .filter(p => p.module !== 'admin')
           .map(p => ({ module: p.module, subModule: p.subModule, access: 'view' as Access }))
         break
-      case 'crm-manager':
-        templatePermissions = [
-          { module: 'crm', access: 'edit' },
-          { module: 'crm', subModule: 'assets', access: 'edit' },
-          { module: 'crm', subModule: 'compliance', access: 'edit' },
-          { module: 'crm', subModule: 'site', access: 'edit' }
-        ]
-        break
       case 'clear':
         templatePermissions = []
         break
     }
 
-    setUsers(prevUsers => prevUsers.map(u => {
+    setUsers(prev => prev.map(u => {
       if (u.id !== selectedUser.id) return u
       return { ...u, permissions: templatePermissions }
     }))
 
     setSelectedUser({ ...selectedUser, permissions: templatePermissions })
+    setExpandedPermissions(new Set())
   }
 
-  // Save selected user's permissions to DB
   const saveChanges = async () => {
     if (!selectedUser) {
       showResponseMessage('Please select a user first', false)
@@ -266,9 +248,7 @@ export default function UserPermissionsAssign() {
 
     try {
       setSaving(true)
-
       const permissionStrings = selectedUser.permissions.map(permissionToString)
-
       const { data: existingPermissions } = await client.models.Permission.list({
         filter: { userId: { eq: selectedUser.id } }
       })
@@ -286,7 +266,6 @@ export default function UserPermissionsAssign() {
       }
 
       showResponseMessage(`Permissions saved for ${selectedUser.name}`, true)
-
     } catch (error) {
       console.error('Error saving permissions:', error)
       showResponseMessage('Failed to save permissions', false)
@@ -295,78 +274,79 @@ export default function UserPermissionsAssign() {
     }
   }
 
-  // Save ALL users' permissions to DB
-  const saveAllChanges = async () => {
-    try {
-      setSaving(true)
+const UserListItem = ({ user }: { user: User }) => {
+  const userIsAdmin = isAdmin(user)
+  const assignedCount = user.permissions.length
 
-      for (const user of users) {
-        const permissionStrings = user.permissions.map(permissionToString)
+  return (
+    <div
+      className={`p-3 rounded-lg cursor-pointer transition-all border ${
+        selectedUser?.id === user.id
+          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+      }`}
+      onClick={() => setSelectedUser(user)}
+    >
+      <div className="flex items-center justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="font-medium truncate text-sm text-gray-900 dark:text-gray-100">
+              {user.name}
+            </div>
+            {userIsAdmin && (
+              <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs px-1.5">
+                Admin
+              </Badge>
+            )}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+            {user.email}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {assignedCount > 0 && (
+            <Badge variant="outline" className="text-xs border-gray-300 dark:border-gray-600">
+              {assignedCount}
+            </Badge>
+          )}
+          <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
+        </div>
+      </div>
 
-        const { data: existingPermissions } = await client.models.Permission.list({
-          filter: { userId: { eq: user.id } }
-        })
-
-        if (existingPermissions.length > 0) {
-          await client.models.Permission.update({
-            id: existingPermissions[0].id,
-            permissions: permissionStrings
-          })
-        } else {
-          await client.models.Permission.create({
-            userId: user.id,
-            permissions: permissionStrings
-          })
-        }
-      }
-
-      showResponseMessage('All permissions saved successfully', true)
-
-    } catch (error) {
-      console.error('Error saving all permissions:', error)
-      showResponseMessage('Failed to save permissions', false)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const PermissionBadge = ({ perm }: { perm: Permission }) => {
-    const colors = {
-      edit: 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200',
-      view: 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200',
-      none: 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
-    }
-
-    const labels = {
-      edit: 'Edit',
-      view: 'View',
-      none: 'No Access'
-    }
-
-    return (
-      <Badge
-        variant="outline"
-        className={`${colors[perm.access]} px-3 py-1 transition-colors`}
-      >
-        {perm.module}
-        {perm.subModule && `:${perm.subModule}`}
-        <span className="ml-2">({labels[perm.access]})</span>
-      </Badge>
-    )
-  }
+      {assignedCount > 0 && (
+        <div className="mt-2">
+          <div className="flex flex-wrap gap-1">
+            {user.permissions.slice(0, 2).map((perm, idx) => (
+              <span
+                key={idx}
+                className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded"
+              >
+                {perm.module}
+                {perm.subModule && `:${perm.subModule.charAt(0)}`}
+              </span>
+            ))}
+            {assignedCount > 2 && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                +{assignedCount - 2}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loading />
       </div>
     )
   }
 
   return (
-    <main className="flex-1 p-6 mt-20 pb-20">
-      
-
+    <main className="flex-1 p-4 md:p-6 mt-20 pb-20">
       {showResponse && (
         <ResponseModal
           successful={responseSuccessful}
@@ -375,101 +355,113 @@ export default function UserPermissionsAssign() {
         />
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Assign Permissions</h1>
-          <p className="text-gray-600">Manage user access rights</p>
+          <h1 className="text-2xl md:text-3xl font-bold">User Permissions</h1>
+          <p className="text-gray-600">Manage access for {filteredUsers.length} users</p>
         </div>
         <Button
-          onClick={saveAllChanges}
+          onClick={saveChanges}
           className="gap-2"
-          disabled={saving}
+          disabled={saving || !selectedUser}
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Save className="h-4 w-4" />
           )}
-          {saving ? 'Saving...' : 'Save All Changes'}
+          {saving ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Users ({users.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search users..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 w-full"
-                />
-              </div>
-
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                {filteredUsers.map(user => {
-                  const isUserAdmin = isAdmin(user)
-
-                  return (
-                    <div
-                      key={user.id}
-                      className={`p-3 rounded-lg cursor-pointer transition-all border ${selectedUser?.id === user.id
-                          ? 'bg-blue-50 border-blue-300 shadow-sm'
-                          : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                        }`}
-                      onClick={() => setSelectedUser(user)}
+          <Card className="h-[calc(100vh-180px)] flex flex-col">
+            <CardHeader className="pb-3">
+              <CardTitle>Users</CardTitle>
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search users..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10 w-full"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="w-full cursor-pointer">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filter by role" />
+                    </SelectTrigger>
+                    <SelectContent >
+                      <SelectItem className="cursor-pointer" value="all">All Users</SelectItem>
+                      <SelectItem className="cursor-pointer" value="admin">Admins Only</SelectItem>
+                      <SelectItem className="cursor-pointer" value="user">Users Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {(search || roleFilter !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearch('')
+                        setRoleFilter('all')
+                      }}
+                      className="px-2"
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium truncate">{user.name}</div>
-                            {isUserAdmin && (
-                              <Badge className="bg-purple-100 text-purple-800">
-                                Admin
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-500 truncate">{user.email}</div>
-                        </div>
-                        <div className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                          {user.permissions.length} perm
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {user.permissions.slice(0, 2).map((perm, idx) => (
-                          <span
-                            key={idx}
-                            className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded truncate max-w-[120px]"
-                            title={`${perm.module}${perm.subModule ? `:${perm.subModule}` : ''} (${perm.access})`}
-                          >
-                            {perm.module}
-                            {perm.subModule && `:${perm.subModule}`}
-                          </span>
-                        ))}
-                        {user.permissions.length > 2 && (
-                          <span className="text-xs text-gray-500">
-                            +{user.permissions.length - 2} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
+            </CardHeader>
+
+            <CardContent className="flex-1 overflow-y-auto">
+              <div className="space-y-2">
+                {paginatedUsers.map(user => (
+                  <UserListItem key={user.id} user={user} />
+                ))}
+
+                {paginatedUsers.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No users found
+                  </div>
+                )}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-gray-600">
+                    Page {page} of {totalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        {/* <div className="lg:col-span-2">
           {selectedUser ? (
-            <Card>
-              <CardHeader>
+            <Card className="h-[calc(100vh-180px)] flex flex-col">
+              <CardHeader className="pb-3">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
@@ -482,55 +474,31 @@ export default function UserPermissionsAssign() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <div className="relative">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCopyDropdownOpen(!copyDropdownOpen)}
-                        className="gap-2"
-                        disabled={saving}
-                      >
-                        <Copy className="h-4 w-4" />
-                        Copy From
-                      </Button>
-                      {copyDropdownOpen && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white border rounded-lg shadow-lg">
-                          {users
-                            .filter(u => u.id !== selectedUser.id && u.permissions.length > 0)
-                            .map(user => (
-                              <button
-                                key={user.id}
-                                onClick={() => copyPermissionsFromUser(user)}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm flex justify-between items-center"
-                              >
-                                <span className="truncate">{user.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {user.permissions.length}
-                                </Badge>
-                              </button>
-                            ))}
-                        </div>
-                      )}
-                    </div>
+                  <div className="flex gap-2">
                     <Button
+                      variant="outline"
                       size="sm"
-                      onClick={saveChanges}
+                      onClick={() => applyTemplate('admin')}
                       className="gap-2"
-                      disabled={saving}
+                      disabled={saving || isAdmin(selectedUser)}
                     >
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4" />
-                      )}
-                      {saving ? 'Saving...' : 'Save'}
+                      👑 Make Admin
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applyTemplate('clear')}
+                      className="gap-2"
+                      disabled={saving || selectedUser.permissions.length === 0}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Clear All
                     </Button>
                   </div>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-6">
+              <CardContent className="flex-1 overflow-y-auto space-y-6">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="bg-purple-100 p-2 rounded-full">
@@ -548,160 +516,409 @@ export default function UserPermissionsAssign() {
                   />
                 </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-semibold">Current Permissions ({selectedUser.permissions.length})</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => applyTemplate('clear')}
-                      className="text-red-600 hover:text-red-700"
-                      disabled={saving}
-                    >
-                      Clear All
-                    </Button>
+                <div className="space-y-6">
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-semibold mb-3">Assigned Permissions ({selectedUser.permissions.length})</h3>
+                    <div className="space-y-2">
+                      {selectedUser.permissions.length === 0 ? (
+                        <div className="text-gray-500 text-sm italic">No permissions assigned</div>
+                      ) : (
+                        selectedUser.permissions.map((perm, idx) => {
+                          const permConfig = allPermissions.find(p =>
+                            p.module === perm.module && p.subModule === perm.subModule
+                          )
+                          return (
+                            <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                              <div>
+                                <div className="font-medium">
+                                  {permConfig?.label || `${perm.module}${perm.subModule ? ` - ${perm.subModule}` : ''}`}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {perm.module}{perm.subModule ? `.${perm.subModule}` : ''}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={
+                                  perm.access === 'edit' ? 'default' : 'secondary'
+                                }>
+                                  {perm.access === 'edit' ? 'Edit' : 'View'}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removePermission(selectedUser, perm)}
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
 
-                  {selectedUser.permissions.length === 0 ? (
-                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                      <div className="text-gray-600 font-medium">No permissions assigned</div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        Add permissions using the options below
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-semibold">Available Permissions</h3>
+                      <div className="text-sm text-gray-500">
+                        {allPermissions.length} total modules
                       </div>
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {selectedUser.permissions.map((perm, index) => (
-                        <div
-                          key={`${perm.module}-${perm.subModule || 'base'}-${index}`}
-                          className="flex flex-col md:flex-row md:items-center justify-between p-3 border rounded-lg hover:bg-gray-50 gap-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <PermissionBadge perm={perm} />
-                            <div className="text-sm text-gray-600 min-w-0">
-                              <div className="truncate">
-                                {perm.subModule
-                                  ? `${perm.module} → ${perm.subModule}`
-                                  : `${perm.module} module`
-                                }
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {allPermissions.map((perm, idx) => {
+                        const permissionKey = getPermissionKey(perm)
+                        const isExpanded = expandedPermissions.has(permissionKey)
+                        const currentAccess = getCurrentAccess(perm)
+                        const hasPermission = currentAccess !== null
+
+                        return (
+                          <div
+                            key={idx}
+                            className="border rounded-lg p-3 hover:bg-gray-50"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <div className="font-medium">{perm.label}</div>
+                                {perm.description && (
+                                  <div className="text-sm text-gray-500">{perm.description}</div>
+                                )}
                               </div>
-                              {perm.module === 'admin' && (
-                                <div className="text-xs text-purple-600">Full system access</div>
-                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleExpandPermission(permissionKey)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {isExpanded ? (
+                                  <Minimize2 className="h-4 w-4" />
+                                ) : (
+                                  <Plus className="h-4 w-4" />
+                                )}
+                              </Button>
                             </div>
+
+                            {isExpanded && (
+                              <div className="flex gap-2">
+                                {hasPermission ? (
+                                  <>
+                                    {(['view', 'edit'] as Access[]).map(access => (
+                                      <Button
+                                        key={access}
+                                        size="sm"
+                                        variant={currentAccess === access ? "default" : "outline"}
+                                        onClick={() => handlePermissionAccess(selectedUser, perm, access)}
+                                        className="text-xs"
+                                      >
+                                        {access === 'view' ? 'View Only' : 'Edit/Full'}
+                                      </Button>
+                                    ))}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => removePermission(selectedUser, perm)}
+                                      className="text-xs text-red-600 hover:text-red-700"
+                                    >
+                                      Remove
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handlePermissionAccess(selectedUser, perm, 'view')}
+                                      className="text-xs"
+                                    >
+                                      View Only
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handlePermissionAccess(selectedUser, perm, 'edit')}
+                                      className="text-xs"
+                                    >
+                                      Edit/Full
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {!isExpanded && hasPermission && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Access:</span>
+                                <Badge variant={
+                                  currentAccess === 'edit' ? 'default' : 'secondary'
+                                }>
+                                  {currentAccess === 'edit' ? 'Edit' : 'View'}
+                                </Badge>
+                              </div>
+                            )}
                           </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1">
-                              {(['none', 'view', 'edit'] as Access[]).map(access => (
-                                <Button
-                                  key={access}
-                                  size="sm"
-                                  variant={perm.access === access ? "default" : "outline"}
-                                  onClick={() => updatePermissionAccess(selectedUser, index, access)}
-                                  className={perm.access === access ?
-                                    (access === 'edit' ? 'bg-green-600 hover:bg-green-700' :
-                                      access === 'view' ? 'bg-blue-600 hover:bg-blue-700' :
-                                        'bg-gray-600 hover:bg-gray-700') : ''
-                                  }
-                                  disabled={saving}
-                                >
-                                  {access === 'edit' && '✏️ '}
-                                  {access === 'view' && '👁️ '}
-                                  {access.charAt(0).toUpperCase() + access.slice(1)}
-                                </Button>
-                              ))}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removePermission(selectedUser, index)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              disabled={saving}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-3">Quick Templates</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => applyTemplate('admin')}
-                      className="gap-2"
-                      disabled={saving}
-                    >
-                      👑 Make Admin
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => applyTemplate('view-only')}
-                      className="gap-2"
-                      disabled={saving}
-                    >
-                      👁️ View-Only All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => applyTemplate('crm-manager')}
-                      className="gap-2"
-                      disabled={saving}
-                    >
-                      🏢 CRM Manager
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-semibold">Add Permissions</h3>
-                    <div className="text-sm text-gray-500">
-                      {getAvailablePermissions(selectedUser).length} available
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {getAvailablePermissions(selectedUser).map((perm, idx) => (
-                      <Button
-                        key={`${perm.module}-${perm.subModule || 'base'}-${idx}`}
-                        variant="outline"
-                        className="justify-start h-auto py-3 px-4 hover:bg-blue-50 hover:border-blue-200"
-                        onClick={() => addPermission(selectedUser, perm)}
-                        disabled={saving}
-                      >
-                        <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <div className="text-left truncate">
-                          <div className="font-medium truncate">{perm.label}</div>
-                          {perm.description && (
-                            <div className="text-xs text-gray-500 truncate">{perm.description}</div>
-                          )}
-                        </div>
-                      </Button>
-                    ))}
                   </div>
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardContent className="py-12 md:py-16 text-center">
+            <Card className="h-[calc(100vh-180px)] flex items-center justify-center">
+              <CardContent className="text-center py-12">
                 <div className="text-gray-400 text-4xl mb-4">👈</div>
                 <div className="text-xl font-medium text-gray-600 mb-2">Select a User</div>
-                <div className="text-gray-500 max-w-md mx-auto">
-                  Choose a user from the list to view and edit their permissions
+                <div className="text-gray-500">
+                  Choose a user from the list to manage their permissions
                 </div>
               </CardContent>
             </Card>
           )}
-        </div>
-      </div>
+        </div> */}
 
+        <div className="lg:col-span-2">
+  {selectedUser ? (
+    <Card className="h-[calc(100vh-180px)] flex flex-col dark:bg-gray-900">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full">
+                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="truncate text-gray-900 dark:text-gray-100">
+                  {selectedUser.name}
+                </CardTitle>
+                <div className="text-gray-600 dark:text-gray-400 truncate">
+                  {selectedUser.email}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => applyTemplate('admin')}
+              className="gap-2"
+              disabled={saving || isAdmin(selectedUser)}
+            >
+              👑 Make Admin
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => applyTemplate('clear')}
+              className="gap-2"
+              disabled={saving || selectedUser.permissions.length === 0}
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear All
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex-1 overflow-y-auto space-y-6">
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-full">
+              <AlertCircle className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">
+                Administrator Access
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Full system control
+              </div>
+            </div>
+          </div>
+          <Switch
+            checked={isAdmin(selectedUser)}
+            onCheckedChange={(checked) => toggleAdmin(selectedUser, checked)}
+            disabled={saving}
+          />
+        </div>
+
+        <div className="space-y-6">
+          <div className="border rounded-lg p-4 dark:border-gray-700 dark:bg-gray-800/30">
+            <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">
+              Assigned Permissions ({selectedUser.permissions.length})
+            </h3>
+            <div className="space-y-2">
+              {selectedUser.permissions.length === 0 ? (
+                <div className="text-gray-500 dark:text-gray-400 text-sm italic">
+                  No permissions assigned
+                </div>
+              ) : (
+                selectedUser.permissions.map((perm, idx) => {
+                  const permConfig = allPermissions.find(p =>
+                    p.module === perm.module && p.subModule === perm.subModule
+                  )
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {permConfig?.label || `${perm.module}${perm.subModule ? ` - ${perm.subModule}` : ''}`}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {perm.module}{perm.subModule ? `.${perm.subModule}` : ''}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={
+                          perm.access === 'edit' ? 'default' : 'secondary'
+                        }>
+                          {perm.access === 'edit' ? 'Edit' : 'View'}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removePermission(selectedUser, perm)}
+                          className="h-6 w-6 p-0 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                Available Permissions
+              </h3>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {allPermissions.length} total modules
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {allPermissions.map((perm, idx) => {
+                const permissionKey = getPermissionKey(perm)
+                const isExpanded = expandedPermissions.has(permissionKey)
+                const currentAccess = getCurrentAccess(perm)
+                const hasPermission = currentAccess !== null
+
+                return (
+                  <div
+                    key={idx}
+                    className="border rounded-lg p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {perm.label}
+                        </div>
+                        {perm.description && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {perm.description}
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleExpandPermission(permissionKey)}
+                        className="h-8 w-8 p-0 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                      >
+                        {isExpanded ? (
+                          <Minimize2 className="h-4 w-4" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="flex gap-2">
+                        {hasPermission ? (
+                          <>
+                            {(['view', 'edit'] as Access[]).map(access => (
+                              <Button
+                                key={access}
+                                size="sm"
+                                variant={currentAccess === access ? "default" : "outline"}
+                                onClick={() => handlePermissionAccess(selectedUser, perm, access)}
+                                className="text-xs"
+                              >
+                                {access === 'view' ? 'View Only' : 'Edit/Full'}
+                              </Button>
+                            ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removePermission(selectedUser, perm)}
+                              className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                            >
+                              Remove
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePermissionAccess(selectedUser, perm, 'view')}
+                              className="text-xs"
+                            >
+                              View Only
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePermissionAccess(selectedUser, perm, 'edit')}
+                              className="text-xs"
+                            >
+                              Edit/Full
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {!isExpanded && hasPermission && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Access:</span>
+                        <Badge variant={
+                          currentAccess === 'edit' ? 'default' : 'secondary'
+                        }>
+                          {currentAccess === 'edit' ? 'Edit' : 'View'}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  ) : (
+    <Card className="h-[calc(100vh-180px)] flex items-center justify-center dark:bg-gray-900">
+      <CardContent className="text-center py-12">
+        <div className="text-gray-400 dark:text-gray-500 text-4xl mb-4">👈</div>
+        <div className="text-xl font-medium text-gray-600 dark:text-gray-300 mb-2">
+          Select a User
+        </div>
+        <div className="text-gray-500 dark:text-gray-400">
+          Choose a user from the list to manage their permissions
+        </div>
+      </CardContent>
+    </Card>
+  )}
+</div>
+      </div>
     </main>
   )
 }
+

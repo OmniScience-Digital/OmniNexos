@@ -9,16 +9,14 @@ const client = new CognitoIdentityProviderClient()
 export const handler = async () => {
   const userPoolId = process.env.AMPLIFY_AUTH_USERPOOL_ID;
   
-  console.log('UserPoolId:', userPoolId);
-  
   // 1. Get all users
   const listCommand = new ListUsersCommand({ 
     UserPoolId: userPoolId,
-    Limit: 60
+    // Limit: 60
   });
   
   const response = await client.send(listCommand);
-  console.log('Total users found:', response.Users?.length);
+
   
   // 2. For each user, get their groups
   const usersWithGroups = await Promise.all(
@@ -57,8 +55,7 @@ export const handler = async () => {
       }
     }) || []
   );
-  
-  console.log('Final users with groups:', usersWithGroups);
+
   return usersWithGroups;
 }
 

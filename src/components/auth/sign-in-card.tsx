@@ -12,6 +12,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useAuth } from "@/contexts/auth-context";
 
+
 interface SignInCardProps {
     setState: (state: SignInFlow) => void;
 }
@@ -47,7 +48,7 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
                     username: values.email,
                     password: values.password
                 });
-
+                
                 if (isSignedIn) {
                     setIsSuccess(true);
                     await checkAuth(); // Refresh auth state
