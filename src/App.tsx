@@ -35,10 +35,14 @@ function Layout() {
     return <Navigate to="/landing" replace />;
   }
 
+
   const requireAuth = (element: React.ReactElement, requireAdmin = false, requirePermission?: string) => {
     if (!isAuthenticated) return <Navigate to="/" replace />;
 
-    if (requireAdmin && !permission?.isAdmin) {
+    // Admin users have full access
+    const isAdminUser = permission?.isAdmin || permission?.permissions?.includes('admin');
+
+    if (requireAdmin && !isAdminUser) {
       return <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
@@ -47,7 +51,8 @@ function Layout() {
       </div>;
     }
 
-    if (requirePermission && !permission?.permissions?.some(p => p.startsWith(requirePermission))) {
+    // Admin users bypass permission checks
+    if (!isAdminUser && requirePermission && !permission?.permissions?.some(p => p.startsWith(requirePermission))) {
       return <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
@@ -58,7 +63,6 @@ function Layout() {
 
     return element;
   };
-
 
 
   console.log(permission)
