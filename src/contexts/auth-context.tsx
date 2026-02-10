@@ -88,6 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+
+        localStorage.setItem("user", attributes.preferred_username || attributes.email || "");
+        localStorage.setItem("email", attributes.email || "");
+
         setPermission({
           username: userInfo.currentUser?.username || '',
           email: userInfo.currentUser?.email || '',
@@ -114,19 +118,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true);
+
       await signOut();
+
       setUser(null);
       setPermission(null);
       setIsAuthenticated(false);
-      localStorage.removeItem('just_logged_out');
-      localStorage.setItem('just_logged_out', 'true');
+
+      localStorage.removeItem("user");
+      localStorage.removeItem("email");
+      localStorage.setItem("just_logged_out", "true");
+
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
       setIsLoading(false);
     }
   };
-
 
 
   return (

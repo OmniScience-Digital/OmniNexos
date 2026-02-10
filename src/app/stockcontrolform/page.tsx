@@ -10,6 +10,7 @@ import Footer from "@/components/layout/footer";
 import Loading from "@/components/widgets/loading";
 import { mapApiCategoryToCategory } from "./Components/map.categories.helper";
 import type { Category, Component } from "@/types/form.types";
+import { clickUpService } from "@/services/scf.clickUpService";
 
 
 export default function ComponentForm() {
@@ -148,20 +149,11 @@ export default function ComponentForm() {
       }
 
       // API call
-      const res = await fetch("/api/click-up", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: savedUser,
-          result: result
-        }),
-      });
+      const response = await clickUpService.createTask(savedUser, result)
 
-      const resResponse = await res.json();
-
-      setMessage(resResponse.message || "Successfully published to ClickUp");
+      setMessage(response.message || "Successfully published to ClickUp");
       setShow(true);
-      setSuccessful(resResponse.success);
+      setSuccessful(response.success);
 
       // Reset form
       setDisplayedComponents([
