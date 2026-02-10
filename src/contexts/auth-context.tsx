@@ -41,44 +41,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: boolean;
   }[] | null>(null);
 
+  useEffect(() => {
+    const justLoggedOut = localStorage.getItem('just_logged_out');
+    if (justLoggedOut === 'true') {
+      localStorage.removeItem('just_logged_out');
+      setIsLoading(false);
+      return;
+    }
+    checkAuth();
+  }, []);
+
+
   const checkAuth = async () => {
     try {
       const session = await fetchAuthSession();
 
       if (session.tokens) {
-        const attributes = await fetchUserAttributes();
+        // Run these two independent calls in parallel
+        const [attributes, userInfo] = await Promise.all([
+          fetchUserAttributes(),
+          getCurrentUserInfo()
+        ]);
+
         setUser(attributes);
         setIsAuthenticated(true);
 
-        const info = await getCurrentUserInfo();
-        
         let isAdminUser = false;
         let userPermissions: string[] = [];
-        
+
         if (attributes.email) {
           try {
-            const { data } = await client.models.Permission.listPermissionByUserId({
-              userId: attributes.email 
+            // Fetch permissions in parallel while we process other data
+            const permissionPromise = client.models.Permission.listPermissionByUserId({
+              userId: attributes.email
             });
-            
-            if (data && data[0]?.permissions) {
-              userPermissions = data[0].permissions.filter(p => p !== null) as string[];
+
+            // Process user info while waiting for permissions
+            const permissionData = await permissionPromise;
+
+            if (permissionData.data && permissionData.data[0]?.permissions) {
+              userPermissions = permissionData.data[0].permissions.filter(p => p !== null) as string[];
               isAdminUser = userPermissions.includes('admin');
             }
           } catch (permError) {
             console.error('Error fetching permissions:', permError);
           }
         }
-        
+
         setPermission({
-          username: info.currentUser?.username || '',
-          email: info.currentUser?.email || '',
-          name: info.currentUser?.name || '',
+          username: userInfo.currentUser?.username || '',
+          email: userInfo.currentUser?.email || '',
+          name: userInfo.currentUser?.name || '',
           isAdmin: isAdminUser,
-          permissions: userPermissions 
+          permissions: userPermissions
         });
-        
-        setAllUsers(info.allUsers);
+
+        setAllUsers(userInfo.allUsers);
       } else {
         setUser(null);
         setPermission(null);
@@ -109,15 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    const justLoggedOut = localStorage.getItem('just_logged_out');
-    if (justLoggedOut === 'true') {
-      localStorage.removeItem('just_logged_out');
-      setIsLoading(false);
-      return;
-    }
-    checkAuth();
-  }, []);
+
 
   return (
     <AuthContext.Provider value={{
