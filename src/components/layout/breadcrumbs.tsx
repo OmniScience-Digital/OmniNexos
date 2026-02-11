@@ -19,13 +19,15 @@ export default function Breadcrumbs() {
   }
 
 
-  // Handle vehicleinspectionsystem/edit routes (keep the ID) and humanresources
+  // Handle fleetmanagementsystem/edit routes (keep the ID) and humanresources
   const removeSegmentIf = (arr: string[], a: string, b: string, seg: string) =>
     arr.includes(a) && arr.includes(b) ? arr.filter(s => s !== seg) : arr;
 
-  pathSegments = removeSegmentIf(pathSegments, "vehicleinspectionsystem", "edit", "edit");
-  pathSegments = removeSegmentIf(pathSegments, "humanresources", "edit", "edit");
-  pathSegments = removeSegmentIf(pathSegments, "humanresources", "certificates", "certificates");
+  pathSegments = removeSegmentIf(pathSegments, "fleetmanagementsystem", "edit", "edit");
+  pathSegments = removeSegmentIf(pathSegments, "humanresourcesdepartment", "edit", "edit");
+  pathSegments = removeSegmentIf(pathSegments, "customerrelationsmanagement", "edit", "edit");
+  pathSegments = removeSegmentIf(pathSegments, "customerrelationsmanagement", "compliance", "compliance");
+  pathSegments = removeSegmentIf(pathSegments, "humanresourcesdepartment", "certificates", "certificates");
 
 
   // Function to truncate long text for mobile

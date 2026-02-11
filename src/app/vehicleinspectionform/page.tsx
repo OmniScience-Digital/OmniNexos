@@ -61,7 +61,7 @@ export default function Vehicle_Inspection_Form() {
             const lastNo = lastInspection?.inspectionNo ?? 0;
 
             const nextNumber = lastNo + 1;
- 
+
             return nextNumber;
         } catch (error) {
             console.error("Error fetching existing inspections:", error);
@@ -190,16 +190,16 @@ export default function Vehicle_Inspection_Form() {
             });
 
             // 3. Create ClickUp task
-           const createTaskResponse = await Vif_clickUpService.createTask({
+            const createTaskResponse = await Vif_clickUpService.createTask({
                 vehicleId: formState.selectedVehicleId,
-               inspectionNo:String(inspectionNo),
+                inspectionNo: String(inspectionNo),
                 vehicleReg: formState.selectedVehicleReg,
                 vehicleVin: formState.selectedVehicleVin,
                 odometer: Number(formState.odometerValue),
                 username: savedUser,
                 serviceRequired: String(customFields.serviceRequired),
-                reviewRequired: String(customFields.reviewRequired),  
-                tyreRotationRequired: String(customFields.tyreRotationRequired), 
+                reviewRequired: String(customFields.reviewRequired),
+                tyreRotationRequired: String(customFields.tyreRotationRequired),
                 inspectionResults,
                 timestamp,
                 s3PhotoKeys,
@@ -207,10 +207,10 @@ export default function Vehicle_Inspection_Form() {
             });
 
 
-        
-           const taskResult = createTaskResponse;
 
-          if (!taskResult.success) {
+            const taskResult = createTaskResponse;
+
+            if (!taskResult.success) {
                 throw new Error(taskResult.message || 'Failed to create task');
             }
 
@@ -240,7 +240,7 @@ export default function Vehicle_Inspection_Form() {
                 if (!uploadResult.success) {
                     throw new Error(`Failed to upload photo ${i + 1}: ${photo.file.name}`);
                 }
-                }
+            }
 
 
             // Upload complete

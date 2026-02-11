@@ -14,12 +14,14 @@ import { InspectionImageGallery } from "@/components/inspection/inspection-image
 import { InspectionImageViewer } from "@/components/inspection/inspection-image-viewer";
 import { getUrl } from 'aws-amplify/storage';
 import type { Inspection } from "@/types/vifForm.types";
+import { useAuth } from "@/contexts/auth-context";
+import ResponseModal from "@/components/widgets/response";
 
 
 export default function InspectionEditPage() {
     const navigate = useNavigate();
     const params = useParams();
-    const fleetId = decodeURIComponent(params.id as string);
+    const fleetId = decodeURIComponent(params.fleetId as string);  
     const inspectionId = decodeURIComponent(params.inspectionId as string);
     const editFormRef = useRef<HTMLDivElement>(null);
 
@@ -34,6 +36,21 @@ export default function InspectionEditPage() {
     const [imageViewerOpen, setImageViewerOpen] = useState(false);
     const [currentImages, setCurrentImages] = useState<string[]>([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const { permission } = useAuth();
+    const [writePermissions, setWritePermissions] = useState(false);
+    const [show, setShow] = useState(false);
+    const [successful, setSuccessful] = useState(false);
+    const [message, setMessage] = useState("");
+
+    useEffect(() => {
+        if (permission?.permissions?.includes('fms.edit') || permission?.isAdmin) {
+            setWritePermissions(true);
+        } else {
+            setWritePermissions(false);
+        }
+    }, [permission]);
+
 
     // Function to convert S3 keys to actual URLs
     const getS3ImageUrls = async (s3Keys: string[]): Promise<string[]> => {
@@ -130,6 +147,13 @@ export default function InspectionEditPage() {
 
     // Handle save
     const handleSave = async () => {
+        if (!writePermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No edit permission")
+
+            return;
+        }
         if (!inspection) return;
 
         try {
@@ -228,6 +252,7 @@ export default function InspectionEditPage() {
 
     // Handle delete
     const handleDelete = async () => {
+
         try {
             await client.models.Inspection.delete({
                 id: inspectionId
@@ -241,6 +266,13 @@ export default function InspectionEditPage() {
     };
 
     const handleDeleteClick = () => {
+        if (!writePermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No edit permission")
+
+            return;
+        }
         setOpendelete(true);
     };
 
@@ -250,6 +282,13 @@ export default function InspectionEditPage() {
 
     // Handle change
     const handleChange = (field: keyof Inspection, value: string | number | boolean) => {
+        if (!writePermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No edit permission")
+
+            return;
+        }
         setEditedInspection(prev => ({ ...prev, [field]: value }));
     };
 
@@ -471,6 +510,13 @@ export default function InspectionEditPage() {
                     onClose={() => setImageViewerOpen(false)}
                     initialIndex={currentImageIndex}
                 />
+                {show && (
+                    <ResponseModal
+                        successful={successful}
+                        message={message}
+                        setShow={setShow}
+                    />
+                )}
             </main>
             <Footer />
         </div>

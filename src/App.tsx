@@ -15,6 +15,7 @@ import Vehicle_Inspection_Form from './app/vehicleinspectionform/page';
 import SubcategoriesPage from './app/subcategories/[id]/page';
 import FleetEditPage from './app/fleetmanagementsystem/edit/[id]/page';
 import InspectionsPage from './app/fleetmanagementsystem/[id]/page';
+import InspectionEditPage from './app/fleetmanagementsystem/[id]/edit/[inspectionId]/page';
 
 function Layout() {
   const location = useLocation();
@@ -115,15 +116,20 @@ function Layout() {
         <Route path="/stockcontrolform" element={requireAuth(<ComponentForm />, false, 'scf.')} />
         <Route path="/vehicleinspectionform" element={requireAuth(<Vehicle_Inspection_Form />, false, 'vif.')} />
         <Route path="/admin" element={requireAuth(<AdminPermissionsPage />, true)} />
-          {/* Parameterized route */}
-          <Route path="/fleetmanagementsystem/:id" element={requireAuth(<InspectionsPage />, false, 'fms.')} />
-        <Route path="/fleetmanagementsystem/edit/:id" element={requireAuth(<FleetEditPage />, false, 'fms.')} />
-        <Route path="/fleetmanagementsystem" element={requireAuth(<FleetPage />, false, 'fms.')} />
-        <Route path="/inventorymanagementsystem" element={requireAuth(<IMS />, false, 'ims.')} />
-        {/* Parameterized route */}
-        <Route path="/subcategories/:id" element={requireAuth(<SubcategoriesPage />, false, 'ims.')} />
 
+        {/* FLEET MANAGEMENT - Most specific first */}
+        <Route path="/fleetmanagementsystem/:fleetId/edit/:inspectionId" element={requireAuth(<InspectionEditPage />, false, 'fms.')} />
+        <Route path="/fleetmanagementsystem/edit/:id" element={requireAuth(<FleetEditPage />, false, 'fms.')} />
+        <Route path="/fleetmanagementsystem/:id" element={requireAuth(<InspectionsPage />, false, 'fms.')} />
+        <Route path="/fleetmanagementsystem" element={requireAuth(<FleetPage />, false, 'fms.')} />
+
+        {/* INVENTORY MANAGEMENT - Most specific first */}
+        <Route path="/subcategories/:id" element={requireAuth(<SubcategoriesPage />, false, 'ims.')} />
+        <Route path="/inventorymanagementsystem" element={requireAuth(<IMS />, false, 'ims.')} />
+
+        {/* CUSTOMER RELATIONS ROUTES */}
         <Route path="/customerrelationsmanagement" element={requireAuth(<CustomerRelationsManagement />, false, 'crm.')} />
+        {/* HUMAN RESOURCES ROUTES */}
         <Route path="/humanresourcesdepartment" element={requireAuth(<HumanResourcesPage />, false, 'hrd.')} />
       </Routes>
       {!isAuthPage && <Footer />}

@@ -62,185 +62,199 @@ ${questionLines}`,
             status: "to do",
         };
 
-        const response = await fetch(`${constants.securebaseUrltest}/clickuppost`, {
+        // CHANGE THIS LINE ONLY - Call ClickUp directly, not your broken backend
+        const response = await fetch(`https://api.clickup.com/api/v2/list/${constants.VIF_LIST_ID}/task`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                Authorization: constants.API_TOKEN,
+                "Content-Type": "application/json"
+            },
             body: JSON.stringify(taskBody),
         });
 
-        if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+        if (!response.ok) throw new Error(`ClickUp returned ${response.status}`);
 
         const data = await response.json();
 
-        if (!data || Object.keys(data).length === 0)
-            throw new Error("Backend returned no data");
+        if (!data || !data.id) throw new Error("Failed to create ClickUp task");
 
         return {
-            success: data.success,
-            message: data.message || "Task created successfully",
-            taskId: data.taskId,
+            success: true,
+            message: "Task created successfully",
+            taskId: data.id,
             data,
         };
     },
 };
 
 
-
-
 export const Vif_clickUpTasksService = {
-  // --- Create Vehicle Task (Service / Rotation) ---
-  async createInspectionTask(payload: {
-    issuetype: "service" | "rotation";
-    title: string;
-    servicePlanStatus?: string;
-    servicePlan?: string;
-    lastServiceDate?: string;
-    lastServicekm?: number;
-    lastRotationdate?: string;
-    lastRotationkm?: number;
-    vehicleReg: string;
-    odometer: number;
-    username: string | null;
-    serviceRequired?: boolean | string;
-    reviewRequired?: boolean | string;
-    tyreRotationRequired?: boolean | string;
-    vehicleVin: string;
-  }) {
-    try {
-      // Build description based on type
-      let description = "";
+    // --- Create Vehicle Task (Service / Rotation) ---
+    async createInspectionTask(payload: {
+        issuetype: "service" | "rotation";
+        title: string;
+        servicePlanStatus?: string;
+        servicePlan?: string;
+        lastServiceDate?: string;
+        lastServicekm?: number;
+        lastRotationdate?: string;
+        lastRotationkm?: number;
+        vehicleReg: string;
+        odometer: number;
+        username: string | null;
+        serviceRequired?: boolean | string;
+        reviewRequired?: boolean | string;
+        tyreRotationRequired?: boolean | string;
+        vehicleVin: string;
+    }) {
+        try {
+            // Build description based on type
+            let description = "";
 
-      if (payload.issuetype === "service") {
-        description = `Vehicle Reg: ${payload.vehicleReg}
-        Vehicle Vin: ${payload.vehicleVin}
-        Service Plan Status: ${payload.servicePlanStatus}
-        Service Plan: ${payload.servicePlan}
-        Previous Service km: ${payload.lastServicekm}
-        Previous Service Date: ${payload.lastServiceDate}
-        Current Driver: ${payload.username}
-        Current Km: ${payload.odometer}`;
+            if (payload.issuetype === "service") {
+                description = `Vehicle Reg: ${payload.vehicleReg}
+                Vehicle Vin: ${payload.vehicleVin}
+                Service Plan Status: ${payload.servicePlanStatus}
+                Service Plan: ${payload.servicePlan}
+                Previous Service km: ${payload.lastServicekm}
+                Previous Service Date: ${payload.lastServiceDate}
+                Current Driver: ${payload.username}
+                Current Km: ${payload.odometer}`;
             } else if (payload.issuetype === "rotation") {
                 description = `Vehicle Reg: ${payload.vehicleReg}
-        Vehicle Vin: ${payload.vehicleVin}
-        Service Plan Status: ${payload.servicePlanStatus}
-        Service Plan: ${payload.servicePlan}
-        Previous Rotation km: ${payload.lastRotationkm}
-        Previous Rotation Date: ${payload.lastRotationdate}
-        Current Driver: ${payload.username}
-        Current Km: ${payload.odometer}`;
-      }
+                Vehicle Vin: ${payload.vehicleVin}
+                Service Plan Status: ${payload.servicePlanStatus}
+                Service Plan: ${payload.servicePlan}
+                Previous Rotation km: ${payload.lastRotationkm}
+                Previous Rotation Date: ${payload.lastRotationdate}
+                Current Driver: ${payload.username}
+                Current Km: ${payload.odometer}`;
+            }
 
-      const taskBody = {
-        name: payload.title,
-        description,
-        custom_fields: [
-          { id: constants.USERNAME_FIELD_ID, value: payload.username ?? "" },
-          { id: constants.SERVICE_FIELD_ID, value: payload.serviceRequired },
-          { id: constants.TYRE_FIELD_ID, value: payload.tyreRotationRequired },
-          { id: constants.REVIEW_FIELD_ID, value: payload.reviewRequired },
-        ],
-        status: "to do",
-      };
+            const taskBody = {
+                name: payload.title,
+                description,
+                custom_fields: [
+                    { id: constants.USERNAME_FIELD_ID, value: normalize(payload.username || "") },
+                    { id: constants.SERVICE_FIELD_ID, value: normalize(String(payload.serviceRequired)) },
+                    { id: constants.TYRE_FIELD_ID, value: normalize(String(payload.tyreRotationRequired)) },
+                    { id: constants.REVIEW_FIELD_ID, value: normalize(String(payload.reviewRequired)) },
+                ],
+                status: "to do",
+            };
 
-      const createTaskResponse = await fetch(
-        `https://api.clickup.com/api/v2/list/${constants.LIST_ID}/task`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: constants.API_TOKEN,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(taskBody),
+            // CALL CLICKUP DIRECTLY - NOT YOUR BACKEND
+            const createTaskResponse = await fetch(
+                `https://api.clickup.com/api/v2/list/${constants.VIF_LIST_ID}/task`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: constants.API_TOKEN,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(taskBody),
+                }
+            );
+
+            const taskData = await createTaskResponse.json();
+
+            if (!taskData.id) {
+                return { success: false, error: "Failed to create ClickUp task", details: taskData };
+            }
+
+            return { success: true, taskId: taskData.id, message: "ClickUp task created successfully", data: taskData };
+        } catch (error: any) {
+            return { success: false, error: error.message };
         }
-      );
+    },
 
-      const taskData = await createTaskResponse.json();
+    // --- Update Task Description (append odometer) ---
+    async updateDescription(payload: { taskId: string | number | null; odometer: number }) {
+        if (!payload.taskId) return { success: false, error: "taskId is null or undefined" };
 
-      if (!taskData.id) {
-        return { success: false, error: "Failed to create ClickUp task", details: taskData };
-      }
+        try {
+            // GET CURRENT TASK - DIRECT CLICKUP CALL
+            const getTaskResponse = await fetch(
+                `https://api.clickup.com/api/v2/task/${payload.taskId}`,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: constants.API_TOKEN
+                    }
+                }
+            );
 
-      return { success: true, taskId: taskData.id, message: "ClickUp task created successfully", data: taskData };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  },
+            const existingTask = await getTaskResponse.json();
+            const currentName = existingTask.name || "";
+            const currentDescription = existingTask.description || "";
+            const updatedDescription = `${currentDescription}\nCurrent Km: ${payload.odometer}`;
 
-  // --- Update Task Description (append odometer) ---
-  async updateDescription(payload: { taskId: string | number | null; odometer: number }) {
-    if (!payload.taskId) return { success: false, error: "taskId is null or undefined" };
+            // UPDATE TASK - DIRECT CLICKUP CALL
+            await fetch(`https://api.clickup.com/api/v2/task/${payload.taskId}`, {
+                method: "PUT",
+                headers: {
+                    Authorization: constants.API_TOKEN,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name: currentName,
+                    description: updatedDescription
+                }),
+            });
 
-    try {
-      const getTaskResponse = await fetch(
-        `https://api.clickup.com/api/v2/task/${payload.taskId}`,
-        { method: "GET", headers: { Authorization: constants.API_TOKEN } }
-      );
-
-      const existingTask = await getTaskResponse.json();
-      const currentName = existingTask.name || "";
-      const currentDescription = existingTask.description || "";
-      const updatedDescription = `${currentDescription}\nCurrent Km: ${payload.odometer}`;
-
-      await fetch(`https://api.clickup.com/api/v2/task/${payload.taskId}`, {
-        method: "PUT",
-        headers: { Authorization: constants.API_TOKEN, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: currentName, description: updatedDescription }),
-      });
-
-      return { success: true, message: "Task name updated successfully" };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  },
+            return { success: true, message: "Task description updated successfully" };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    },
 };
 
 
-
 export async function uploadPhoto({
-  photo,
-  taskId
+    photo,
+    taskId
 }: {
-  photo: File;
-  taskId: string;
+    photo: File;
+    taskId: string;
 }) {
-  try {
-    if (!photo || !taskId) {
-      return { success: false, error: "Missing required fields" };
+    try {
+        if (!photo || !taskId) {
+            return { success: false, error: "Missing required fields" };
+        }
+
+        const fileBuffer = await photo.arrayBuffer();
+
+        const attachmentFormData = new FormData();
+        attachmentFormData.append(
+            "attachment",
+            new Blob([fileBuffer], { type: photo.type }),
+            photo.name
+        );
+
+        const uploadResponse = await fetch(
+            `https://api.clickup.com/api/v2/task/${taskId}/attachment`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: constants.API_TOKEN,
+                },
+                body: attachmentFormData,
+            }
+        );
+
+        const clickUpResult = await uploadResponse.json();
+
+        if (!clickUpResult?.id) {
+            return { success: false, error: "ClickUp upload failed", data: clickUpResult };
+        }
+
+        return {
+            success: true,
+            message: `Uploaded ${photo.name} successfully`,
+            data: { clickUp: clickUpResult },
+        };
+    } catch (error: any) {
+        console.error("Error uploading photo:", error);
+        return { success: false, error: error.message };
     }
-
-    const fileBuffer = await photo.arrayBuffer();
-
-    const attachmentFormData = new FormData();
-    attachmentFormData.append(
-      "attachment",
-      new Blob([fileBuffer], { type: photo.type }),
-      photo.name
-    );
-
-    const uploadResponse = await fetch(
-      `https://api.clickup.com/api/v2/task/${taskId}/attachment`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: constants.API_TOKEN,
-        },
-        body: attachmentFormData,
-      }
-    );
-
-    const clickUpResult = await uploadResponse.json();
-
-    if (!clickUpResult?.id) {
-      return { success: false, error: "ClickUp upload failed", data: clickUpResult };
-    }
-
-    return {
-      success: true,
-      message: `Uploaded ${photo.name} successfully`,
-      data: { clickUp: clickUpResult },
-    };
-  } catch (error: any) {
-    console.error("Error uploading photo:", error);
-    return { success: false, error: error.message };
-  }
 }
