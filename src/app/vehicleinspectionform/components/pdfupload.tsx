@@ -25,9 +25,12 @@ interface PDFUploadProps {
   onPDFsChange: (pdfs: PDFState[]) => void;
   vehicleReg: string;
   existingFiles?: string[];
+  canWrite: boolean;
+  onNoPermission: () => void;
 }
 
-export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFUploadProps) => {
+
+export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWrite, onNoPermission }: PDFUploadProps) => {
   const [pdfs, setPdfs] = useState<PDFState[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -131,22 +134,38 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFU
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
     const files = event.target.files;
     if (!files || !vehicleReg) return;
     handleFiles(files);
   };
 
   const handleDragOver = (event: React.DragEvent) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
     event.preventDefault();
     setIsDragging(true);
   };
 
   const handleDragLeave = (event: React.DragEvent) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
     event.preventDefault();
     setIsDragging(false);
   };
 
   const handleDrop = (event: React.DragEvent) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
     event.preventDefault();
     setIsDragging(false);
     const files = event.dataTransfer.files;
@@ -192,6 +211,10 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFU
   };
 
   const removePDF = useCallback(async (index: number) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
     const pdfToRemove = pdfs[index];
 
     // Delete from S3 if it was uploaded
@@ -286,7 +309,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFU
           {/* Upload Zone */}
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-              } ${pdfs.length >= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${pdfs.length >= 1 ? 'opacity-50 cursor-not-allowed' : ''} {!canWrite ? 'opacity-50 cursor-not-allowed' : ''`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -311,7 +334,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [] }: PDFU
             accept=".pdf"
             multiple={false}
             className="hidden"
-            disabled={!vehicleReg || pdfs.length >= 1}
+             disabled={!vehicleReg || pdfs.length >= 1 || !canWrite}
           />
 
           {!vehicleReg && (

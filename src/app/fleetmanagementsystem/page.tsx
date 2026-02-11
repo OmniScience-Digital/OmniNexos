@@ -16,11 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Fleet } from "@/types/vifForm.types";
 import { formatDateForAmplify } from "@/utils/helper/time";
+import { useAuth } from "@/contexts/auth-context";
+import ResponseModal from "@/components/widgets/response";
 
 
 export default function FleetPage() {
     const navigate = useNavigate();
-
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [fleets, setFleets] = useState<Fleet[]>([]);
@@ -32,6 +33,22 @@ export default function FleetPage() {
     const [isCreating, setIsCreating] = useState(false);
     const [opendelete, setOpendelete] = useState(false);
     const [fleetToDelete, setFleetToDelete] = useState<{ id: string, name: string } | null>(null);
+
+    const { permission } = useAuth();
+    const [writePermissions, setWritePermissions] = useState(false);
+    const [show, setShow] = useState(false);
+    const [successful, setSuccessful] = useState(false);
+    const [message, setMessage] = useState("");
+
+    useEffect(() => {
+        if (permission?.permissions?.includes('fms.edit') || permission?.isAdmin) {
+            setWritePermissions(true);
+        } else {
+            setWritePermissions(false);
+        }
+    }, [permission]);
+
+
 
     useEffect(() => {
 
@@ -218,6 +235,13 @@ export default function FleetPage() {
 
     // Handle create new
     const handleCreateNew = () => {
+        if (!writePermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No edit permission")
+
+            return;
+        }
         setEditingFleet({
             id: '',
             vehicleVin: null,
@@ -741,7 +765,15 @@ export default function FleetPage() {
                     />
                 </main>
             )}
+            {show && (
+                <ResponseModal
+                    successful={successful}
+                    message={message}
+                    setShow={setShow}
+                />
+            )}
             <Footer />
+
         </div>
     )
 }

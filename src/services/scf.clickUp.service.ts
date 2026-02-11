@@ -1,7 +1,7 @@
 // src/services/scf.clickUpService.ts
 import * as constants from '@/app/constants';
 
-export const clickUpService = {
+export const SCF_clickUpService = {
     async createTask(username: string | null, result: any) {
         const response = await fetch(`${constants.securebaseUrltest}/clickuppost`, {
             method: "POST" as const,

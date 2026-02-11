@@ -4,22 +4,21 @@ import { defineStorage } from '@aws-amplify/backend';
 export const storage = defineStorage({
   name: 'inspectionStorage',
   access: (allow) => ({
-    // For inspection images - organized by vehicle reg and date
     "inspections/*": [
-      allow.authenticated.to(['read', 'write', 'delete']),
-      allow.guest.to(['read', 'write'])
+      // Explicitly specify the group
+      allow.groups(["USERS"]).to(['read', 'write', 'delete']),
+      allow.groups(["ADMINS"]).to(['read', 'write', 'delete']),
+      allow.guest.to(['read'])
     ],
-    // For break and lux test PDFs
     "documents/*": [
-      allow.authenticated.to(['read', 'write', 'delete']),
-      allow.guest.to(['read', 'write'])
+      allow.groups(["USERS"]).to(['read', 'write', 'delete']),
+      allow.groups(["ADMINS"]).to(['read', 'write', 'delete']),
+      allow.guest.to(['read'])
     ],
     "hr/*": [
-      allow.authenticated.to(['read', 'write', 'delete']),
-      allow.guest.to(['read', 'write'])
+      allow.groups(["USERS"]).to(['read', 'write', 'delete']),
+      allow.groups(["ADMINS"]).to(['read', 'write', 'delete']),
+      allow.guest.to(['read'])
     ],
-
   })
 });
-
-

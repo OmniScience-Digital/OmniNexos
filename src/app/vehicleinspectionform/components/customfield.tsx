@@ -1,4 +1,5 @@
 import { client } from "@/services/schema";
+import { Vif_clickUpTasksService } from "@/services/vif.clickUp.service";
 
 export const calculateCustomFields = async (
     formState: any,
@@ -80,29 +81,23 @@ export const calculateCustomFields = async (
         const taskExists = existingServiceTasks.length > 0;
 
         if (!taskExists) {
-            const createTaskResponse = await fetch("/api/customfield-tasks", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    issuetype: "service",
-                    title: `${fleetno} Service Due , ${timestamp}`,
-                    vehicleReg: formState.selectedVehicleReg,
-                    vehicleVin: formState.selectedVehicleVin,
-                    servicePlanStatus: servicePlanStatus,
-                    servicePlan: servicePlan,
-                    lastServiceDate: stringlastServiceDate,
-                    lastServicekm: lastServicekm,
-                    lastRotationdate: lastRotationdate,
-                    lastRotationkm: lastRotationkm,
-                    odometer: formState.odometerValue,
-                    username: savedUser,
-                    serviceRequired,
-                    reviewRequired,
-                    tyreRotationRequired,
-                }),
+            const taskResult = await Vif_clickUpTasksService.createInspectionTask({
+                issuetype: "service",
+                title: `${fleetno} Service Due , ${timestamp}`,
+                vehicleReg: formState.selectedVehicleReg,
+                vehicleVin: formState.selectedVehicleVin,
+                servicePlanStatus: servicePlanStatus,
+                servicePlan: servicePlan,
+                lastServiceDate: stringlastServiceDate,
+                lastServicekm: lastServicekm,
+                lastRotationdate: lastRotationdate,
+                lastRotationkm: lastRotationkm,
+                odometer: formState.odometerValue,
+                username: savedUser,
+                serviceRequired,
+                reviewRequired,
+                tyreRotationRequired,
             });
-
-            const taskResult = await createTaskResponse.json();
 
             if (!taskResult.success) {
                 throw new Error(taskResult.error || 'Failed to create task');
@@ -117,14 +112,9 @@ export const calculateCustomFields = async (
             }
         } else {
 
-            //update description with timestamp
-            await fetch("/api/update-description", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    taskId: existingServiceTasks[0].clickupTaskId,
-                    odometer: odometer
-                }),
+            await Vif_clickUpTasksService.updateDescription({
+                taskId: existingServiceTasks[0].clickupTaskId,
+                odometer: odometer,
             });
         }
     }
@@ -136,29 +126,23 @@ export const calculateCustomFields = async (
         const taskExists = existingRotationTasks.length > 0;
 
         if (!taskExists) {
-            const createTaskResponse = await fetch("/api/customfield-tasks", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    issuetype: "rotation",
-                    title: `${fleetno} Tyre Rotation Due ,${timestamp}`,
-                    vehicleReg: formState.selectedVehicleReg,
-                    vehicleVin: formState.selectedVehicleVin,
-                    servicePlanStatus: servicePlanStatus,
-                    servicePlan: servicePlan,
-                    lastRotationdate: lastRotationdate,
-                    lastRotationkm: lastRotationkm,
-                    lastServicekm: lastServicekm,
-                    lastServiceDate: stringlastServiceDate,
-                    odometer: formState.odometerValue,
-                    username: savedUser,
-                    serviceRequired,
-                    reviewRequired,
-                    tyreRotationRequired,
-                }),
+            const taskResult = await Vif_clickUpTasksService.createInspectionTask({
+                issuetype: "rotation",
+                title: `${fleetno} Tyre Rotation Due ,${timestamp}`,
+                vehicleReg: formState.selectedVehicleReg,
+                vehicleVin: formState.selectedVehicleVin,
+                servicePlanStatus: servicePlanStatus,
+                servicePlan: servicePlan,
+                lastRotationdate: lastRotationdate,
+                lastRotationkm: lastRotationkm,
+                lastServicekm: lastServicekm,
+                lastServiceDate: stringlastServiceDate,
+                odometer: formState.odometerValue,
+                username: savedUser,
+                serviceRequired,
+                reviewRequired,
+                tyreRotationRequired,
             });
-
-            const taskResult = await createTaskResponse.json();
 
             if (!taskResult.success) {
                 throw new Error(taskResult.error || 'Failed to create task');
@@ -173,16 +157,12 @@ export const calculateCustomFields = async (
             }
         } else {
 
-            //update description with timestamp
-            await fetch("/api/update-description", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    taskId: existingRotationTasks[0].clickupTaskId,
-                    odometer: odometer
-                }),
+            await Vif_clickUpTasksService.updateDescription({
+                taskId: existingRotationTasks[0].clickupTaskId,
+                odometer: odometer,
             });
         }
     }
+
     return { serviceRequired, tyreRotationRequired, reviewRequired };
 };

@@ -15,6 +15,8 @@ import type { Fleet } from "@/types/vifForm.types";
 import { PDFUpload } from "@/app/vehicleinspectionform/components/pdfupload";
 import { getUrl } from "aws-amplify/storage";
 import { formatDateForAmplify } from "@/utils/helper/time";
+import { useAuth } from "@/contexts/auth-context";
+import ResponseModal from "@/components/widgets/response";
 
 export default function FleetEditPage() {
     const navigate = useNavigate();
@@ -29,6 +31,20 @@ export default function FleetEditPage() {
     const [opendelete, setOpendelete] = useState(false);
 
     const [history, setHistory] = useState("");
+
+    const { permission } = useAuth();
+    const [writePermissions, setWritePermissions] = useState(false);
+    const [show, setShow] = useState(false);
+    const [successful, setSuccessful] = useState(false);
+    const [message, setMessage] = useState("");
+
+    useEffect(() => {
+        if (permission?.permissions?.includes('fms.edit') || permission?.isAdmin) {
+            setWritePermissions(true);
+        } else {
+            setWritePermissions(false);
+        }
+    }, [permission]);
 
     // function to convert S3 keys to URLs for PDFs
     const getS3DocumentUrls = async (s3Keys: string[]): Promise<string[]> => {
@@ -126,6 +142,13 @@ export default function FleetEditPage() {
 
     // Handle save
     const handleSave = async () => {
+        if (!writePermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No edit permission")
+
+            return;
+        }
         if (!fleet) return;
 
         try {
@@ -241,6 +264,7 @@ export default function FleetEditPage() {
     // Handle delete
     const handleDelete = async () => {
         try {
+
             await client.models.Fleet.delete({
                 id: fleetId
             });
@@ -253,6 +277,13 @@ export default function FleetEditPage() {
     };
 
     const handleDeleteClick = () => {
+        if (!writePermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No edit permission")
+
+            return;
+        }
         setOpendelete(true);
     };
 
@@ -262,6 +293,13 @@ export default function FleetEditPage() {
 
     // Handle change
     const handleChange = (field: keyof Fleet, value: string | number | boolean | string[]) => {
+        if (!writePermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No edit permission")
+
+            return;
+        }
         setEditedFleet(prev => ({ ...prev, [field]: value }));
     };
 
@@ -585,13 +623,20 @@ export default function FleetEditPage() {
                             {/* Brake and Lux Test (Single file field) */}
                             <div className="col-span-full">
                                 <PDFUpload
-                                    vehicleReg={editedFleet.vehicleReg || fleet.vehicleReg || ''}
-                                    existingFiles={fleet.breakandLuxTest ? [fleet.breakandLuxTest] : []}
-                                    onPDFsChange={(pdfs) => {
-                                        const pdfUrls = pdfs.map(pdf => pdf.s3Key);
-                                        handleChange("breakandLuxTest", pdfUrls[0] || '');
-                                    }}
+                                vehicleReg={editedFleet.vehicleReg || fleet.vehicleReg || ''}
+                                existingFiles={fleet.breakandLuxTest ? [fleet.breakandLuxTest] : []}
+                                canWrite={writePermissions}
+                                onNoPermission={() => {
+                                    setShow(true);
+                                    setSuccessful(false);
+                                    setMessage("⛔ No edit permission");
+                                }}
+                                onPDFsChange={(pdfs) => {
+                                    const pdfUrls = pdfs.map(pdf => pdf.s3Key);
+                                    handleChange("breakandLuxTest", pdfUrls[0] || '');
+                                }}
                                 />
+
                             </div>
 
 
@@ -618,6 +663,13 @@ export default function FleetEditPage() {
                 />
             </main>
             <Footer />
+            {show && (
+                <ResponseModal
+                    successful={successful}
+                    message={message}
+                    setShow={setShow}
+                />
+            )}
         </div>
     );
 }

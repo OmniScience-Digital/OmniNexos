@@ -449,7 +449,7 @@ export default function UserPermissionsAssign() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-1xl md:text-2xl font-bold">User Permissions</h1>
+          <h1 className="text-1xl md:text-2xl font-bold mt-3">User Permissions</h1>
           <p className="text-gray-600">Manage access for {filteredUsers.length} users</p>
         </div>
         <Button

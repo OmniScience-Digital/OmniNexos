@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import ResponseModal from "@/components/widgets/response";
 import {
   Edit2,
   Save,
@@ -17,6 +18,7 @@ import { useState, useMemo, useEffect } from "react";
 import { ConfirmDialog } from "@/components/widgets/deletedialog";
 import type { Component } from "@/types/ims.types";
 import { client } from "@/services/schema";
+import { useAuth } from "@/contexts/auth-context";
 
 interface ComponentsListProps {
   components: Component[];
@@ -34,10 +36,29 @@ export function ComponentsList({
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [stockFilter, setStockFilter] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
+  // Add state to track the component to be deleted
+  const [componentToDelete, setComponentToDelete] = useState<{ id: string, name: string } | null>(null);
+
+  const [show, setShow] = useState(false);
+  const [successful, setSuccessful] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const [writePermissions, setWritePermissions] = useState(false);
   const itemsPerPage = 10;
+  const { permission } = useAuth();
 
   const [opendelete, setOpendelete] = useState(false); // Dialog visibility state for deleting dashboard
   const [history, setHistory] = useState("");
+
+
+  useEffect(() => {
+    if (permission?.permissions?.includes('ims.edit') || permission?.isAdmin) {
+      setWritePermissions(true);
+    } else {
+      setWritePermissions(false);
+    }
+  }, [permission]);
+
 
   useEffect(() => {
     const getHistory = async () => {
@@ -107,6 +128,8 @@ export function ComponentsList({
 
   //   loadInitialData();
   // }, []);
+
+
   const filteredComponents = useMemo(() => {
     return components.filter(component => {
       const matchesSearch =
@@ -136,7 +159,31 @@ export function ComponentsList({
     setEditedComponent({ ...component });
   };
 
+
+  const handleCancel = () => {
+    setEditingComponent(null);
+    setEditedComponent({});
+  };
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  // Create a wrapper function with NO parameters
+  const handleConfirmWrapper = () => {
+    if (componentToDelete) {
+      handleDelete(componentToDelete.id, componentToDelete.name);
+    }
+  };
+
   const handleSave = async () => {
+    if (!writePermissions) {
+      setShow(true);
+      setSuccessful(false)
+      setMessage("⛔ No edit permission")
+
+      return;
+    }
     if (editingComponent && editedComponent) {
       // Get user from localStorage - proper way to handle it
       const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
@@ -151,13 +198,13 @@ export function ComponentsList({
       // Check if minimumStock changed
       if (editedComponent.minimumStock !== undefined &&
         editedComponent.minimumStock !== editingComponent.minimumStock) {
-        historyEntries += `${storedName} updated minimumStock from ${editingComponent.minimumStock} to ${editedComponent.minimumStock} at ${johannesburgTime}\n`;
+        historyEntries += `IMS Dashboard: ${storedName} updated minimumStock from ${editingComponent.minimumStock} to ${editedComponent.minimumStock} at ${johannesburgTime}\n`;
       }
 
       // Check if currentStock changed
       if (editedComponent.currentStock !== undefined &&
         editedComponent.currentStock !== editingComponent.currentStock) {
-        historyEntries += `${storedName} updated currentStock from ${editingComponent.currentStock} to ${editedComponent.currentStock} at ${johannesburgTime}\n`;
+        historyEntries += `IMS Dashboard: ${storedName} updated currentStock from ${editingComponent.currentStock} to ${editedComponent.currentStock} at ${johannesburgTime}\n`;
       }
 
       // Create the updated component with history
@@ -166,11 +213,10 @@ export function ComponentsList({
         ...editedComponent,
       };
 
-      console.log("Saving component with history:", updatedComponent); // Debug log
 
       onComponentUpdate(updatedComponent);
 
-      console.log(historyEntries);
+
       // Save to new History DB if there were changes
       if (historyEntries.trim() !== "") {
         try {
@@ -184,7 +230,7 @@ export function ComponentsList({
           setHistory(historyEntries);
 
         } catch (error) {
-          console.log("Saving History ", error)
+          console.log(error)
         }
 
       }
@@ -194,22 +240,18 @@ export function ComponentsList({
     }
   };
 
-  const handleCancel = () => {
-    setEditingComponent(null);
-    setEditedComponent({});
-  };
   const handleChange = (field: keyof Component, value: string | number) => {
+    if (!writePermissions) {
+      setShow(true);
+      setSuccessful(false)
+      setMessage("⛔ No edit permission")
+
+      return;
+    }
     // For all fields, update normally w
     setEditedComponent(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
-
-  // Add state to track the component to be deleted
-  const [componentToDelete, setComponentToDelete] = useState<{ id: string, name: string } | null>(null);
 
   // Modify your delete handler
   const handleDelete = (componentId: string, componentName: string) => {
@@ -229,19 +271,20 @@ export function ComponentsList({
     }
   };
 
-  // Create a wrapper function with NO parameters
-  const handleConfirmWrapper = () => {
-    if (componentToDelete) {
-      handleDelete(componentToDelete.id, componentToDelete.name);
-    }
-  };
 
   // Update your delete button click handler
   const handleDeleteClick = (componentId: string, componentName: string) => {
+    if (!writePermissions) {
+      setShow(true);
+      setSuccessful(false)
+      setMessage("⛔ No edit permission");
+
+      return;
+    }
+
     setComponentToDelete({ id: componentId, name: componentName });
     setOpendelete(true);
   };
-
 
 
 
@@ -507,15 +550,6 @@ export function ComponentsList({
                             </p>
                           </div>
                         )}
-
-                        {/* {history && (
-                          <div>
-                            <p className="text-muted-foreground text-sm mb-1">History:</p>
-                            <p className="bg-muted/50 p-2 rounded-md whitespace-pre-wrap text-xs">
-                              {history.split('\n').filter(line => line.trim()).slice(-1)[0]}
-                            </p>
-                          </div>
-                        )} */}
                       </div>
                     </div>
                   </div>
@@ -585,6 +619,13 @@ export function ComponentsList({
         setOpen={setOpendelete}
         handleConfirm={handleConfirmWrapper}
       />
+      {show && (
+        <ResponseModal
+          successful={successful}
+          message={message}
+          setShow={setShow}
+        />
+      )}
     </Card>
   );
 }

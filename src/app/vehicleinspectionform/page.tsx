@@ -15,6 +15,7 @@ import { Loader2 } from "lucide-react";
 import { getJhbTimestamp } from "@/utils/helper/time";
 import ImageUploadLoader from "./components/imageLoader";
 import { calculateCustomFields } from "./components/customfield";
+import { uploadPhoto, Vif_clickUpService } from "@/services/vif.clickUp.service";
 
 
 export default function Vehicle_Inspection_Form() {
@@ -145,7 +146,7 @@ export default function Vehicle_Inspection_Form() {
             const inspectionNo = await getNextInspectionNumber(formState.selectedVehicleId);
 
             // Save to Amplify Data
-            const historyEntry = `${savedUser} @ ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}: Inspection #${inspectionNo} for vehicle ${formState.selectedVehicleReg}\n`;
+            const historyEntry = `VIF DAshboard: ${savedUser} @ ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}: Inspection #${inspectionNo} for vehicle ${formState.selectedVehicleReg}\n`;
 
             const inspectionData = {
                 fleetid: formState.selectedVehicleId,
@@ -189,32 +190,32 @@ export default function Vehicle_Inspection_Form() {
             });
 
             // 3. Create ClickUp task
-            const createTaskResponse = await fetch("/api/create-task", {
-                method: "POST",
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    vehicleId: formState.selectedVehicleId,
-                    inspectionNo: inspectionNo,
-                    vehicleReg: formState.selectedVehicleReg,
-                    vehicleVin: formState.selectedVehicleVin,
-                    odometer: formState.odometerValue,
-                    username: savedUser,
-                    serviceRequired: customFields.serviceRequired,
-                    reviewRequired: customFields.reviewRequired,
-                    tyreRotationRequired: customFields.tyreRotationRequired,
-                    inspectionResults,
-                    timestamp,
-                    s3PhotoKeys,
-                    photoCount: formState.photos.length
-                }),
+           const createTaskResponse = await Vif_clickUpService.createTask({
+                vehicleId: formState.selectedVehicleId,
+               inspectionNo:String(inspectionNo),
+                vehicleReg: formState.selectedVehicleReg,
+                vehicleVin: formState.selectedVehicleVin,
+                odometer: Number(formState.odometerValue),
+                username: savedUser,
+                serviceRequired: String(customFields.serviceRequired),
+                reviewRequired: String(customFields.reviewRequired),  
+                tyreRotationRequired: String(customFields.tyreRotationRequired), 
+                inspectionResults,
+                timestamp,
+                s3PhotoKeys,
+                photoCount: formState.photos.length,
             });
 
-            const taskResult = await createTaskResponse.json();
-            if (!taskResult.success) {
-                throw new Error(taskResult.error || 'Failed to create task');
+
+        
+           const taskResult = createTaskResponse;
+
+          if (!taskResult.success) {
+                throw new Error(taskResult.message || 'Failed to create task');
             }
 
-            const taskId = taskResult.taskId;
+            const taskId: string = String(taskResult.taskId);
+
 
             // Start upload progress
             setUploadProgress({
@@ -227,28 +228,20 @@ export default function Vehicle_Inspection_Form() {
             for (let i = 0; i < formState.photos.length; i++) {
                 setUploadProgress(prev => ({
                     ...prev,
-                    currentImage: i + 1
+                    currentImage: i + 1,
                 }));
 
                 const photo = formState.photos[i];
-                const photoFormData = new FormData();
-                photoFormData.append("photo", photo.file);
-                photoFormData.append("taskId", taskId);
-                photoFormData.append("timestamp", timestamp);
-                photoFormData.append('vehicleReg', formState.selectedVehicleReg);
-                photoFormData.append('vehicleVin', formState.selectedVehicleVin);
-                photoFormData.append('inspectionNo', inspectionNo.toString());
-
-                const uploadResponse = await fetch("/api/upload-photo", {
-                    method: "POST",
-                    body: photoFormData,
+                const uploadResult = await uploadPhoto({
+                    photo: photo.file,
+                    taskId
                 });
 
-                const uploadResult = await uploadResponse.json();
                 if (!uploadResult.success) {
                     throw new Error(`Failed to upload photo ${i + 1}: ${photo.file.name}`);
                 }
-            }
+                }
+
 
             // Upload complete
             setUploadProgress({
