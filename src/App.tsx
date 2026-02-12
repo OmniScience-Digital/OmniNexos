@@ -16,6 +16,11 @@ import SubcategoriesPage from './app/subcategories/[id]/page';
 import FleetEditPage from './app/fleetmanagementsystem/edit/[id]/page';
 import InspectionsPage from './app/fleetmanagementsystem/[id]/page';
 import InspectionEditPage from './app/fleetmanagementsystem/[id]/edit/[inspectionId]/page';
+import CreateEmployeePage from './app/humanresourcesdepartment/create/page';
+import EditEmployeePage from './app/humanresourcesdepartment/edit/[id]/page';
+import CreateCustomer from './app/customerrelationsmanagement/create/page';
+import EditCustomerPage from './app/customerrelationsmanagement/edit/[id]/page';
+import Compliance from './app/customerrelationsmanagement/compliance/[id]/page';
 
 function Layout() {
   const location = useLocation();
@@ -128,8 +133,13 @@ function Layout() {
         <Route path="/inventorymanagementsystem" element={requireAuth(<IMS />, false, 'ims.')} />
 
         {/* CUSTOMER RELATIONS ROUTES */}
+        <Route path="/customerrelationsmanagement/compliance/:id" element={requireAuth(<Compliance />, false, 'crm.')} />
+          <Route path="/customerrelationsmanagement/edit/:id" element={requireAuth(<EditCustomerPage />, false, 'crm.')} />
+         <Route path="/customerrelationsmanagement/create" element={requireAuth(<CreateCustomer />, false, 'crm.')} />
         <Route path="/customerrelationsmanagement" element={requireAuth(<CustomerRelationsManagement />, false, 'crm.')} />
         {/* HUMAN RESOURCES ROUTES */}
+        <Route path="/humanresourcesdepartment/edit/:id" element={requireAuth(<EditEmployeePage />, false, 'hrd.')} />
+        <Route path="/humanresourcesdepartment/create" element={requireAuth(<CreateEmployeePage />, false, 'hrd.')} />
         <Route path="/humanresourcesdepartment" element={requireAuth(<HumanResourcesPage />, false, 'hrd.')} />
       </Routes>
       {!isAuthPage && <Footer />}

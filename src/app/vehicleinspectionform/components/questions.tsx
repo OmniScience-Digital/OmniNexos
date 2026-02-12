@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { uploadData } from 'aws-amplify/storage';
+import { uploadData, remove } from 'aws-amplify/storage';
 
 // Boolean questions array 
 export const booleanQuestions = [
@@ -109,16 +109,18 @@ export interface PhotoState {
   id: string;
   file: File;
   s3Key: string;
-  status: 'uploading' | 'success' | 'error';
+  status: 'uploading' | 'success' | 'error' | 'deleting';
   url?: string;
   error?: string;
-  previewUrl?: string; // Add preview URL to cache
+  previewUrl?: string;
 }
 
 interface PhotoUploadProps {
   onPhotosChange: (photos: PhotoState[]) => void;
   vehicleReg: string;
   inspectionNumber: number | null;
+  canWrite?: boolean;
+  onNoPermission?: () => void;
 }
 
 // Image resizing function
@@ -131,7 +133,6 @@ const resizeImage = (file: File, maxWidth: number = 1200, maxHeight: number = 12
     img.onload = () => {
       let { width, height } = img;
 
-      // Calculate new dimensions while maintaining aspect ratio
       if (width > maxWidth || height > maxHeight) {
         const ratio = Math.min(maxWidth / width, maxHeight / height);
         width *= ratio;
@@ -141,10 +142,8 @@ const resizeImage = (file: File, maxWidth: number = 1200, maxHeight: number = 12
       canvas.width = width;
       canvas.height = height;
 
-      // Draw resized image
       ctx?.drawImage(img, 0, 0, width, height);
 
-      // Convert to blob and then to file
       canvas.toBlob(
         (blob) => {
           if (blob) {
@@ -167,11 +166,17 @@ const resizeImage = (file: File, maxWidth: number = 1200, maxHeight: number = 12
   });
 };
 
-export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: PhotoUploadProps) => {
+export const PhotoUpload = ({ 
+  onPhotosChange, 
+  vehicleReg, 
+  inspectionNumber,
+  canWrite = true,
+  onNoPermission = () => {}
+}: PhotoUploadProps) => {
   const [photos, setPhotos] = useState<PhotoState[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewUrlsRef = useRef<Set<string>>(new Set()); // Track created URLs
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
   // Single source of truth for parent sync
   useEffect(() => {
@@ -186,10 +191,10 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
     };
   }, []);
 
-  const generateS3Key = useCallback(( index: number): string => {
+  const generateS3Key = useCallback((index: number): string => {
     const timestamp = Date.now();
     const cleanVehicleReg = vehicleReg.replace(/[^a-zA-Z0-9]/g, '-');
-    const fileExtension = 'jpg'; // Always use jpeg after resizing
+    const fileExtension = 'jpg';
     return `inspections/${cleanVehicleReg}/${inspectionNumber}/${timestamp}-${index}-${Math.random().toString(36).substring(2, 9)}.${fileExtension}`;
   }, [vehicleReg, inspectionNumber]);
 
@@ -205,7 +210,7 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
         path: photo.s3Key,
         data: photo.file,
         options: {
-          contentType: 'image/jpeg', // Always JPEG after resizing
+          contentType: 'image/jpeg',
         }
       });
       await result;
@@ -225,16 +230,44 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
     }
   };
 
+  const deleteFromS3 = async (s3Key: string, photoId: string): Promise<void> => {
+    try {
+      // Mark as deleting
+      setPhotos(prev => prev.map(p => 
+        p.id === photoId ? { ...p, status: 'deleting' } : p
+      ));
+
+      // Clean the S3 key (remove query parameters if any)
+      const cleanS3Key = s3Key.split('?')[0];
+      console.log("Deleting from S3:", cleanS3Key);
+      
+      await remove({ path: cleanS3Key });
+      console.log("S3 delete successful");
+      
+    } catch (error) {
+      console.error('S3 delete failed:', error);
+      // Revert status on error
+      setPhotos(prev => prev.map(p => 
+        p.id === photoId ? { ...p, status: 'success' } : p
+      ));
+      throw error; // Re-throw to handle in removePhoto
+    }
+  };
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
+
     const files = e.target.files;
-    if (!files || !vehicleReg) return;
+    if (!files || !vehicleReg || !inspectionNumber) return;
 
     setIsUploading(true);
     
     const newFiles = Array.from(files).slice(0, 20 - photos.length);
     
     try {
-      // Resize all images first
       const resizedFiles = await Promise.all(
         newFiles.map(file => resizeImage(file))
       );
@@ -244,7 +277,7 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
         return {
           id: Math.random().toString(36).substring(2, 9),
           file,
-          s3Key: generateS3Key( photos.length + index),
+          s3Key: generateS3Key(photos.length + index),
           status: 'uploading',
           previewUrl
         };
@@ -253,7 +286,6 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
       const updatedPhotos = [...photos, ...newPhotos];
       setPhotos(updatedPhotos);
 
-      // Upload resized images
       await Promise.all(newPhotos.map(photo => uploadToS3(photo)));
       
     } catch (error) {
@@ -266,18 +298,40 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
     }
   };
 
-  const removePhoto = useCallback((index: number) => {
-    setPhotos(prev => {
-      const photoToRemove = prev[index];
-      if (photoToRemove.previewUrl) {
-        URL.revokeObjectURL(photoToRemove.previewUrl);
-        previewUrlsRef.current.delete(photoToRemove.previewUrl);
+  const removePhoto = useCallback(async (index: number) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
+
+    const photoToRemove = photos[index];
+    
+    // Clean up preview URL
+    if (photoToRemove.previewUrl) {
+      URL.revokeObjectURL(photoToRemove.previewUrl);
+      previewUrlsRef.current.delete(photoToRemove.previewUrl);
+    }
+
+    // Delete from S3 if it was successfully uploaded
+    if (photoToRemove.status === 'success' && photoToRemove.s3Key) {
+      try {
+        await deleteFromS3(photoToRemove.s3Key, photoToRemove.id);
+      } catch (error) {
+        console.error('Failed to delete from S3, removing from UI anyway:', error);
+        // Continue with removal from UI even if S3 delete fails
       }
-      return prev.filter((_, i) => i !== index);
-    });
-  }, []);
+    }
+
+    // Remove from state
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  }, [photos, canWrite, onNoPermission]);
 
   const retryUpload = useCallback((photoId: string) => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
+
     const photo = photos.find(p => p.id === photoId);
     if (photo) {
       setPhotos(prev => prev.map(p => 
@@ -285,12 +339,14 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
       ));
       uploadToS3(photo);
     }
-  }, [photos]);
+  }, [photos, canWrite, onNoPermission]);
 
   const getUploadStatusIcon = (photo: PhotoState) => {
     switch (photo.status) {
       case 'uploading':
         return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+      case 'deleting':
+        return <Loader2 className="h-4 w-4 animate-spin text-orange-500" />;
       case 'success':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'error':
@@ -300,8 +356,36 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
     }
   };
 
+  const handleRemoveAll = useCallback(async () => {
+    if (!canWrite) {
+      onNoPermission();
+      return;
+    }
+
+    // Delete all successfully uploaded photos from S3
+    const deletePromises = photos
+      .filter(photo => photo.status === 'success' && photo.s3Key)
+      .map(photo => deleteFromS3(photo.s3Key, photo.id).catch(error => {
+        console.error(`Failed to delete ${photo.s3Key}:`, error);
+      }));
+
+    await Promise.all(deletePromises);
+
+    // Clean up all preview URLs
+    photos.forEach(photo => {
+      if (photo.previewUrl) {
+        URL.revokeObjectURL(photo.previewUrl);
+        previewUrlsRef.current.delete(photo.previewUrl);
+      }
+    });
+
+    // Clear all photos from state
+    setPhotos([]);
+  }, [photos, canWrite, onNoPermission]);
+
   const allPhotosUploaded = photos.length > 0 && photos.every(photo => photo.status === 'success');
   const hasUploadErrors = photos.some(photo => photo.status === 'error');
+  const hasDeleting = photos.some(photo => photo.status === 'deleting');
 
   return (
     <div className="space-y-4">
@@ -312,19 +396,34 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
         accept="image/*"
         onChange={handlePhotoUpload}
         className="hidden"
-        disabled={!vehicleReg || photos.length >= 20}
+        disabled={!vehicleReg || !inspectionNumber || photos.length >= 20 || isUploading || !canWrite}
       />
       
       <div className="flex items-center justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={!vehicleReg || photos.length >= 20 || isUploading}
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          {isUploading ? 'Uploading...' : `Upload Photos (${photos.length}/20)`}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!vehicleReg || !inspectionNumber || photos.length >= 20 || isUploading || !canWrite}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {isUploading ? 'Uploading...' : `Upload Photos (${photos.length}/20)`}
+          </Button>
+
+          {photos.length > 0 && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleRemoveAll}
+              disabled={isUploading || hasDeleting || !canWrite}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Remove All
+            </Button>
+          )}
+        </div>
 
         {allPhotosUploaded && (
           <div className="flex items-center text-green-600 text-sm">
@@ -336,7 +435,13 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
 
       {!vehicleReg && (
         <p className="text-sm text-amber-600">
-          Please select a vehicle first to upload photos
+          Please enter vehicle registration first to upload photos
+        </p>
+      )}
+
+      {!inspectionNumber && (
+        <p className="text-sm text-amber-600">
+          Please select an inspection number first to upload photos
         </p>
       )}
 
@@ -352,7 +457,7 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
                   src={photo.previewUrl}
                   alt={`Upload ${index + 1}`}
                   className="w-full h-full object-cover rounded"
-                  loading="lazy" // Lazy load images
+                  loading="lazy"
                 />
                 
                 <div className="absolute top-1 left-1">
@@ -365,6 +470,7 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
                   size="icon"
                   className="absolute -top-2 -right-2 h-6 w-6"
                   onClick={() => removePhoto(index)}
+                  disabled={photo.status === 'uploading' || photo.status === 'deleting' || !canWrite}
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -377,9 +483,16 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
                       size="sm"
                       className="w-full h-6 text-xs bg-white"
                       onClick={() => retryUpload(photo.id)}
+                      disabled={!canWrite}
                     >
                       Retry
                     </Button>
+                  </div>
+                )}
+
+                {photo.status === 'deleting' && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
                   </div>
                 )}
               </div>
@@ -389,6 +502,7 @@ export const PhotoUpload = ({ onPhotosChange, vehicleReg, inspectionNumber }: Ph
           <div className="text-xs text-gray-500 text-center">
             {photos.length} photo(s) • {photos.filter(p => p.status === 'success').length} uploaded • 
             {photos.filter(p => p.status === 'uploading').length} uploading • 
+            {photos.filter(p => p.status === 'deleting').length} deleting •
             {photos.filter(p => p.status === 'error').length} failed
             {hasUploadErrors && " • Please fix errors before submitting"}
           </div>

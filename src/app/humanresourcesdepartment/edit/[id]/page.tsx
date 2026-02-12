@@ -447,7 +447,7 @@ export default function EditEmployeePage() {
           .toLowerCase()
           .replace(/\b\w/g, l => l.toUpperCase());
 
-        const historyDetails = `\n${storedName} removed ${fieldName} file at ${johannesburgTime}`;
+        const historyDetails = `\nHrd Dashboard: ${storedName} removed ${fieldName} file at ${johannesburgTime}`;
 
         await client.models.History.create({
           entityType: "EMPLOYEE",
@@ -973,7 +973,7 @@ export default function EditEmployeePage() {
         entityId: employee.employeeId,
         action: "UPDATE",
         timestamp: new Date().toISOString(),
-        details: `\nEmployee ${formData.firstName} ${formData.surname} updated by ${storedName}. Changes:\n${changedFields.join('')}`
+        details: `\nHrd Dashboard: Employee ${formData.firstName} ${formData.surname} updated by ${storedName}. Changes:\n${changedFields.join('')}`
       });
 
       setHistory(prev => `Employee ${formData.firstName} ${formData.surname} updated by ${storedName}. Changes:\n${changedFields.join('')}\n${prev}`);
@@ -1555,7 +1555,7 @@ export default function EditEmployeePage() {
                                           entityId: employee.employeeId,
                                           action: "REMOVE_MEDICAL_FILE",
                                           timestamp: new Date().toISOString(),
-                                          details: `\n${storedName} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}`
+                                          details: `\nHrd Dashboard: ${storedName} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}`
                                         });
 
                                         setHistory(prev => `\n${storedName} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}${prev}`);
@@ -1650,7 +1650,7 @@ export default function EditEmployeePage() {
                                           entityId: employee.employeeId,
                                           action: "REMOVE_TRAINING_FILE",
                                           timestamp: new Date().toISOString(),
-                                          details: `\n${storedName} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}`
+                                          details: `\nHrd Dashboard: ${storedName} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}`
                                         });
 
                                         setHistory(prev => `\n${storedName} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}${prev}`);
@@ -1810,7 +1810,7 @@ export default function EditEmployeePage() {
                                                 entityId: employee.employeeId,
                                                 action: "REMOVE_CERTIFICATE_FILE",
                                                 timestamp: new Date().toISOString(),
-                                                details: `\n${storedName} remove file from certificate "${cert.certificateName}" at ${johannesburgTime}`
+                                                details: `\nHrd Dashboard: ${storedName} remove file from certificate "${cert.certificateName}" at ${johannesburgTime}`
                                               });
                                               setHistory(prev => `\n${storedName} removed file from certificate "${cert.certificateName}" at ${johannesburgTime}${prev}`);
                                               setMessage(`File deleted successfully`);

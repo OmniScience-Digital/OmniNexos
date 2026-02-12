@@ -175,7 +175,7 @@ const handleSave = async () => {
 
     const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
     const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
-    const historyEntries = `${storedName} created new employee at ${johannesburgTime}.\n`;
+    const historyEntries = `Hrd Dashboard: ${storedName} created new employee at ${johannesburgTime}.\n`;
     
     const employeeId = formData.employeeId!;
 

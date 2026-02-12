@@ -146,7 +146,7 @@ export default function Vehicle_Inspection_Form() {
             const inspectionNo = await getNextInspectionNumber(formState.selectedVehicleId);
 
             // Save to Amplify Data
-            const historyEntry = `VIF DAshboard: ${savedUser} @ ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}: Inspection #${inspectionNo} for vehicle ${formState.selectedVehicleReg}\n`;
+            const historyEntry = `VIF Dashboard: ${savedUser} @ ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}: Inspection #${inspectionNo} for vehicle ${formState.selectedVehicleReg}\n`;
 
             const inspectionData = {
                 fleetid: formState.selectedVehicleId,

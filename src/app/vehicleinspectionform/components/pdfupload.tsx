@@ -29,19 +29,31 @@ interface PDFUploadProps {
   onNoPermission: () => void;
 }
 
-
 export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWrite, onNoPermission }: PDFUploadProps) => {
   const [pdfs, setPdfs] = useState<PDFState[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
 
-  const [pdfToDelete, setPdfToDelete] = useState<{ index: number; name: string } | null>(null);
+  const [pdfToDelete, setPdfToDelete] = useState<{ index: number; name: string; s3Key?: string } | null>(null);
   const [opendelete, setOpendelete] = useState(false);
 
   // Use refs to track initialization and prevent loops
   const hasInitialized = useRef(false);
   const lastExistingFiles = useRef<string[]>(existingFiles);
+
+  // Clean S3 key from URL
+  const extractS3KeyFromUrl = useCallback((url: string): string => {
+    if (url.includes('amazonaws.com/')) {
+      const urlParts = url.split('amazonaws.com/');
+      if (urlParts.length > 1) {
+        let cleanKey = urlParts[1].split('?')[0];
+        cleanKey = decodeURIComponent(cleanKey);
+        return cleanKey;
+      }
+    }
+    return url;
+  }, []);
 
   // Initialize with existing files - ONLY ONCE
   useEffect(() => {
@@ -54,17 +66,10 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
           const fileName = existingFile.split('/').pop() || `Brake_Lux_Test.pdf`;
 
           // Extract clean S3 key from URL
-          let cleanS3Key = existingFile;
-          if (existingFile.includes('amazonaws.com/')) {
-            const urlParts = existingFile.split('amazonaws.com/');
-            if (urlParts.length > 1) {
-              cleanS3Key = urlParts[1].split('?')[0];
-              cleanS3Key = decodeURIComponent(cleanS3Key);
-            }
-          }
+          const cleanS3Key = extractS3KeyFromUrl(existingFile);
 
           const existingPDF: PDFState = {
-            id: `existing-0`,
+            id: `existing-${Date.now()}`,
             file: new File([], fileName),
             s3Key: cleanS3Key,
             status: 'success' as const,
@@ -82,7 +87,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
         hasInitialized.current = true;
       }
     }
-  }, [existingFiles]);
+  }, [existingFiles, extractS3KeyFromUrl]);
 
   // Sync with parent
   const lastPdfsRef = useRef<PDFState[]>([]);
@@ -177,16 +182,27 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
     if (pdfFiles.length === 0) return;
 
     const newFile = pdfFiles[0];
-    // Clean up existing file
+
+    // Delete existing file from S3 before uploading new one
     if (pdfs.length > 0) {
       const existingPdf = pdfs[0];
+
+      // Clean up preview URL
       if (existingPdf.previewUrl) {
         URL.revokeObjectURL(existingPdf.previewUrl);
         previewUrlsRef.current.delete(existingPdf.previewUrl);
       }
+
       // Delete existing file from S3 if it was uploaded
       if (existingPdf.status === 'success' && existingPdf.s3Key) {
-        await removePDF(0); // Delete the existing file
+        try {
+          console.log("Deleting existing file:", existingPdf.s3Key);
+          await remove({ path: existingPdf.s3Key });
+          console.log("Existing file deleted successfully");
+        } catch (error) {
+          console.error('Failed to delete existing file:', error);
+          // Continue with upload even if delete fails
+        }
       }
     }
 
@@ -204,7 +220,6 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
     setPdfs([newPDF]);
     await uploadToS3(newPDF);
 
-
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -215,15 +230,21 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
       onNoPermission();
       return;
     }
+
     const pdfToRemove = pdfs[index];
+    console.log("Removing PDF:", pdfToRemove);
 
     // Delete from S3 if it was uploaded
     if (pdfToRemove.status === 'success' && pdfToRemove.s3Key) {
       try {
+        // Ensure we have a clean S3 key (no query parameters)
         const cleanS3Key = pdfToRemove.s3Key.split('?')[0];
+        console.log("Deleting from S3:", cleanS3Key);
         await remove({ path: cleanS3Key });
+        console.log("S3 delete successful");
       } catch (error) {
         console.error('S3 delete failed:', error);
+        // Continue with removal from state even if S3 delete fails
       }
     }
 
@@ -235,7 +256,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
 
     // Remove from state
     setPdfs([]);
-  }, [pdfs]);
+  }, [pdfs, canWrite, onNoPermission]);
 
   const replacePDF = useCallback(async (index: number) => {
     const pdfToRemove = pdfs[index];
@@ -246,7 +267,18 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
       previewUrlsRef.current.delete(pdfToRemove.previewUrl);
     }
 
-    // Remove file completely
+    // Delete from S3 before replacing
+    if (pdfToRemove.status === 'success' && pdfToRemove.s3Key) {
+      try {
+        const cleanS3Key = pdfToRemove.s3Key.split('?')[0];
+        await remove({ path: cleanS3Key });
+        console.log("File deleted before replace");
+      } catch (error) {
+        console.error('Failed to delete file before replace:', error);
+      }
+    }
+
+    // Remove file completely from state
     setPdfs([]);
 
     // Trigger file input for new selection
@@ -281,14 +313,18 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
 
   const triggerFileInput = () => fileInputRef.current?.click();
 
-  const handleDeleteClick = (index: number, fileName: string) => {
-    setPdfToDelete({ index, name: fileName });
+  const handleDeleteClick = (index: number, pdf: PDFState) => {
+    setPdfToDelete({
+      index,
+      name: pdf.name,
+      s3Key: pdf.s3Key
+    });
     setOpendelete(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (pdfToDelete) {
-      removePDF(pdfToDelete.index);
+      await removePDF(pdfToDelete.index);
       setPdfToDelete(null);
       setOpendelete(false);
     }
@@ -309,7 +345,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
           {/* Upload Zone */}
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-              } ${pdfs.length >= 1 ? 'opacity-50 cursor-not-allowed' : ''} {!canWrite ? 'opacity-50 cursor-not-allowed' : ''`}
+              } ${pdfs.length >= 1 ? 'opacity-50 cursor-not-allowed' : ''} ${!canWrite ? 'opacity-50 cursor-not-allowed' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -334,7 +370,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
             accept=".pdf"
             multiple={false}
             className="hidden"
-             disabled={!vehicleReg || pdfs.length >= 1 || !canWrite}
+            disabled={!vehicleReg || pdfs.length >= 1 || !canWrite}
           />
 
           {!vehicleReg && (
@@ -363,14 +399,16 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
                       size="sm"
                       onClick={() => replacePDF(0)}
                       className="h-6 w-6 p-0 text-gray-400 hover:text-gray-500 flex-shrink-0"
+                      disabled={pdfs[0].status === 'uploading'}
                     >
                       <Replace className="h-3 w-3" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteClick(0, pdfs[0].name)}
+                      onClick={() => handleDeleteClick(0, pdfs[0])}
                       className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 flex-shrink-0"
+                      disabled={pdfs[0].status === 'uploading'}
                     >
                       <X className="h-3 w-3" />
                     </Button>

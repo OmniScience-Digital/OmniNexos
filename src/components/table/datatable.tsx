@@ -245,3 +245,4 @@ export function DataTable<TData extends object>({
     </div>
   );
 }
+

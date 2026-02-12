@@ -197,7 +197,7 @@ export default function FleetEditPage() {
                 if (editedFleet[typedKey] !== fleet[typedKey]) {
                     const oldValue = cleanValueForHistory(fleet[typedKey]);
                     const newValue = cleanValueForHistory(editedFleet[typedKey]);
-                    historyEntries += `${storedName} updated ${typedKey} from ${oldValue} to ${newValue} at ${johannesburgTime}\n`;
+                    historyEntries += `FMS Dashboard: ${storedName} updated ${typedKey} from ${oldValue} to ${newValue} at ${johannesburgTime}\n`;
                 }
             });
 
@@ -650,7 +650,6 @@ export default function FleetEditPage() {
                                     readOnly
                                 />
                             </div>
-
 
                         </CardContent>
                     </Card>

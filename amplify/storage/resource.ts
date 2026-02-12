@@ -2,7 +2,7 @@
 import { defineStorage } from '@aws-amplify/backend';
 
 export const storage = defineStorage({
-  name: 'inspectionStorage',
+  name: 'OmniNexos_Storage',
   access: (allow) => ({
     "inspections/*": [
       // Explicitly specify the group

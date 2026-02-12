@@ -296,7 +296,7 @@ export default function FleetPage() {
 
             // Create history for changes
             if (isCreating) {
-                historyEntries = `${storedName} created new fleet vehicle at ${johannesburgTime}.\n`;
+                historyEntries = `FMS Dashboard: ${storedName} created new fleet vehicle at ${johannesburgTime}.\n`;
             }
 
             const fleetData = {
@@ -418,8 +418,6 @@ export default function FleetPage() {
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value);
     };
-
-
 
 
     return (

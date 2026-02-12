@@ -179,7 +179,7 @@ export default function InspectionEditPage() {
             Object.keys(editedInspection).forEach(key => {
                 const typedKey = key as keyof Inspection;
                 if (editedInspection[typedKey] !== inspection[typedKey]) {
-                    historyEntries += `${storedName} updated ${typedKey} from ${inspection[typedKey]} to ${editedInspection[typedKey]} at ${johannesburgTime}\n`;
+                    historyEntries += `FMS Dashboard: ${storedName} updated ${typedKey} from ${inspection[typedKey]} to ${editedInspection[typedKey]} at ${johannesburgTime}\n`;
                 }
             });
 
@@ -241,7 +241,7 @@ export default function InspectionEditPage() {
             });
 
             // Navigate back to list page
-            navigate(`/inspections/${fleetId}`);
+            navigate(`/fleetmanagementsystem/${fleetId}`)
 
         } catch (error) {
             console.error("Error saving inspection:", error);

@@ -46,8 +46,6 @@ export default function SubcategoriesPage() {
               categoryId: item.categoryId,
             }));
             setSubcategories(mappedSubcategories);
-            console.log('isSynced ', isSynced);
-
             if (isSynced) {
               setLoading(false);
             }

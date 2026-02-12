@@ -264,6 +264,7 @@ const schema = a.schema({
     entityId: a.string().required(),
     action: a.string().required(),
     timestamp: a.datetime().required(),
+    // updatedBy: a.string().required(),
     details: a.string().required(),
   }).secondaryIndexes((index) => [
     index("entityId").sortKeys(["timestamp"]).queryField("getHistoryByEntityId"),
