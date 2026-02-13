@@ -16,9 +16,11 @@ import { getJhbTimestamp } from "@/utils/helper/time";
 import ImageUploadLoader from "./components/imageLoader";
 import { calculateCustomFields } from "./components/customfield";
 import { uploadPhoto, Vif_clickUpService } from "@/services/vif.clickUp.service";
+import { useAuth } from "@/contexts/auth-context";
 
 
 export default function Vehicle_Inspection_Form() {
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [loadingbtn, setLoadingbtn] = useState(false);
     const [vehicles, setvehicles] = useState<vifForm[]>([]);
@@ -129,7 +131,6 @@ export default function Vehicle_Inspection_Form() {
                 return;
             }
 
-            const savedUser = localStorage.getItem("user");
             const timestamp = getJhbTimestamp();
 
             // Extract S3 keys from successfully uploaded photos
@@ -146,7 +147,7 @@ export default function Vehicle_Inspection_Form() {
             const inspectionNo = await getNextInspectionNumber(formState.selectedVehicleId);
 
             // Save to Amplify Data
-            const historyEntry = `VIF Dashboard: ${savedUser} @ ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}: Inspection #${inspectionNo} for vehicle ${formState.selectedVehicleReg}\n`;
+            const historyEntry = `VIF Dashboard: ${user?.preferred_username} @ ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}: Inspection #${inspectionNo} for vehicle ${formState.selectedVehicleReg}\n`;
 
             const inspectionData = {
                 fleetid: formState.selectedVehicleId,
@@ -156,7 +157,7 @@ export default function Vehicle_Inspection_Form() {
                 inspectionTime: new Date().toTimeString().split(' ')[0],
                 odometerStart: parseFloat(formState.odometerValue),
                 vehicleReg: formState.selectedVehicleReg,
-                inspectorOrDriver: savedUser || '',
+                inspectorOrDriver: user?.preferred_username || '',
                 oilAndCoolant: formState.booleanQuestions[0].value,
                 fuelLevel: formState.booleanQuestions[1].value,
                 seatbeltDoorsMirrors: formState.booleanQuestions[2].value,
@@ -196,7 +197,7 @@ export default function Vehicle_Inspection_Form() {
                 vehicleReg: formState.selectedVehicleReg,
                 vehicleVin: formState.selectedVehicleVin,
                 odometer: Number(formState.odometerValue),
-                username: savedUser,
+                username: user?.preferred_username,
                 serviceRequired: String(customFields.serviceRequired),
                 reviewRequired: String(customFields.reviewRequired),
                 tyreRotationRequired: String(customFields.tyreRotationRequired),

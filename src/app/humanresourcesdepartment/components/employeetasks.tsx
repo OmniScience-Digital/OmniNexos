@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/auth-context";
 import { client } from "@/services/schema";
 import { getUrl } from "aws-amplify/storage";
 
@@ -20,10 +21,10 @@ export const handleEmployeeTasks = async (
         attachment: any;
     }
 ) => {
-    const savedUser = localStorage.getItem("user")||"";
+
 
     try {
-
+        const { user } = useAuth();
         // Get the actual file from Amplify Storage
         const { url: fileUrl } = await getUrl({
             path: doc.attachment
@@ -41,7 +42,7 @@ export const handleEmployeeTasks = async (
         formData.append("photo", fileBlob, filename); // Use "photo" field
         formData.append("taskId", existingTask.clickupTaskId);
         formData.append("newExpiry", newExpiry);
-        formData.append("savedUser", savedUser);
+        formData.append("savedUser", user?.preferred_username);
 
         // Call the API with FormData
         await fetch("/api/updatehrd-description", {

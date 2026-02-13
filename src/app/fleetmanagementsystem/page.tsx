@@ -22,6 +22,8 @@ import ResponseModal from "@/components/widgets/response";
 
 export default function FleetPage() {
     const navigate = useNavigate();
+    const { user ,permission} = useAuth();
+
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [fleets, setFleets] = useState<Fleet[]>([]);
@@ -34,7 +36,6 @@ export default function FleetPage() {
     const [opendelete, setOpendelete] = useState(false);
     const [fleetToDelete, setFleetToDelete] = useState<{ id: string, name: string } | null>(null);
 
-    const { permission } = useAuth();
     const [writePermissions, setWritePermissions] = useState(false);
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
@@ -277,16 +278,6 @@ export default function FleetPage() {
 
         try {
             setSaving(true);
-            // Get user from localStorage
-            let storedName = "Unknown User";
-            try {
-                const userData = localStorage.getItem("user");
-                if (userData) {
-                    storedName = userData.replace(/^"|"$/g, '').trim();
-                }
-            } catch (error) {
-                console.error("Error getting user from localStorage:", error);
-            }
 
             const johannesburgTime = new Date().toLocaleString("en-ZA", {
                 timeZone: "Africa/Johannesburg"
@@ -296,7 +287,7 @@ export default function FleetPage() {
 
             // Create history for changes
             if (isCreating) {
-                historyEntries = `FMS Dashboard: ${storedName} created new fleet vehicle at ${johannesburgTime}.\n`;
+                historyEntries = `FMS Dashboard: ${user?.preferred_username} created new fleet vehicle at ${johannesburgTime}.\n`;
             }
 
             const fleetData = {
@@ -322,6 +313,7 @@ export default function FleetPage() {
                             entityId: result.data.id,
                             action: "CREATE",
                             timestamp: new Date().toISOString(),
+                            updatedBy:user?.preferred_username||user?.email,
                             details: historyEntries
                         });
                     } catch (error) {
@@ -411,7 +403,6 @@ export default function FleetPage() {
 
     // Redirect to inspections
     const redirectToInspections = (id: string) => {
-        localStorage.setItem('fleetId', id);
         navigate(`/fleetmanagementsystem/${id}`);
     };
 

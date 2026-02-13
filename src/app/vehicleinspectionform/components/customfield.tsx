@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/auth-context";
 import { client } from "@/services/schema";
 import { Vif_clickUpTasksService } from "@/services/vif.clickUp.service";
 
@@ -6,7 +7,8 @@ export const calculateCustomFields = async (
     vehicles: any[],
     timestamp: string
 ) => {
-    const savedUser = localStorage.getItem("user");
+      const { user } = useAuth();
+
     const vehicle = vehicles.find(v => v.id === formState.selectedVehicleId);
     if (!vehicle) throw new Error("Vehicle not found");
 
@@ -93,7 +95,7 @@ export const calculateCustomFields = async (
                 lastRotationdate: lastRotationdate,
                 lastRotationkm: lastRotationkm,
                 odometer: formState.odometerValue,
-                username: savedUser,
+                username: user?.preferred_username,
                 serviceRequired,
                 reviewRequired,
                 tyreRotationRequired,
@@ -138,7 +140,7 @@ export const calculateCustomFields = async (
                 lastServicekm: lastServicekm,
                 lastServiceDate: stringlastServiceDate,
                 odometer: formState.odometerValue,
-                username: savedUser,
+                username: user?.preferred_username,
                 serviceRequired,
                 reviewRequired,
                 tyreRotationRequired,

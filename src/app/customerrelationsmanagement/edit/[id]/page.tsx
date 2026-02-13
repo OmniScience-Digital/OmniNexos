@@ -23,10 +23,12 @@ import { Textarea } from "@/components/ui/textarea";
 import AssetCreate from "../../Components/asset";
 import AssetsList from "../../Components/assetsList";
 import type { CustomerSiteState } from "@/types/crm.types";
+import { useAuth } from "@/contexts/auth-context";
 
 
 export default function EditCustomerPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const params = useParams();
   const customerSiteId = decodeURIComponent(params.id as string);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -147,7 +149,7 @@ export default function EditCustomerPage() {
     try {
       setSaving(true);
 
-      const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
+
       const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
       // Track changed fields for History table
@@ -155,7 +157,7 @@ export default function EditCustomerPage() {
       Object.keys(formData).forEach(key => {
         const typedKey = key as keyof CustomerSiteState;
         if (formData[typedKey] !== customerSite[typedKey]) {
-          changedFields.push(` ${storedName} updated ${typedKey} from "${customerSite[typedKey]}" to "${formData[typedKey]}" at ${johannesburgTime}.\n`);
+          changedFields.push(` ${user?.preferred_username} updated ${typedKey} from "${customerSite[typedKey]}" to "${formData[typedKey]}" at ${johannesburgTime}.\n`);
         }
       });
 
@@ -200,7 +202,8 @@ export default function EditCustomerPage() {
           entityId: customerSite.id,
           action: "UPDATE",
           timestamp: new Date().toISOString(),
-          details: `\nCustomer Site "${formData.siteName}" updated by ${storedName}. Changes:\n${changedFields.join('')}`
+          updatedBy: user?.preferred_username || user?.email,
+          details: `\nCRM Dashboard :Customer Site "${formData.siteName}" updated by ${user?.preferred_username}. Changes:\n${changedFields.join('')}`
         });
       }
 

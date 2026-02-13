@@ -19,6 +19,7 @@ import ResponseModal from "@/components/widgets/response";
 
 
 export default function InspectionEditPage() {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const params = useParams();
     const fleetId = decodeURIComponent(params.fleetId as string);  
@@ -158,17 +159,7 @@ export default function InspectionEditPage() {
 
         try {
             setSaving(true);
-            // Get user from localStorage
-            let storedName = "Unknown User";
-            try {
-                const userData = localStorage.getItem("user");
-                if (userData) {
-                    storedName = userData.replace(/^"|"$/g, '').trim();
-                }
-            } catch (error) {
-                console.error("Error getting user from localStorage:", error);
-            }
-
+       
             const johannesburgTime = new Date().toLocaleString("en-ZA", {
                 timeZone: "Africa/Johannesburg"
             });
@@ -179,7 +170,7 @@ export default function InspectionEditPage() {
             Object.keys(editedInspection).forEach(key => {
                 const typedKey = key as keyof Inspection;
                 if (editedInspection[typedKey] !== inspection[typedKey]) {
-                    historyEntries += `FMS Dashboard: ${storedName} updated ${typedKey} from ${inspection[typedKey]} to ${editedInspection[typedKey]} at ${johannesburgTime}\n`;
+                    historyEntries += `FMS Dashboard: ${user?.preferred_username} updated ${typedKey} from ${inspection[typedKey]} to ${editedInspection[typedKey]} at ${johannesburgTime}\n`;
                 }
             });
 

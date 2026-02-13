@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/auth-context";
 import { client } from "@/services/schema";
 import { getUrl } from "aws-amplify/storage";
 
@@ -20,10 +21,13 @@ export const handleCrmTasks = async (
         attachment: any;
     }
 ) => {
-    const savedUser = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
+      const { user } = useAuth();
+
 
     try {
-        console.log('handleCrmTasks called with:', { newExpiry, existingTask, doc, savedUser });
+
+        const savedUser =user?.preferred_username||user?.email;
+        console.log('handleCrmTasks called with:', { newExpiry, existingTask, doc,savedUser  });
 
         // Check if we have an attachment to upload
         let fileBlob: Blob | null = null;

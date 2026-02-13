@@ -11,11 +11,13 @@ import ResponseModal from "@/components/widgets/response";
 import { client } from "@/services/schema";
 import type { CustomerSiteState } from "@/types/crm.types";
 import { ArrowLeft, Building, MapPin, User, Mail, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 
 
 export default function CreateCustomer() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [saving, setSaving] = useState(false);
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
@@ -90,10 +92,8 @@ export default function CreateCustomer() {
             }
 
             setSaving(true);
-
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
-            const historyEntries = `${storedName} created new customer site at ${johannesburgTime}.\n`;
+            const historyEntries = `CRM Dashboard :${ user?.preferred_username} created new customer site at ${johannesburgTime}.\n`;
 
             // Prepare customer site data
             const customerSiteData = {
@@ -135,6 +135,7 @@ export default function CreateCustomer() {
                     entityId: newCustomerSite.data?.id,
                     action: "CREATE",
                     timestamp: new Date().toISOString(),
+                    updatedBy:user?.preferred_username||user?.email,
                     details: historyEntries
                 });
                 navigate('/customerrelationsmanagement');

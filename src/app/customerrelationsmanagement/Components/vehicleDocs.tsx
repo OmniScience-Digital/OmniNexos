@@ -10,6 +10,7 @@ import { Search, Truck, FileText, Plus, Minus, Eye, Calendar, X } from "lucide-r
 import { formatDate, getDocumentStatus } from "@/utils/helper/time";
 import { client } from "@/services/schema";
 import { viewDoc } from "@/utils/helper/helper";
+import { useAuth } from "@/contexts/auth-context";
 
 interface VehicleDocsProps {
     vehicles: any[];
@@ -18,6 +19,8 @@ interface VehicleDocsProps {
 }
 
 export default function VehicleDocs({ vehicles, complianceData, onComplianceUpdate }: VehicleDocsProps) {
+
+      const { user } = useAuth();
     const [selectedVehicles, setSelectedVehicles] = useState<Set<string>>(new Set());
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
     const [linkedVehicles, setLinkedVehicles] = useState<any[]>([]);
@@ -116,10 +119,9 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
             }
 
             // After successful link, add history
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
-            const historyEntry = `\n${storedName} linked vehicles: ${vehicleDetails.join(', ')} to site at ${johannesburgTime}`;
+            const historyEntry = `\nCRM Compliance Dashboard :${user?.preferred_username} linked vehicles: ${vehicleDetails.join(', ')} to site at ${johannesburgTime}`;
 
             // Save to database
             await client.models.History.create({
@@ -127,6 +129,7 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
                 entityId: complianceData.customerSiteId,
                 action: "LINK_VEHICLES",
                 timestamp: new Date().toISOString(),
+                updatedBy:user?.preferred_username||user?.email,
                 details: historyEntry
             });
 
@@ -188,10 +191,9 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
             }
 
             // After successful unlink, add history
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
-            const historyEntry = `\n${storedName} unlinked vehicles: ${vehicleDetails.join(', ')} from site at ${johannesburgTime}`;
+            const historyEntry = `\nCRM Compliance Dashboard :${user?.preferred_username} unlinked vehicles: ${vehicleDetails.join(', ')} from site at ${johannesburgTime}`;
 
             // Save to database
             await client.models.History.create({
@@ -199,6 +201,7 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
                 entityId: complianceData.customerSiteId,
                 action: "UNLINK_VEHICLES",
                 timestamp: new Date().toISOString(),
+                 updatedBy:user?.preferred_username||user?.email,
                 details: historyEntry
             });
 

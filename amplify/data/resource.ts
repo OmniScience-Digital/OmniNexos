@@ -264,10 +264,11 @@ const schema = a.schema({
     entityId: a.string().required(),
     action: a.string().required(),
     timestamp: a.datetime().required(),
-    // updatedBy: a.string().required(),
+    updatedBy: a.string().required(),
     details: a.string().required(),
   }).secondaryIndexes((index) => [
     index("entityId").sortKeys(["timestamp"]).queryField("getHistoryByEntityId"),
+    index("updatedBy").sortKeys(["timestamp"]).queryField("getHistoryByUpdatedBy"),
   ]).authorization((allow) => [allow.publicApiKey()]),
 
   CustomerSite: a

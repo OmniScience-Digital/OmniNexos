@@ -22,6 +22,7 @@ import { handleUpload } from "@/services/s3.service";
 import { remove } from 'aws-amplify/storage';
 import { FileUploadUpdate } from "@/components/widgets/fileupdate";
 import type { Asset } from "@/types/assets.type";
+import { useAuth } from "@/contexts/auth-context";
 
 interface AssetsListProps {
     customerSiteId: string;
@@ -29,6 +30,8 @@ interface AssetsListProps {
 }
 
 export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: AssetsListProps) {
+      const {user } = useAuth();//auth context
+
     const [assets, setAssets] = useState<Asset[]>([]);
     const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
     const [editedAsset, setEditedAsset] = useState<Partial<Asset>>({});
@@ -221,7 +224,6 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                     ? ""
                     : submittedmaintplanUrl;
 
-                const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
                 const johannesburgTime = new Date().toLocaleString("en-ZA", {
                     timeZone: "Africa/Johannesburg"
                 });
@@ -230,15 +232,15 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
 
                 // Check if important fields changed
                 if (editedAsset.assetName !== undefined && editedAsset.assetName !== editingAsset.assetName) {
-                    historyEntries += `${storedName} updated assetName from ${editingAsset.assetName} to ${editedAsset.assetName} at ${johannesburgTime}\n`;
+                    historyEntries += `CRM Asset Dashboard :${user?.preferred_username} updated assetName from ${editingAsset.assetName} to ${editedAsset.assetName} at ${johannesburgTime}\n`;
                 }
 
                 if (editedAsset.scaleTag !== undefined && editedAsset.scaleTag !== editingAsset.scaleTag) {
-                    historyEntries += `${storedName} updated scaleTag from ${editingAsset.scaleTag} to ${editedAsset.scaleTag} at ${johannesburgTime}\n`;
+                    historyEntries += `CRM Asset Dashboard :${user?.preferred_username} updated scaleTag from ${editingAsset.scaleTag} to ${editedAsset.scaleTag} at ${johannesburgTime}\n`;
                 }
 
                 if (editedAsset.scaleOEM !== undefined && editedAsset.scaleOEM !== editingAsset.scaleOEM) {
-                    historyEntries += `${storedName} updated scaleOEM from ${editingAsset.scaleOEM} to ${editedAsset.scaleOEM} at ${johannesburgTime}\n`;
+                    historyEntries += `$CRM Asset Dashboard :{user?.preferred_username} updated scaleOEM from ${editingAsset.scaleOEM} to ${editedAsset.scaleOEM} at ${johannesburgTime}\n`;
                 }
 
                 // Create the updated asset with uploaded file URLs
@@ -260,6 +262,7 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                             entityId: editingAsset.id,
                             action: "UPDATE",
                             timestamp: new Date().toISOString(),
+                            updatedBy:user?.preferred_username||user?.email,
                             details: historyEntries,
                         });
                         setHistory(historyEntries);

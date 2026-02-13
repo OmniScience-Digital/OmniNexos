@@ -20,6 +20,7 @@ import ResponseModal from "@/components/widgets/response";
 
 export default function FleetEditPage() {
     const navigate = useNavigate();
+    const {user, permission } = useAuth();
     const params = useParams();
     const fleetId = decodeURIComponent(params.id as string);
     const editFormRef = useRef<HTMLDivElement>(null);
@@ -32,7 +33,6 @@ export default function FleetEditPage() {
 
     const [history, setHistory] = useState("");
 
-    const { permission } = useAuth();
     const [writePermissions, setWritePermissions] = useState(false);
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
@@ -153,17 +153,6 @@ export default function FleetEditPage() {
 
         try {
             setSaving(true);
-            // Get user from localStorage
-            let storedName = "Unknown User";
-            try {
-                const userData = localStorage.getItem("user");
-                if (userData) {
-                    storedName = userData.replace(/^"|"$/g, '').trim();
-                }
-            } catch (error) {
-                console.error("Error getting user from localStorage:", error);
-            }
-
             const johannesburgTime = new Date().toLocaleString("en-ZA", {
                 timeZone: "Africa/Johannesburg"
             });
@@ -197,7 +186,7 @@ export default function FleetEditPage() {
                 if (editedFleet[typedKey] !== fleet[typedKey]) {
                     const oldValue = cleanValueForHistory(fleet[typedKey]);
                     const newValue = cleanValueForHistory(editedFleet[typedKey]);
-                    historyEntries += `FMS Dashboard: ${storedName} updated ${typedKey} from ${oldValue} to ${newValue} at ${johannesburgTime}\n`;
+                    historyEntries += `FMS Dashboard: ${user?.preferred_username} updated ${typedKey} from ${oldValue} to ${newValue} at ${johannesburgTime}\n`;
                 }
             });
 
@@ -245,6 +234,7 @@ export default function FleetEditPage() {
                     entityId: fleetData.id,
                     action: "UPDATE",
                     timestamp: new Date().toISOString(),
+                    updatedBy:user?.preferred_username||user?.email,
                     details: historyEntries
                 });
             } catch (error) {

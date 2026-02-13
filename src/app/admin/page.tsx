@@ -37,7 +37,7 @@ const stringToPermission = (str: string | null | undefined): Permission => {
 }
 
 export default function UserPermissionsAssign() {
-  const { allUsers } = useAuth();
+  const { allUsers,user } = useAuth();
   const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [search, setSearch] = useState('')
@@ -51,6 +51,8 @@ export default function UserPermissionsAssign() {
   const [expandedPermissions, setExpandedPermissions] = useState<Set<string>>(new Set())
   const [permissionHistory, setPermissionHistory] = useState<any[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+
+
 
   const usersPerPage = 15
 
@@ -272,7 +274,7 @@ export default function UserPermissionsAssign() {
     if (!selectedUser) return;
 
     try {
-      const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
+
       const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
       await client.models.History.create({
@@ -280,7 +282,8 @@ export default function UserPermissionsAssign() {
         entityId: selectedUser.id,
         action: action,
         timestamp: new Date().toISOString(),
-        details: `${storedName} ${details} for user "${selectedUser.name}" (${selectedUser.email}) at ${johannesburgTime}`
+        updatedBy:user?.preferred_username||user?.email,
+        details: `${user?.preferred_username} ${details} for user "${selectedUser.name}" (${selectedUser.email}) at ${johannesburgTime}`
       });
 
       // Refresh history using GSI

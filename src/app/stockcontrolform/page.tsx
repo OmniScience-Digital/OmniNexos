@@ -11,9 +11,11 @@ import Loading from "@/components/widgets/loading";
 import { mapApiCategoryToCategory } from "./Components/map.categories.helper";
 import type { Category, Component } from "@/types/form.types";
 import { SCF_clickUpService } from "@/services/scf.clickUp.service";
+import { useAuth } from "@/contexts/auth-context";
 
 
 export default function ComponentForm() {
+  const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [displayedComponents, setDisplayedComponents] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function ComponentForm() {
       setLoading(true);
       e.preventDefault();
 
-      const savedUser = localStorage.getItem("user");
+
       const result = displayedComponents.reduce((acc, component) => {
         if (component.componentName.trim() !== "" && component.categoryName) {
           const subAcc = component.subComponents.reduce((subAcc, sub) => {
@@ -149,7 +151,7 @@ export default function ComponentForm() {
       }
 
       // API call
-      const response = await SCF_clickUpService.createTask(savedUser, result)
+      const response = await SCF_clickUpService.createTask(user?.preferred_username, result)
 
       setMessage(response.message || "Successfully published to ClickUp");
       setShow(true);

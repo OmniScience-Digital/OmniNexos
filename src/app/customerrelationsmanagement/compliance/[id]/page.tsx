@@ -22,10 +22,12 @@ import TabsHistory from "@/components/table/tabshistory";
 import type { ComplianceAdditionals } from "@/types/crm.types";
 import { Textarea } from "@/components/ui/textarea";
 import ResponseModal from "@/components/widgets/response";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function Compliance() {
     const navigate = useNavigate();
     const params = useParams();
+    const { user } = useAuth();
 
     const customerSiteId = decodeURIComponent(params.id as string);
     const [siteName, setSiteName] = useState("");
@@ -363,7 +365,6 @@ export default function Compliance() {
             setSelectedEmployees(new Set());
             setSelectedRequirements(new Set());
             // After the compliance update is successful, add history
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
             // Get requirement names for history
@@ -372,7 +373,7 @@ export default function Compliance() {
             );
 
 
-            const historyEntry = `\n${storedName} linked ${employeeNames.join(', ')} to requirements: ${requirementNames.join(', ')} at ${johannesburgTime}`;
+            const historyEntry = `\nCRM Dashboard :${user?.preferred_username} linked ${employeeNames.join(', ')} to requirements: ${requirementNames.join(', ')} at ${johannesburgTime}`;
 
             // Save to database
             await client.models.History.create({
@@ -380,6 +381,7 @@ export default function Compliance() {
                 entityId: customerSiteId,
                 action: "LINK",
                 timestamp: new Date().toISOString(),
+                updatedBy: user?.preferred_username || user?.email,
                 details: historyEntry
             });
 
@@ -510,10 +512,9 @@ export default function Compliance() {
             await client.models.Compliance.update(complianceData);
 
             // After the compliance update is successful, add history  
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
-            const historyEntry = `\n${storedName} unlinked ${employeeNames.join(', ')} from requirements: ${requirementNames.join(', ')} at ${johannesburgTime}`;
+            const historyEntry = `\nCRM Dashboard : ${user?.preferred_username} unlinked ${employeeNames.join(', ')} from requirements: ${requirementNames.join(', ')} at ${johannesburgTime}`;
 
             // Save to database
             await client.models.History.create({
@@ -521,6 +522,7 @@ export default function Compliance() {
                 entityId: customerSiteId,
                 action: "UNLINK",
                 timestamp: new Date().toISOString(),
+                updatedBy: user?.preferred_username || user?.email,
                 details: historyEntry
             });
 
@@ -553,7 +555,6 @@ export default function Compliance() {
     const saveNotes = async () => {
 
         try {
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
             // Update notes if they've changed - ALWAYS update if we're in edit mode
@@ -573,7 +574,8 @@ export default function Compliance() {
                         entityId: complianceData?.customerSiteId,
                         action: "UPDATE_NOTES",
                         timestamp: new Date().toISOString(),
-                        details: `\n${storedName} UPDATED compliance notes at ${johannesburgTime}\nNew notes: ${notes}\n`
+                        updatedBy: user?.preferred_username || user?.email,
+                        details: `\nCRM Dashboard :${user?.preferred_username} UPDATED compliance notes at ${johannesburgTime}\nNew notes: ${notes}\n`
                     });
 
 

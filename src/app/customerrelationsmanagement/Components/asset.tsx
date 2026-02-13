@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { handleUpload } from "@/services/s3.service";
 import {type PDFState } from "@/types/schema";
 import { FileUpload } from "@/components/widgets/fileUpload";
+import { useAuth } from "@/contexts/auth-context";
 
 
 interface ASSETPROPS {
@@ -19,6 +20,7 @@ interface ASSETPROPS {
 export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPROPS) {
     const [saving, setSaving] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const {user } = useAuth();
 
     const [scaleDatasheetFiles, setScaleDatasheetFiles] = useState<PDFState[]>([]);
     const [maintPlanFiles, setMaintPlanFiles] = useState<PDFState[]>([]);
@@ -68,21 +70,11 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
             ]);
 
 
-            let storedName = "Unknown User";
-            try {
-                const userData = localStorage.getItem("user");
-                if (userData) {
-                    storedName = userData.replace(/^"|"$/g, '').trim();
-                }
-            } catch (error) {
-                console.error("Error getting user from localStorage:", error);
-            }
-
             const johannesburgTime = new Date().toLocaleString("en-ZA", {
                 timeZone: "Africa/Johannesburg"
             });
 
-            const historyEntries = `${storedName} created new asset ${assetData.assetName} at ${johannesburgTime}.\n`;
+            const historyEntries = `CRM Asset Dashboard :${user?.preferred_username} created new asset ${assetData.assetName} at ${johannesburgTime}.\n`;
 
             const result = await client.models.Asset.create({
                 ...assetData,
@@ -98,6 +90,7 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
                         entityId: result.data.id,
                         action: "CREATE",
                         timestamp: new Date().toISOString(),
+                        updatedBy:user?.preferred_username||user?.email,
                         details: historyEntries
                     });
                 } catch (error) {

@@ -17,6 +17,7 @@ import { handleCrmTasks } from "./crmtasks";
 import { FileUploadUpdate } from "@/components/widgets/fileupdate";
 import { FileUploadMany } from "@/components/widgets/fileUpload";
 import type { ComplianceAdditionals } from "@/types/crm.types";
+import { useAuth } from "@/contexts/auth-context";
 
 
 interface SiteAdditionalProps {
@@ -27,6 +28,7 @@ interface SiteAdditionalProps {
 
 
 export default function SiteAdditional({ complianceData, complianceexistingdocs, loading }: SiteAdditionalProps) {
+    const { user } = useAuth();
     const [additionalCerts, setAdditionalCerts] = useState<any[]>([]);
     const [existingdocs, setAdditionalDocs] = useState<ComplianceAdditionals[]>(complianceexistingdocs);
     const [digitalContractorsPack, setDigitalContractorsPack] = useState<string[]>([]);
@@ -185,15 +187,15 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
             setDocToDelete(null);
 
             // History tracking for certificate deletion
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
-            const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
+            const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
             await client.models.History.create({
                 entityType: "COMPLIANCE",
                 entityId: complianceData?.customerSiteId,
                 action: "DELETE_CERTIFICATE",
                 timestamp: new Date().toISOString(),
-                details: `\n${storedName} DELETED site additional certificate "${docName}" at ${johannesburgTime}\n`
+                updatedBy: user?.preferred_username || user?.email,
+                details: `\nCRM Dashboard :${user?.preferred_username} DELETED site additional certificate "${docName}" at ${johannesburgTime}\n`
             });
 
             setMessage(`Successfully deleted certificate: ${docName}`);
@@ -298,7 +300,6 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
 
             // History tracking
             if (uploadCount > 0) {
-                const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
                 const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
                 await client.models.History.create({
@@ -306,7 +307,8 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
                     entityId: complianceData?.customerSiteId,
                     action: "UPDATE_CONTRACTORS_PACK",
                     timestamp: new Date().toISOString(),
-                    details: `\n${storedName} UPDATED Digital Contractors Pack with ${uploadCount} new file(s) at ${johannesburgTime}\n`
+                    updatedBy: user?.preferred_username || user?.email,
+                    details: `\nCRM Dashboard :${user?.preferred_username} UPDATED Digital Contractors Pack with ${uploadCount} new file(s) at ${johannesburgTime}\n`
                 });
             }
 
@@ -341,7 +343,6 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
             setHasContractorsPackChanges(true);
 
             // History tracking
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
             await client.models.History.create({
@@ -349,7 +350,8 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
                 entityId: complianceData?.customerSiteId,
                 action: "REMOVE_CONTRACTORS_PACK_FILE",
                 timestamp: new Date().toISOString(),
-                details: `\n${storedName} REMOVED file from Digital Contractors Pack at ${johannesburgTime}\nFile: ${s3Key.split('/').pop() || 'Unknown'}\n`
+                updatedBy: user?.preferred_username || user?.email,
+                details: `\nCRM Dashboard :${user?.preferred_username} REMOVED file from Digital Contractors Pack at ${johannesburgTime}\nFile: ${s3Key.split('/').pop() || 'Unknown'}\n`
             });
 
             setMessage("File removed from Digital Contractors Pack");
@@ -513,22 +515,22 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
             setShow(true);
 
             // History tracking
-            const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
             uploadedCerts.map(cert =>
-                `${storedName} added Additional Certificate "${cert.certificateName}" at ${johannesburgTime}.\n`
+                `${user?.preferred_username} added Additional Certificate "${cert.certificateName}" at ${johannesburgTime}.\n`
             );
 
             // Create specific history entries for each certificate created
             for (const cert of uploadedCerts) {
-                const historyEntry = `\n${storedName} CREATED site additional certificate "${cert.certificateName}" with expiry ${cert.expiryDate || 'No expiry'} at ${johannesburgTime}\n`;
+                const historyEntry = `\nCRM Dashboard :${user?.preferred_username} CREATED site additional certificate "${cert.certificateName}" with expiry ${cert.expiryDate || 'No expiry'} at ${johannesburgTime}\n`;
 
                 await client.models.History.create({
                     entityType: "COMPLIANCE",
                     entityId: complianceData?.customerSiteId,
                     action: "CREATE_CERTIFICATE",
                     timestamp: new Date().toISOString(),
+                    updatedBy: user?.preferred_username || user?.email,
                     details: historyEntry
                 });
             }
@@ -625,10 +627,8 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
             console.log('updateCount ', updateCount);
             // History tracking - SPECIFIC ACTION FOR UPDATES
             if (updateCount > 0) {
-                const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
                 const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
-
-                const historyEntry = `\n${storedName} UPDATED site additional certificates: ${updatedCertificates.join(', ')} at ${johannesburgTime}\n`;
+                const historyEntry = `\nCRM Dashboard :${user?.preferred_username} UPDATED site additional certificates: ${updatedCertificates.join(', ')} at ${johannesburgTime}\n`;
 
 
 
@@ -637,6 +637,7 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
                     entityId: complianceData?.customerSiteId,
                     action: "UPDATE_CERTIFICATES",
                     timestamp: new Date().toISOString(),
+                    updatedBy: user?.preferred_username || user?.email,
                     details: historyEntry
                 });
 
@@ -864,14 +865,15 @@ export default function SiteAdditional({ complianceData, complianceexistingdocs,
                                                                             requirementDoc: ""
                                                                         };
                                                                         setAdditionalDocs(updatedDocs);
-                                                                        const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
+
                                                                         const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
                                                                         await client.models.History.create({
                                                                             entityType: "COMPLIANCE",
                                                                             entityId: complianceData?.customerSiteId,
                                                                             action: "REMOVE_CERTIFICATE_FILE",
                                                                             timestamp: new Date().toISOString(),
-                                                                            details: `\n${storedName} REMOVED file from certificate "${cert.name}" at ${johannesburgTime}\n`
+                                                                            updatedBy: user?.preferred_username || user?.email,
+                                                                            details: `\nCRM Dashboard :${user?.preferred_username} REMOVED file from certificate "${cert.name}" at ${johannesburgTime}\n`
                                                                         });
                                                                         setMessage(`File deleted successfully`);
                                                                         setSuccessful(true);

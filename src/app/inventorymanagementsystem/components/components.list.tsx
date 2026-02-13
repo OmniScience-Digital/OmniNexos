@@ -31,6 +31,8 @@ export function ComponentsList({
   onComponentUpdate,
   onComponentDelete
 }: ComponentsListProps) {
+  const { user } = useAuth();
+
   const [editingComponent, setEditingComponent] = useState<Component | null>(null);
   const [editedComponent, setEditedComponent] = useState<Partial<Component>>({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -185,9 +187,6 @@ export function ComponentsList({
       return;
     }
     if (editingComponent && editedComponent) {
-      // Get user from localStorage - proper way to handle it
-      const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
-
       // Get Johannesburg time
       const johannesburgTime = new Date().toLocaleString("en-ZA", {
         timeZone: "Africa/Johannesburg"
@@ -198,13 +197,13 @@ export function ComponentsList({
       // Check if minimumStock changed
       if (editedComponent.minimumStock !== undefined &&
         editedComponent.minimumStock !== editingComponent.minimumStock) {
-        historyEntries += `IMS Dashboard: ${storedName} updated minimumStock from ${editingComponent.minimumStock} to ${editedComponent.minimumStock} at ${johannesburgTime}\n`;
+        historyEntries += `IMS Dashboard: ${user?.preferred_username} updated minimumStock from ${editingComponent.minimumStock} to ${editedComponent.minimumStock} at ${johannesburgTime}\n`;
       }
 
       // Check if currentStock changed
       if (editedComponent.currentStock !== undefined &&
         editedComponent.currentStock !== editingComponent.currentStock) {
-        historyEntries += `IMS Dashboard: ${storedName} updated currentStock from ${editingComponent.currentStock} to ${editedComponent.currentStock} at ${johannesburgTime}\n`;
+        historyEntries += `IMS Dashboard: ${user?.preferred_username} updated currentStock from ${editingComponent.currentStock} to ${editedComponent.currentStock} at ${johannesburgTime}\n`;
       }
 
       // Create the updated component with history
@@ -225,6 +224,7 @@ export function ComponentsList({
             entityId: editingComponent.id,
             action: "UPDATE",
             timestamp: new Date().toISOString(),
+            updatedBy: user?.preferred_username || user?.email,
             details: historyEntries,
           });
           setHistory(historyEntries);

@@ -15,17 +15,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { formatDateForAmplify } from "@/utils/helper/time";
-import {type Employee, MEDICAL_CERTIFICATE_TYPES, TRAINING_CERTIFICATE_TYPES } from "@/types/hrd.types";
+import { type Employee, MEDICAL_CERTIFICATE_TYPES, TRAINING_CERTIFICATE_TYPES } from "@/types/hrd.types";
 import ResponseModal from "@/components/widgets/response";
-import {type  PDFState } from "@/types/schema";
+import { type PDFState } from "@/types/schema";
 import { remove } from "@aws-amplify/storage";
 import { FileUploadUpdate } from "@/components/widgets/fileupdate";
 import { handleUpload } from "@/services/s3.service";
 import { getInitials } from "@/components/widgets/getinitials";
+import { useAuth } from "@/contexts/auth-context";
 
 
 export default function CreateEmployeePage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState<Partial<Employee>>({
@@ -75,51 +77,51 @@ export default function CreateEmployeePage() {
 
 
 
-// Update your handlers to store full PDFState objects:
-const handleDocumentFileChange = (field: keyof Employee) => (files: PDFState[]) => {
-  if (files[0]) {
-    // Store the full PDFState object
-    setDocumentFiles(prev => ({ ...prev, [field]: files[0] }));
-    
-    // Also store the s3Key in formData for display
-    const url = files[0]?.s3Key || '';
-    setFormData(prev => ({ ...prev, [field]: url }));
-  }
-};
+    // Update your handlers to store full PDFState objects:
+    const handleDocumentFileChange = (field: keyof Employee) => (files: PDFState[]) => {
+        if (files[0]) {
+            // Store the full PDFState object
+            setDocumentFiles(prev => ({ ...prev, [field]: files[0] }));
 
-const handleMedicalFileChange = (index: number) => (files: PDFState[]) => {
-  if (files[0]) {
-    // Update medicalFiles array with full PDFState object
-    const updated = [...medicalFiles];
-    updated[index] = files[0];
-    setMedicalFiles(updated);
-    
-    // Also update medicalCerts with s3Key
-    const updatedCerts = [...medicalCerts];
-    updatedCerts[index] = {
-      ...updatedCerts[index],
-      attachment: files[0]?.s3Key || ""
+            // Also store the s3Key in formData for display
+            const url = files[0]?.s3Key || '';
+            setFormData(prev => ({ ...prev, [field]: url }));
+        }
     };
-    setMedicalCerts(updatedCerts);
-  }
-};
 
-const handleTrainingFileChange = (index: number) => (files: PDFState[]) => {
-  if (files[0]) {
-    // Update trainingFiles array with full PDFState object
-    const updated = [...trainingFiles];
-    updated[index] = files[0];
-    setTrainingFiles(updated);
-    
-    // Also update trainingCerts with s3Key
-    const updatedCerts = [...trainingCerts];
-    updatedCerts[index] = {
-      ...updatedCerts[index],
-      attachment: files[0]?.s3Key || ""
+    const handleMedicalFileChange = (index: number) => (files: PDFState[]) => {
+        if (files[0]) {
+            // Update medicalFiles array with full PDFState object
+            const updated = [...medicalFiles];
+            updated[index] = files[0];
+            setMedicalFiles(updated);
+
+            // Also update medicalCerts with s3Key
+            const updatedCerts = [...medicalCerts];
+            updatedCerts[index] = {
+                ...updatedCerts[index],
+                attachment: files[0]?.s3Key || ""
+            };
+            setMedicalCerts(updatedCerts);
+        }
     };
-    setTrainingCerts(updatedCerts);
-  }
-};
+
+    const handleTrainingFileChange = (index: number) => (files: PDFState[]) => {
+        if (files[0]) {
+            // Update trainingFiles array with full PDFState object
+            const updated = [...trainingFiles];
+            updated[index] = files[0];
+            setTrainingFiles(updated);
+
+            // Also update trainingCerts with s3Key
+            const updatedCerts = [...trainingCerts];
+            updatedCerts[index] = {
+                ...updatedCerts[index],
+                attachment: files[0]?.s3Key || ""
+            };
+            setTrainingCerts(updatedCerts);
+        }
+    };
     // Generic handler for file removal
     const handleDocumentFileRemove = (field: keyof Employee) => async (s3Key: string) => {
         if (s3Key) {
@@ -165,191 +167,191 @@ const handleTrainingFileChange = (index: number) => (files: PDFState[]) => {
     };
 
 
-const handleSave = async () => {
-  try {
-    if (!validateForm()) {
-      return;
-    }
+    const handleSave = async () => {
+        try {
+            if (!validateForm()) {
+                return;
+            }
 
-    setSaving(true);
+            setSaving(true);
 
-    const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
-    const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
-    const historyEntries = `Hrd Dashboard: ${storedName} created new employee at ${johannesburgTime}.\n`;
-    
-    const employeeId = formData.employeeId!;
+            const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
+            const historyEntries = `Hrd Dashboard: ${user?.preferred_username} created new employee at ${johannesburgTime}.\n`;
 
-    // ==============================================
-    // 1. UPLOAD ALL MAIN DOCUMENT FILES
-    // ==============================================
-    const s3KeyMap: Record<string, string> = {};
-    
-    // Upload main document files
-    const mainUploadPromises = Object.entries(documentFiles).map(async ([field, pdfState]) => {
-      if (pdfState && pdfState.file) {
-        const key = await handleUpload(pdfState);
-        s3KeyMap[field] = key;
-      }
-    });
+            const employeeId = formData.employeeId!;
 
-    await Promise.all(mainUploadPromises);
+            // ==============================================
+            // 1. UPLOAD ALL MAIN DOCUMENT FILES
+            // ==============================================
+            const s3KeyMap: Record<string, string> = {};
 
-    // ==============================================
-    // 2. UPLOAD MEDICAL CERTIFICATE FILES
-    // ==============================================
-    const medicalKeys: string[] = [];
-    for (let i = 0; i < medicalFiles.length; i++) {
-      const pdfState = medicalFiles[i];
-      if (pdfState && pdfState.file) {
-        const key = await handleUpload(pdfState);
-        medicalKeys[i] = key;
-      }
-    }
+            // Upload main document files
+            const mainUploadPromises = Object.entries(documentFiles).map(async ([field, pdfState]) => {
+                if (pdfState && pdfState.file) {
+                    const key = await handleUpload(pdfState);
+                    s3KeyMap[field] = key;
+                }
+            });
 
-    // ==============================================
-    // 3. UPLOAD TRAINING CERTIFICATE FILES
-    // ==============================================
-    const trainingKeys: string[] = [];
-    for (let i = 0; i < trainingFiles.length; i++) {
-      const pdfState = trainingFiles[i];
-      if (pdfState && pdfState.file) {
-        const key = await handleUpload(pdfState);
-        trainingKeys[i] = key;
-      }
-    }
+            await Promise.all(mainUploadPromises);
 
-    // ==============================================
-    // 4. VALIDATE CERTIFICATES WITH ATTACHMENTS
-    // ==============================================
-    let hasValidationError = false;
-    let errorCertName = "";
-    let errorCertType = "";
+            // ==============================================
+            // 2. UPLOAD MEDICAL CERTIFICATE FILES
+            // ==============================================
+            const medicalKeys: string[] = [];
+            for (let i = 0; i < medicalFiles.length; i++) {
+                const pdfState = medicalFiles[i];
+                if (pdfState && pdfState.file) {
+                    const key = await handleUpload(pdfState);
+                    medicalKeys[i] = key;
+                }
+            }
 
-    // Validate medical certificates
-    for (let i = 0; i < medicalCerts.length; i++) {
-      const cert = medicalCerts[i];
-      if ((medicalKeys[i] || cert.attachment) && !cert.expiryDate) {
-        hasValidationError = true;
-        errorCertName = cert.certificateType;
-        errorCertType = "Medical";
-        break;
-      }
-    }
+            // ==============================================
+            // 3. UPLOAD TRAINING CERTIFICATE FILES
+            // ==============================================
+            const trainingKeys: string[] = [];
+            for (let i = 0; i < trainingFiles.length; i++) {
+                const pdfState = trainingFiles[i];
+                if (pdfState && pdfState.file) {
+                    const key = await handleUpload(pdfState);
+                    trainingKeys[i] = key;
+                }
+            }
 
-    // Validate training certificates
-    if (!hasValidationError) {
-      for (let i = 0; i < trainingCerts.length; i++) {
-        const cert = trainingCerts[i];
-        if ((trainingKeys[i] || cert.attachment) && !cert.expiryDate) {
-          hasValidationError = true;
-          errorCertName = cert.certificateType;
-          errorCertType = "Training";
-          break;
+            // ==============================================
+            // 4. VALIDATE CERTIFICATES WITH ATTACHMENTS
+            // ==============================================
+            let hasValidationError = false;
+            let errorCertName = "";
+            let errorCertType = "";
+
+            // Validate medical certificates
+            for (let i = 0; i < medicalCerts.length; i++) {
+                const cert = medicalCerts[i];
+                if ((medicalKeys[i] || cert.attachment) && !cert.expiryDate) {
+                    hasValidationError = true;
+                    errorCertName = cert.certificateType;
+                    errorCertType = "Medical";
+                    break;
+                }
+            }
+
+            // Validate training certificates
+            if (!hasValidationError) {
+                for (let i = 0; i < trainingCerts.length; i++) {
+                    const cert = trainingCerts[i];
+                    if ((trainingKeys[i] || cert.attachment) && !cert.expiryDate) {
+                        hasValidationError = true;
+                        errorCertName = cert.certificateType;
+                        errorCertType = "Training";
+                        break;
+                    }
+                }
+            }
+
+            if (hasValidationError) {
+                setMessage(`${errorCertType} Certificate "${errorCertName}" requires an expiry date since it has an attachment`);
+                setShow(true);
+                setSuccessful(false);
+                setSaving(false);
+                return;
+            }
+
+            // ==============================================
+            // 5. CREATE EMPLOYEE RECORD WITH ACTUAL S3 KEYS
+            // ==============================================
+            const employeeData = {
+                employeeId: formData.employeeId!,
+                firstName: formData.firstName!,
+                surname: formData.surname!,
+                employeeNumber: formData.employeeNumber || null,
+                knownAs: formData.knownAs || null,
+                passportNumber: formData.passportNumber || null,
+                passportExpiry: formatDateForAmplify(formData.passportExpiry),
+                passportAttachment: s3KeyMap.passportAttachment || null,
+                driversLicenseCode: formData.driversLicenseCode || null,
+                driversLicenseExpiry: formatDateForAmplify(formData.driversLicenseExpiry),
+                driversLicenseAttachment: s3KeyMap.driversLicenseAttachment || null,
+                authorizedDriver: formData.authorizedDriver!,
+                pdpExpiry: formatDateForAmplify(formData.pdpExpiry),
+                pdpAttachment: s3KeyMap.pdpAttachment || null,
+                cvAttachment: s3KeyMap.cvAttachment || null,
+                ppeListAttachment: s3KeyMap.ppeListAttachment || null,
+                ppeExpiry: formatDateForAmplify(formData.ppeExpiry),
+                employeeIdAttachment: s3KeyMap.employeeIdAttachment || null,
+            };
+
+            const newEmployee = await client.models.Employee.create(employeeData);
+
+            if (!newEmployee.errors) {
+                // ==============================================
+                // 6. CREATE MEDICAL CERTIFICATES
+                // ==============================================
+                for (let i = 0; i < medicalCerts.length; i++) {
+                    const cert = medicalCerts[i];
+                    if (cert.certificateType) {
+                        await client.models.EmployeeMedicalCertificate.create({
+                            employeeId: employeeId,
+                            certificateType: cert.certificateType,
+                            expiryDate: formatDateForAmplify(cert.expiryDate) || "",
+                            attachment: medicalKeys[i] || null
+                        });
+                    }
+                }
+
+                // ==============================================
+                // 7. CREATE TRAINING CERTIFICATES
+                // ==============================================
+                for (let i = 0; i < trainingCerts.length; i++) {
+                    const cert = trainingCerts[i];
+                    if (cert.certificateType) {
+                        await client.models.EmployeeTrainingCertificate.create({
+                            employeeId: employeeId,
+                            certificateType: cert.certificateType,
+                            expiryDate: formatDateForAmplify(cert.expiryDate) || "",
+                            attachment: trainingKeys[i] || null
+                        });
+                    }
+                }
+
+                // ==============================================
+                // 8. ADD HISTORY TABLE ENTRY
+                // ==============================================
+                await client.models.History.create({
+                    entityType: "EMPLOYEE",
+                    entityId: employeeId,
+                    action: "CREATE",
+                    timestamp: new Date().toISOString(),
+                    updatedBy: user?.preferred_username || user?.email,
+                    details: historyEntries
+                });
+
+                setMessage("Employee created successfully!");
+                setShow(true);
+                setSuccessful(true);
+
+                // Redirect after a short delay
+                setTimeout(() => {
+                    navigate('/humanresourcesdepartment');
+                }, 1500);
+
+            } else {
+                setMessage("Failed to create employee!");
+                setShow(true);
+                setSuccessful(false);
+            }
+
+        } catch (error: any) {
+            console.error("Error saving employee:", error);
+            const errorMessage = error.message || "Error creating employee. Please check the console for details.";
+            setMessage(errorMessage);
+            setShow(true);
+            setSuccessful(false);
+        } finally {
+            setSaving(false);
         }
-      }
-    }
-
-    if (hasValidationError) {
-      setMessage(`${errorCertType} Certificate "${errorCertName}" requires an expiry date since it has an attachment`);
-      setShow(true);
-      setSuccessful(false);
-      setSaving(false);
-      return;
-    }
-
-    // ==============================================
-    // 5. CREATE EMPLOYEE RECORD WITH ACTUAL S3 KEYS
-    // ==============================================
-    const employeeData = {
-      employeeId: formData.employeeId!,
-      firstName: formData.firstName!,
-      surname: formData.surname!,
-      employeeNumber: formData.employeeNumber || null,
-      knownAs: formData.knownAs || null,
-      passportNumber: formData.passportNumber || null,
-      passportExpiry: formatDateForAmplify(formData.passportExpiry),
-      passportAttachment: s3KeyMap.passportAttachment || null,
-      driversLicenseCode: formData.driversLicenseCode || null,
-      driversLicenseExpiry: formatDateForAmplify(formData.driversLicenseExpiry),
-      driversLicenseAttachment: s3KeyMap.driversLicenseAttachment || null,
-      authorizedDriver: formData.authorizedDriver!,
-      pdpExpiry: formatDateForAmplify(formData.pdpExpiry),
-      pdpAttachment: s3KeyMap.pdpAttachment || null,
-      cvAttachment: s3KeyMap.cvAttachment || null,
-      ppeListAttachment: s3KeyMap.ppeListAttachment || null,
-      ppeExpiry: formatDateForAmplify(formData.ppeExpiry),
-      employeeIdAttachment: s3KeyMap.employeeIdAttachment || null,
     };
-
-    const newEmployee = await client.models.Employee.create(employeeData);
-
-    if (!newEmployee.errors) {
-      // ==============================================
-      // 6. CREATE MEDICAL CERTIFICATES
-      // ==============================================
-      for (let i = 0; i < medicalCerts.length; i++) {
-        const cert = medicalCerts[i];
-        if (cert.certificateType) {
-          await client.models.EmployeeMedicalCertificate.create({
-            employeeId: employeeId,
-            certificateType: cert.certificateType,
-            expiryDate: formatDateForAmplify(cert.expiryDate) || "",
-            attachment: medicalKeys[i] || null
-          });
-        }
-      }
-
-      // ==============================================
-      // 7. CREATE TRAINING CERTIFICATES
-      // ==============================================
-      for (let i = 0; i < trainingCerts.length; i++) {
-        const cert = trainingCerts[i];
-        if (cert.certificateType) {
-          await client.models.EmployeeTrainingCertificate.create({
-            employeeId: employeeId,
-            certificateType: cert.certificateType,
-            expiryDate: formatDateForAmplify(cert.expiryDate) || "",
-            attachment: trainingKeys[i] || null
-          });
-        }
-      }
-
-      // ==============================================
-      // 8. ADD HISTORY TABLE ENTRY
-      // ==============================================
-      await client.models.History.create({
-        entityType: "EMPLOYEE",
-        entityId: employeeId,
-        action: "CREATE",
-        timestamp: new Date().toISOString(),
-        details: historyEntries
-      });
-      
-      setMessage("Employee created successfully!");
-      setShow(true);
-      setSuccessful(true);
-      
-      // Redirect after a short delay
-      setTimeout(() => {
-        navigate('/humanresourcesdepartment');
-      }, 1500);
-
-    } else {
-      setMessage("Failed to create employee!");
-      setShow(true);
-      setSuccessful(false);
-    }
-
-  } catch (error: any) {
-    console.error("Error saving employee:", error);
-    const errorMessage = error.message || "Error creating employee. Please check the console for details.";
-    setMessage(errorMessage);
-    setShow(true);
-    setSuccessful(false);
-  } finally {
-    setSaving(false);
-  }
-};
 
     return (
         <div className="flex flex-col min-h-screen bg-background">

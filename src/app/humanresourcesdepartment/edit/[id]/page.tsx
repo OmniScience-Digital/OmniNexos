@@ -28,10 +28,12 @@ import { handleUpload } from "@/services/s3.service";
 import { FileUploadUpdate } from "@/components/widgets/fileupdate";
 import { FileUploadMany } from "@/components/widgets/fileUpload";
 import { getInitials } from "@/components/widgets/getinitials";
+import { useAuth } from "@/contexts/auth-context";
 
 
 export default function EditEmployeePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const params = useParams();
   const employeeId = decodeURIComponent(params.id as string);
 
@@ -437,7 +439,6 @@ export default function EditEmployeePage() {
 
         await client.models.Employee.update(updateData);
 
-        const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
         const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
         // Create a readable field name for the history
@@ -447,13 +448,14 @@ export default function EditEmployeePage() {
           .toLowerCase()
           .replace(/\b\w/g, l => l.toUpperCase());
 
-        const historyDetails = `\nHrd Dashboard: ${storedName} removed ${fieldName} file at ${johannesburgTime}`;
+        const historyDetails = `\nHrd Dashboard: ${user?.preferred_username} removed ${fieldName} file at ${johannesburgTime}`;
 
         await client.models.History.create({
           entityType: "EMPLOYEE",
           entityId: employee?.employeeId || '',
           action: "REMOVE_DOCUMENT_FILE",
           timestamp: new Date().toISOString(),
+          updatedBy:user?.preferred_username||user?.email,
           details: historyDetails
         });
 
@@ -482,10 +484,7 @@ export default function EditEmployeePage() {
     try {
       setSaving(true);
 
-
-      const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
       const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
-
       // Track changed fields for History table
       const changedFields: string[] = [];
 
@@ -493,7 +492,7 @@ export default function EditEmployeePage() {
       Object.keys(formData).forEach(key => {
         const typedKey = key as keyof Employee;
         if (formData[typedKey] !== employee[typedKey]) {
-          changedFields.push(` ${storedName} updated ${typedKey} from ${employee[typedKey]} to ${formData[typedKey]} at ${johannesburgTime}.\n`);
+          changedFields.push(` ${user?.preferred_username} updated ${typedKey} from ${employee[typedKey]} to ${formData[typedKey]} at ${johannesburgTime}.\n`);
           console.log(`   🔄 ${typedKey}: ${employee[typedKey]} → ${formData[typedKey]}`);
         }
       });
@@ -665,16 +664,16 @@ export default function EditEmployeePage() {
 
         if (existingCert) {
           if (cert.certificateName !== existingCert.certificateName) {
-            changedFields.push(`${storedName} updated Additional Certificate name from "${existingCert.certificateName}" to "${cert.certificateName}" at ${johannesburgTime}.\n`);
+            changedFields.push(`${user?.preferred_username} updated Additional Certificate name from "${existingCert.certificateName}" to "${cert.certificateName}" at ${johannesburgTime}.\n`);
           }
           if (cert.expiryDate !== existingCert.expiryDate) {
-            changedFields.push(`${storedName} updated Additional Certificate "${cert.certificateName}" expiry from ${existingCert.expiryDate} to ${cert.expiryDate} at ${johannesburgTime}.\n`);
+            changedFields.push(`${user?.preferred_username} updated Additional Certificate "${cert.certificateName}" expiry from ${existingCert.expiryDate} to ${cert.expiryDate} at ${johannesburgTime}.\n`);
           }
           if (cert.attachment && cert.attachment !== existingCert.attachment) {
-            changedFields.push(`${storedName} updated Additional Certificate "${cert.certificateName}" attachment at ${johannesburgTime}.\n`);
+            changedFields.push(`${user?.preferred_username} updated Additional Certificate "${cert.certificateName}" attachment at ${johannesburgTime}.\n`);
           }
         } else if (cert.certificateName && (cert.expiryDate || cert.attachment)) {
-          changedFields.push(`${storedName} added Additional Certificate "${cert.certificateName}" at ${johannesburgTime}.\n`);
+          changedFields.push(`${user?.preferred_username} added Additional Certificate "${cert.certificateName}" at ${johannesburgTime}.\n`);
         }
       });
 
@@ -689,13 +688,13 @@ export default function EditEmployeePage() {
 
         if (existingCert) {
           if (cert.expiryDate !== existingCert.expiryDate) {
-            changedFields.push(`${storedName} updated Training ${cert.certificateType} expiry from ${existingCert.expiryDate} to ${cert.expiryDate} at ${johannesburgTime}.\n`);
+            changedFields.push(`${user?.preferred_username} updated Training ${cert.certificateType} expiry from ${existingCert.expiryDate} to ${cert.expiryDate} at ${johannesburgTime}.\n`);
           }
           if (cert.attachment && cert.attachment !== existingCert.attachment) {
-            changedFields.push(`${storedName} updated Training ${cert.certificateType} attachment at ${johannesburgTime}.\n`);
+            changedFields.push(`${user?.preferred_username} updated Training ${cert.certificateType} attachment at ${johannesburgTime}.\n`);
           }
         } else if (cert.expiryDate || cert.attachment) {
-          changedFields.push(`${storedName} added Training ${cert.certificateType} certificate at ${johannesburgTime}.\n`);
+          changedFields.push(`${user?.preferred_username} added Training ${cert.certificateType} certificate at ${johannesburgTime}.\n`);
         }
       });
 
@@ -710,13 +709,13 @@ export default function EditEmployeePage() {
 
         if (existingCert) {
           if (cert.expiryDate !== existingCert.expiryDate) {
-            changedFields.push(`${storedName} updated Medical ${cert.certificateType} expiry from ${existingCert.expiryDate} to ${cert.expiryDate} at ${johannesburgTime}.\n`);
+            changedFields.push(`${user?.preferred_username} updated Medical ${cert.certificateType} expiry from ${existingCert.expiryDate} to ${cert.expiryDate} at ${johannesburgTime}.\n`);
           }
           if (cert.attachment && cert.attachment !== existingCert.attachment) {
-            changedFields.push(`${storedName} updated Medical ${cert.certificateType} attachment at ${johannesburgTime}.\n`);
+            changedFields.push(`${user?.preferred_username} updated Medical ${cert.certificateType} attachment at ${johannesburgTime}.\n`);
           }
         } else if (cert.expiryDate || cert.attachment) {
-          changedFields.push(`${storedName} added Medical ${cert.certificateType} certificate at ${johannesburgTime}.\n`);
+          changedFields.push(`${user?.preferred_username} added Medical ${cert.certificateType} certificate at ${johannesburgTime}.\n`);
         }
       });
 
@@ -724,7 +723,7 @@ export default function EditEmployeePage() {
       existingAdditionalCerts.forEach(existingCert => {
         const stillExists = certsToSave.find(ac => ac.id === existingCert.id);
         if (!stillExists) {
-          changedFields.push(`${storedName} removed Additional Certificate "${existingCert.certificateName}" at ${johannesburgTime}.\n`);
+          changedFields.push(`${user?.preferred_username} removed Additional Certificate "${existingCert.certificateName}" at ${johannesburgTime}.\n`);
         }
       });
 
@@ -973,10 +972,11 @@ export default function EditEmployeePage() {
         entityId: employee.employeeId,
         action: "UPDATE",
         timestamp: new Date().toISOString(),
-        details: `\nHrd Dashboard: Employee ${formData.firstName} ${formData.surname} updated by ${storedName}. Changes:\n${changedFields.join('')}`
+        updatedBy:user?.preferred_username||user?.email,
+        details: `\nHrd Dashboard: Employee ${formData.firstName} ${formData.surname} updated by ${user?.preferred_username}. Changes:\n${changedFields.join('')}`
       });
 
-      setHistory(prev => `Employee ${formData.firstName} ${formData.surname} updated by ${storedName}. Changes:\n${changedFields.join('')}\n${prev}`);
+      setHistory(prev => `Employee ${formData.firstName} ${formData.surname} updated by ${user?.preferred_username}. Changes:\n${changedFields.join('')}\n${prev}`);
 
       // Call the task checking function after all updates are complete
       await checkAndPrintTasks(
@@ -1545,9 +1545,6 @@ export default function EditEmployeePage() {
                                         };
                                         setMedicalCerts(updated);
 
-
-
-                                        const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
                                         const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
                                         await client.models.History.create({
@@ -1555,10 +1552,11 @@ export default function EditEmployeePage() {
                                           entityId: employee.employeeId,
                                           action: "REMOVE_MEDICAL_FILE",
                                           timestamp: new Date().toISOString(),
-                                          details: `\nHrd Dashboard: ${storedName} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}`
+                                          updatedBy:user?.preferred_username||user?.email,
+                                          details: `\nHrd Dashboard: ${user?.preferred_username} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}`
                                         });
 
-                                        setHistory(prev => `\n${storedName} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}${prev}`);
+                                        setHistory(prev => `\n${user?.preferred_username} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}${prev}`);
                                         setMessage(`File deleted successfully`);
                                         setSuccessful(true);
                                         setShow(true);
@@ -1641,7 +1639,6 @@ export default function EditEmployeePage() {
                                         };
                                         setTrainingCerts(updated);
 
-                                        const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
                                         const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
 
                                         // Reference cert.certificateType
@@ -1650,10 +1647,11 @@ export default function EditEmployeePage() {
                                           entityId: employee.employeeId,
                                           action: "REMOVE_TRAINING_FILE",
                                           timestamp: new Date().toISOString(),
-                                          details: `\nHrd Dashboard: ${storedName} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}`
+                                          updatedBy:user?.preferred_username||user?.email,
+                                          details: `\nHrd Dashboard: ${user?.preferred_username} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}`
                                         });
 
-                                        setHistory(prev => `\n${storedName} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}${prev}`);
+                                        setHistory(prev => `\n${user?.preferred_username} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}${prev}`);
                                         setMessage(`File deleted successfully`);
                                         setSuccessful(true);
                                         setShow(true);
@@ -1803,16 +1801,16 @@ export default function EditEmployeePage() {
                                               await client.models.EmployeeAdditionalCertificate.delete({
                                                 id: cert.id,
                                               });
-                                              const storedName = localStorage.getItem("user")?.replace(/^"|"$/g, '').trim() || "Unknown User";
-                                              const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
+                                            const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
                                               await client.models.History.create({
                                                 entityType: "EMPLOYEE",
                                                 entityId: employee.employeeId,
                                                 action: "REMOVE_CERTIFICATE_FILE",
                                                 timestamp: new Date().toISOString(),
-                                                details: `\nHrd Dashboard: ${storedName} remove file from certificate "${cert.certificateName}" at ${johannesburgTime}`
+                                                updatedBy:user?.preferred_username||user?.email,
+                                                details: `\nHrd Dashboard: ${user?.preferred_username} remove file from certificate "${cert.certificateName}" at ${johannesburgTime}`
                                               });
-                                              setHistory(prev => `\n${storedName} removed file from certificate "${cert.certificateName}" at ${johannesburgTime}${prev}`);
+                                              setHistory(prev => `\n${user?.preferred_username} removed file from certificate "${cert.certificateName}" at ${johannesburgTime}${prev}`);
                                               setMessage(`File deleted successfully`);
                                               setSuccessful(true);
                                               setShow(true);
