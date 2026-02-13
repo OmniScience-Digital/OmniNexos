@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/auth-context";
+import { HRD_clickUpService } from "@/services/hrd.clickUp.service";
 import { client } from "@/services/schema";
 import { getUrl } from "aws-amplify/storage";
 
@@ -19,12 +19,12 @@ export const handleEmployeeTasks = async (
         key: string;
         type: string;
         attachment: any;
-    }
+    },username:string
 ) => {
 
 
     try {
-        const { user } = useAuth();
+  
         // Get the actual file from Amplify Storage
         const { url: fileUrl } = await getUrl({
             path: doc.attachment
@@ -42,13 +42,20 @@ export const handleEmployeeTasks = async (
         formData.append("photo", fileBlob, filename); // Use "photo" field
         formData.append("taskId", existingTask.clickupTaskId);
         formData.append("newExpiry", newExpiry);
-        formData.append("savedUser", user?.preferred_username);
+        formData.append("savedUser", username);
 
-        // Call the API with FormData
-        await fetch("/api/updatehrd-description", {
-            method: "POST",
-            body: formData, // No Content-Type header for FormData
-        }).catch(console.error);
+
+
+
+        const file = new File([fileBlob], doc.attachment.split('/').pop() || 'document.pdf', { type: fileBlob.type });
+
+        // Then call the service
+        await HRD_clickUpService.updateTaskWithAttachment({
+            photo: file,
+            taskId: existingTask.clickupTaskId,
+            newExpiry,
+            username: username,
+        });
 
         await client.models.EmployeeTaskTable.delete({ id: existingTask.id }).catch(console.error);
 

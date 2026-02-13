@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/auth-context";
+import { CRM_clickUpService } from "@/services/crm.clickUp.service";
 import { client } from "@/services/schema";
 import { getUrl } from "aws-amplify/storage";
 
@@ -21,13 +22,13 @@ export const handleCrmTasks = async (
         attachment: any;
     }
 ) => {
-      const { user } = useAuth();
+    const { user } = useAuth();
 
 
     try {
 
-        const savedUser =user?.preferred_username||user?.email;
-        console.log('handleCrmTasks called with:', { newExpiry, existingTask, doc,savedUser  });
+        const savedUser = user?.preferred_username || user?.email;
+        console.log('handleCrmTasks called with:', { newExpiry, existingTask, doc, savedUser });
 
         // Check if we have an attachment to upload
         let fileBlob: Blob | null = null;
@@ -43,7 +44,7 @@ export const handleCrmTasks = async (
                 // Download the file
                 const fileResponse = await fetch(fileUrl.toString());
                 fileBlob = await fileResponse.blob();
-                
+
                 // Get filename
                 filename = doc.attachment.split('/').pop() || 'document.pdf';
                 console.log('File ready for upload:', filename);
@@ -54,12 +55,12 @@ export const handleCrmTasks = async (
 
         // Create FormData
         const formData = new FormData();
-        
+
         // Add file if available
         if (fileBlob) {
             formData.append("photo", fileBlob, filename);
         }
-        
+
         // Add other required fields
         formData.append("taskId", existingTask.clickupTaskId);
         formData.append("newExpiry", newExpiry);
@@ -68,24 +69,22 @@ export const handleCrmTasks = async (
         formData.append("certificateName", doc.type.replace('additional_', '')); // Remove prefix
 
         // Call the API with FormData
-        const response = await fetch("/api/updatecrm-description", {
-            method: "POST",
-            body: formData,
+        const result = await CRM_clickUpService.updateTaskWithAttachment({
+            photo: new File([fileBlob!], filename),
+            taskId: existingTask.clickupTaskId,
+            newExpiry,
+            username: savedUser,
+            taskType: existingTask.taskType,
+            certificateName: doc.type.replace("additional_", ""),
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API error: ${response.status} - ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('Task update successful:', result);
-
-        // Only delete the task from our database if update was successful
         if (result.success) {
             await client.models.EmployeeTaskTable.delete({ id: existingTask.id });
             console.log('Task removed from local database');
+        } else {
+            throw new Error(result.error || 'Failed to update CRM task');
         }
+
 
     } catch (error) {
         console.error('Error in handleCrmTasks:', error);

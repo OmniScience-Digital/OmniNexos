@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import ResponseModal from "@/components/widgets/response";
 import { formatDateForAmplify } from "@/utils/helper/time";
 import { Textarea } from "@/components/ui/textarea";
-import  {type Employee, MEDICAL_CERTIFICATE_TYPES, TRAINING_CERTIFICATE_TYPES } from "@/types/hrd.types";
+import { type Employee, MEDICAL_CERTIFICATE_TYPES, TRAINING_CERTIFICATE_TYPES } from "@/types/hrd.types";
 import { handleEmployeeTasks } from "../../components/employeetasks";
 import type { PDFState } from "@/types/schema";
 import { remove } from "aws-amplify/storage";
@@ -455,7 +455,7 @@ export default function EditEmployeePage() {
           entityId: employee?.employeeId || '',
           action: "REMOVE_DOCUMENT_FILE",
           timestamp: new Date().toISOString(),
-          updatedBy:user?.preferred_username||user?.email,
+          updatedBy: user?.preferred_username || user?.email,
           details: historyDetails
         });
 
@@ -520,9 +520,7 @@ export default function EditEmployeePage() {
         'ppeListAttachment'
       ] as const;
 
-      // We need to track pending uploads for main documents too
-      // Add this to your state at the top:
-      // const [pendingMainDocuments, setPendingMainDocuments] = useState<{ [key: string]: PDFState[] }>({});
+      // Track pending uploads for main documents too
 
       for (const field of mainDocumentFields) {
         // Check if there are pending uploads for this field
@@ -972,7 +970,7 @@ export default function EditEmployeePage() {
         entityId: employee.employeeId,
         action: "UPDATE",
         timestamp: new Date().toISOString(),
-        updatedBy:user?.preferred_username||user?.email,
+        updatedBy: user?.preferred_username || user?.email,
         details: `\nHrd Dashboard: Employee ${formData.firstName} ${formData.surname} updated by ${user?.preferred_username}. Changes:\n${changedFields.join('')}`
       });
 
@@ -1048,7 +1046,7 @@ export default function EditEmployeePage() {
         const existingTask = existingTasks?.[0];
 
         if (existingTask) {
-          await handleEmployeeTasks(newExpiry, existingTask, doc);
+          await handleEmployeeTasks(newExpiry, existingTask, doc, user?.preferred_username);
         } else {
           console.log(`No task found for: ${documentIdentifier}`);
         }
@@ -1074,7 +1072,7 @@ export default function EditEmployeePage() {
             key: 'expiryDate',
             type: `medical_${newCert.certificateType}`,
             attachment: newCert.attachment
-          });
+          }, user?.preferred_username);
         }
       }
     }
@@ -1098,7 +1096,7 @@ export default function EditEmployeePage() {
             key: 'expiryDate',
             type: `training_${newCert.certificateType}`,
             attachment: newCert.attachment
-          });
+          }, user?.preferred_username);
         }
       }
     }
@@ -1122,7 +1120,7 @@ export default function EditEmployeePage() {
             key: 'expiryDate',
             type: `additional_${newCert.certificateName}`,
             attachment: newCert.attachment
-          });
+          }, user?.preferred_username);
         }
       }
     }
@@ -1552,7 +1550,7 @@ export default function EditEmployeePage() {
                                           entityId: employee.employeeId,
                                           action: "REMOVE_MEDICAL_FILE",
                                           timestamp: new Date().toISOString(),
-                                          updatedBy:user?.preferred_username||user?.email,
+                                          updatedBy: user?.preferred_username || user?.email,
                                           details: `\nHrd Dashboard: ${user?.preferred_username} removed file from medical certificate "${cert.certificateType}" at ${johannesburgTime}`
                                         });
 
@@ -1647,7 +1645,7 @@ export default function EditEmployeePage() {
                                           entityId: employee.employeeId,
                                           action: "REMOVE_TRAINING_FILE",
                                           timestamp: new Date().toISOString(),
-                                          updatedBy:user?.preferred_username||user?.email,
+                                          updatedBy: user?.preferred_username || user?.email,
                                           details: `\nHrd Dashboard: ${user?.preferred_username} removed file from training certificate "${cert.certificateType}" at ${johannesburgTime}`
                                         });
 
@@ -1801,13 +1799,13 @@ export default function EditEmployeePage() {
                                               await client.models.EmployeeAdditionalCertificate.delete({
                                                 id: cert.id,
                                               });
-                                            const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
+                                              const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
                                               await client.models.History.create({
                                                 entityType: "EMPLOYEE",
                                                 entityId: employee.employeeId,
                                                 action: "REMOVE_CERTIFICATE_FILE",
                                                 timestamp: new Date().toISOString(),
-                                                updatedBy:user?.preferred_username||user?.email,
+                                                updatedBy: user?.preferred_username || user?.email,
                                                 details: `\nHrd Dashboard: ${user?.preferred_username} remove file from certificate "${cert.certificateName}" at ${johannesburgTime}`
                                               });
                                               setHistory(prev => `\n${user?.preferred_username} removed file from certificate "${cert.certificateName}" at ${johannesburgTime}${prev}`);
