@@ -37,7 +37,7 @@ const stringToPermission = (str: string | null | undefined): Permission => {
 }
 
 export default function UserPermissionsAssign() {
-  const { allUsers,user } = useAuth();
+  const { allUsers, user } = useAuth();
   const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [search, setSearch] = useState('')
@@ -101,15 +101,15 @@ export default function UserPermissionsAssign() {
   // Load permission history when selected user changes
   useEffect(() => {
     const loadPermissionHistory = async () => {
-      if (!selectedUser) return;
-      
+      if (!selectedUser || !user) return;
+
       try {
         setHistoryLoading(true);
-        const { data: historyData } = await client.models.History.getHistoryByEntityId(
-          { entityId: selectedUser.id },
+        const { data: historyData } = await client.models.History.getHistoryByUpdatedBy(
+          { updatedBy: selectedUser.name || selectedUser.email },
           { sortDirection: 'DESC', limit: 20 }
         );
-        
+
         setPermissionHistory(historyData || []);
       } catch (error) {
         console.error('Error loading permission history:', error);
@@ -120,7 +120,7 @@ export default function UserPermissionsAssign() {
     };
 
     loadPermissionHistory();
-  }, [selectedUser]);
+  }, [selectedUser, user]);
 
   const showResponseMessage = (message: string, successful: boolean) => {
     setResponseMessage(message)
@@ -282,13 +282,13 @@ export default function UserPermissionsAssign() {
         entityId: selectedUser.id,
         action: action,
         timestamp: new Date().toISOString(),
-        updatedBy:user?.preferred_username||user?.email,
+        updatedBy: user?.preferred_username || user?.email,
         details: `${user?.preferred_username} ${details} for user "${selectedUser.name}" (${selectedUser.email}) at ${johannesburgTime}`
       });
 
       // Refresh history using GSI
-      const { data: historyData } = await client.models.History.getHistoryByEntityId(
-        { entityId: selectedUser.id },
+      const { data: historyData } = await client.models.History.getHistoryByUpdatedBy(
+        { updatedBy: selectedUser.name || selectedUser.email },
         { sortDirection: 'DESC', limit: 20 }
       );
       setPermissionHistory(historyData || []);
@@ -306,13 +306,13 @@ export default function UserPermissionsAssign() {
     try {
       setSaving(true)
       const permissionStrings = selectedUser.permissions.map(permissionToString)
-      
+
       // Get old permissions from database
       const { data: existingPermissions } = await client.models.Permission.list({
         filter: { userId: { eq: selectedUser.id } }
       })
 
-      const oldPermissions = existingPermissions.length > 0 
+      const oldPermissions = existingPermissions.length > 0
         ? existingPermissions[0].permissions?.filter((p): p is string => p !== null).map(stringToPermission) || []
         : [];
 
@@ -330,16 +330,16 @@ export default function UserPermissionsAssign() {
 
       // Create history entry
       let details = '';
-      
+
       // Compare old and new permissions
-      const addedPermissions = selectedUser.permissions.filter(newPerm => 
-        !oldPermissions.some(oldPerm => 
+      const addedPermissions = selectedUser.permissions.filter(newPerm =>
+        !oldPermissions.some(oldPerm =>
           permissionToString(oldPerm) === permissionToString(newPerm)
         )
       );
-      
-      const removedPermissions = oldPermissions.filter(oldPerm => 
-        !selectedUser.permissions.some(newPerm => 
+
+      const removedPermissions = oldPermissions.filter(oldPerm =>
+        !selectedUser.permissions.some(newPerm =>
           permissionToString(newPerm) === permissionToString(oldPerm)
         )
       );
@@ -347,11 +347,11 @@ export default function UserPermissionsAssign() {
       if (addedPermissions.length > 0) {
         details += `added permissions: ${addedPermissions.map(p => permissionToString(p)).join(', ')}. `;
       }
-      
+
       if (removedPermissions.length > 0) {
         details += `removed permissions: ${removedPermissions.map(p => permissionToString(p)).join(', ')}. `;
       }
-      
+
       if (addedPermissions.length === 0 && removedPermissions.length === 0) {
         details = 'updated permissions (no changes detected).';
       }
@@ -377,8 +377,8 @@ export default function UserPermissionsAssign() {
     return (
       <div
         className={`p-3 rounded-lg cursor-pointer transition-all border ${selectedUser?.id === user.id
-            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
-            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
           }`}
         onClick={() => setSelectedUser(user)}
       >
@@ -596,7 +596,7 @@ export default function UserPermissionsAssign() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="permissions" className="cursor-pointer">
                       Permissions
@@ -789,7 +789,7 @@ export default function UserPermissionsAssign() {
                       </div>
                     </div>
                   </TabsContent>
-                  
+
                   <TabsContent value="history" className="m-0">
                     <Card>
                       <CardHeader>
@@ -813,9 +813,7 @@ export default function UserPermissionsAssign() {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {permissionHistory
-                              .filter(history => history.entityType === "PERMISSIONS")
-                              .map((history, index) => (
+                            {permissionHistory.map((history, index) => (  // ✅ No filter
                               <div key={history.id || index} className="border-l-4 border-blue-500 pl-4 py-3">
                                 <div className="flex items-start justify-between">
                                   <div>

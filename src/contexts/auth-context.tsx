@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error('Error fetching permissions:', permError);
           }
         }
-
+        console.log(userPermissions);
         setPermission({
           username: userInfo.currentUser?.username || '',
           email: userInfo.currentUser?.email || '',
@@ -114,7 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true);
-
       await signOut();
 
       setUser(null);

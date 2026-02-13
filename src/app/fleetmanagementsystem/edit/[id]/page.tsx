@@ -20,7 +20,7 @@ import ResponseModal from "@/components/widgets/response";
 
 export default function FleetEditPage() {
     const navigate = useNavigate();
-    const {user, permission } = useAuth();
+    const { user, permission } = useAuth();
     const params = useParams();
     const fleetId = decodeURIComponent(params.id as string);
     const editFormRef = useRef<HTMLDivElement>(null);
@@ -160,24 +160,57 @@ export default function FleetEditPage() {
             let historyEntries = "";
 
             // Clean function that works for both create and delete
+            // const cleanValueForHistory = (value: any): string => {
+            //     if (!value || value === "") return "empty";
+
+            //     const str = String(value);
+
+            //     // Handle comma-separated values (multiple files)
+            //     if (str.includes(',')) {
+            //         return str.split(',').map(item => {
+            //             const part = item.trim();
+            //             // Extract just the filename from any path or URL
+            //             const filename = part.split('/').pop() || 'document';
+            //             return filename.split('?')[0]; // Remove query params
+            //         }).join(', ');
+            //     }
+
+            //     // Handle single value - just get the filename
+            //     const filename = str.split('/').pop() || 'document';
+            //     return filename.split('?')[0]; // Remove query params
+            // };
             const cleanValueForHistory = (value: any): string => {
                 if (!value || value === "") return "empty";
 
                 const str = String(value);
 
-                // Handle comma-separated values (multiple files)
+                // Handle S3 URLs
+                if (str.includes('amazonaws.com') || str.includes('s3.')) {
+                    // Extract just the filename from the URL
+                    try {
+                        // Get the last part of the path before the query string
+                        const urlParts = str.split('/');
+                        const lastPart = urlParts[urlParts.length - 1];
+                        // Remove query parameters
+                        const filename = lastPart.split('?')[0];
+                        return filename || 'document.pdf';
+                    } catch {
+                        return 'document.pdf';
+                    }
+                }
+
+                // Handle comma-separated values
                 if (str.includes(',')) {
                     return str.split(',').map(item => {
                         const part = item.trim();
-                        // Extract just the filename from any path or URL
                         const filename = part.split('/').pop() || 'document';
-                        return filename.split('?')[0]; // Remove query params
+                        return filename.split('?')[0];
                     }).join(', ');
                 }
 
-                // Handle single value - just get the filename
+                // Handle regular values
                 const filename = str.split('/').pop() || 'document';
-                return filename.split('?')[0]; // Remove query params
+                return filename.split('?')[0];
             };
 
             // Create history for changes
@@ -186,6 +219,8 @@ export default function FleetEditPage() {
                 if (editedFleet[typedKey] !== fleet[typedKey]) {
                     const oldValue = cleanValueForHistory(fleet[typedKey]);
                     const newValue = cleanValueForHistory(editedFleet[typedKey]);
+                    console.log(oldValue)
+                    console.log(newValue)
                     historyEntries += `FMS Dashboard: ${user?.preferred_username} updated ${typedKey} from ${oldValue} to ${newValue} at ${johannesburgTime}\n`;
                 }
             });
@@ -234,7 +269,7 @@ export default function FleetEditPage() {
                     entityId: fleetData.id,
                     action: "UPDATE",
                     timestamp: new Date().toISOString(),
-                    updatedBy:user?.preferred_username||user?.email,
+                    updatedBy: user?.preferred_username || user?.email,
                     details: historyEntries
                 });
             } catch (error) {
@@ -613,18 +648,18 @@ export default function FleetEditPage() {
                             {/* Brake and Lux Test (Single file field) */}
                             <div className="col-span-full">
                                 <PDFUpload
-                                vehicleReg={editedFleet.vehicleReg || fleet.vehicleReg || ''}
-                                existingFiles={fleet.breakandLuxTest ? [fleet.breakandLuxTest] : []}
-                                canWrite={writePermissions}
-                                onNoPermission={() => {
-                                    setShow(true);
-                                    setSuccessful(false);
-                                    setMessage("⛔ No edit permission");
-                                }}
-                                onPDFsChange={(pdfs) => {
-                                    const pdfUrls = pdfs.map(pdf => pdf.s3Key);
-                                    handleChange("breakandLuxTest", pdfUrls[0] || '');
-                                }}
+                                    vehicleReg={editedFleet.vehicleReg || fleet.vehicleReg || ''}
+                                    existingFiles={fleet.breakandLuxTest ? [fleet.breakandLuxTest] : []}
+                                    canWrite={writePermissions}
+                                    onNoPermission={() => {
+                                        setShow(true);
+                                        setSuccessful(false);
+                                        setMessage("⛔ No edit permission");
+                                    }}
+                                    onPDFsChange={(pdfs) => {
+                                        const pdfUrls = pdfs.map(pdf => pdf.s3Key);
+                                        handleChange("breakandLuxTest", pdfUrls[0] || '');
+                                    }}
                                 />
 
                             </div>
