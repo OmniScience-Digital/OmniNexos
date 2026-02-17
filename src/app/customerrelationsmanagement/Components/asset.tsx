@@ -1,29 +1,35 @@
 import { client } from "@/services/schema";
-import {  useState } from "react";
+import { useEffect, useState } from "react";
 import { Save, X, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { handleUpload } from "@/services/s3.service";
-import {type PDFState } from "@/types/schema";
+import { type PDFState } from "@/types/schema";
 import { FileUpload } from "@/components/widgets/fileUpload";
 import { useAuth } from "@/contexts/auth-context";
+import ResponseModal from "@/components/widgets/response";
 
 
 interface ASSETPROPS {
     customerSiteId: string;
     folder: string;
-     onAssetCreated?: () => void;
+    onAssetCreated?: () => void;
 }
 
-export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPROPS) {
+export default function AssetCreate({ customerSiteId, onAssetCreated }: ASSETPROPS) {
     const [saving, setSaving] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const {user } = useAuth();
+    const { user, permission } = useAuth();//auth context
+    const [assetPermissions, setassetPermissions] = useState(false);
 
     const [scaleDatasheetFiles, setScaleDatasheetFiles] = useState<PDFState[]>([]);
     const [maintPlanFiles, setMaintPlanFiles] = useState<PDFState[]>([]);
+
+    const [show, setShow] = useState(false);
+    const [successful, setSuccessful] = useState(false);
+    const [message, setMessage] = useState("");
 
     // Form state
     const [assetData, setAssetData] = useState({
@@ -50,6 +56,16 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
         submittedmaintplanAttach: "",
         notes: "",
     });
+    useEffect(() => {
+
+        if (permission?.permissions?.includes('crm.assets.edit') || permission?.isAdmin) {
+            setassetPermissions(true);
+        } else {
+            setassetPermissions(false);
+        }
+
+    }, [permission]);
+
 
 
     // Handle input changes
@@ -61,10 +77,17 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
     // Handle save
     const handleSave = async () => {
         try {
+            if (!assetPermissions) {
+                setShow(true);
+                setSuccessful(false)
+                setMessage("⛔ No crm asset edit permission")
+
+                return;
+            }
             setSaving(true);
 
             // Upload files in parallel instead of sequentially
-             await Promise.all([
+            await Promise.all([
                 scaleDatasheetFiles.length > 0 ? handleUpload(scaleDatasheetFiles[0]) : Promise.resolve(""),
                 maintPlanFiles.length > 0 ? handleUpload(maintPlanFiles[0]) : Promise.resolve("")
             ]);
@@ -90,7 +113,7 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
                         entityId: result.data.id,
                         action: "CREATE",
                         timestamp: new Date().toISOString(),
-                        updatedBy:user?.preferred_username||user?.email,
+                        updatedBy: user?.preferred_username || user?.email,
                         details: historyEntries
                     });
                 } catch (error) {
@@ -124,7 +147,7 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
                 });
                 setIsCreating(false);
 
-                  if (onAssetCreated) {
+                if (onAssetCreated) {
                     onAssetCreated();
                 }
             }
@@ -168,6 +191,13 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
 
     // Start creating
     const handleCreateNew = () => {
+        if (!assetPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm asset edit permission")
+
+            return;
+        }
         setIsCreating(true);
     };
 
@@ -429,6 +459,14 @@ export default function AssetCreate({ customerSiteId,onAssetCreated  }: ASSETPRO
                         </div>
                     </CardContent>
                 </Card>
+            )}
+
+            {show && (
+                <ResponseModal
+                    successful={successful}
+                    message={message}
+                    setShow={setShow}
+                />
             )}
         </div>
     );

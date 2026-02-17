@@ -23,6 +23,7 @@ import { remove } from 'aws-amplify/storage';
 import { FileUploadUpdate } from "@/components/widgets/fileupdate";
 import type { Asset } from "@/types/assets.type";
 import { useAuth } from "@/contexts/auth-context";
+import ResponseModal from "@/components/widgets/response";
 
 interface AssetsListProps {
     customerSiteId: string;
@@ -30,7 +31,8 @@ interface AssetsListProps {
 }
 
 export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: AssetsListProps) {
-      const {user } = useAuth();//auth context
+    const { user, permission } = useAuth();//auth context
+    const [assetPermissions, setassetPermissions] = useState(false);
 
     const [assets, setAssets] = useState<Asset[]>([]);
     const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
@@ -50,7 +52,11 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
 
     //pdfs
     const [scaleDatasheetFiles, setScaleDatasheetFiles] = useState<any[]>([]);
-    const [maintPlanFiles, setMaintPlanFiles] = useState<any[]>([])
+    const [maintPlanFiles, setMaintPlanFiles] = useState<any[]>([]);
+
+    const [show, setShow] = useState(false);
+    const [successful, setSuccessful] = useState(false);
+    const [message, setMessage] = useState("");
 
     // Fetch assets based on customerSiteId
     useEffect(() => {
@@ -104,6 +110,16 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
 
         fetchAssets();
     }, [customerSiteId, refreshTrigger]);
+
+    useEffect(() => {
+
+        if (permission?.permissions?.includes('crm.assets.edit') || permission?.isAdmin) {
+            setassetPermissions(true);
+        } else {
+            setassetPermissions(false);
+        }
+
+    }, [permission]);
 
 
     useEffect(() => {
@@ -201,6 +217,13 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
 
     const handleSave = async () => {
         try {
+            if (!assetPermissions) {
+                setShow(true);
+                setSuccessful(false)
+                setMessage("⛔ No crm asset edit permission")
+
+                return;
+            }
             setSaving(true);
 
             if (editingAsset && editedAsset) {
@@ -220,7 +243,7 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                     ? ""
                     : scaledatasheetUrl;
 
-                 maintPlanFiles.length === 0 && filesToDelete.some(key => key === editedAsset.submittedmaintplanAttach)
+                maintPlanFiles.length === 0 && filesToDelete.some(key => key === editedAsset.submittedmaintplanAttach)
                     ? ""
                     : submittedmaintplanUrl;
 
@@ -262,7 +285,7 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                             entityId: editingAsset.id,
                             action: "UPDATE",
                             timestamp: new Date().toISOString(),
-                            updatedBy:user?.preferred_username||user?.email,
+                            updatedBy: user?.preferred_username || user?.email,
                             details: historyEntries,
                         });
                         setHistory(historyEntries);
@@ -290,6 +313,13 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
     };
 
     const handleChange = (field: keyof Asset, value: string | number | boolean) => {
+        if (!assetPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm asset edit permission")
+
+            return;
+        }
         setEditedAsset(prev => ({ ...prev, [field]: value }));
     };
 
@@ -323,6 +353,13 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
     };
 
     const handleDeleteClick = (assetId: string, assetName: string) => {
+        if (!assetPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm asset edit permission")
+
+            return;
+        }
         setAssetToDelete({ id: assetId, name: assetName });
         setOpendelete(true);
     };
@@ -652,7 +689,7 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                                                         {asset.assetPlant || "Unnamed Plant"}
                                                     </h4>
                                                     <Badge variant="outline" className="text-xs">
-                                                          {asset.assetName || "Unnamed Asset"}
+                                                        {asset.assetName || "Unnamed Asset"}
                                                     </Badge>
                                                     <Badge variant="outline" className="text-xs">
                                                         {asset.scaleTag || "No Tag"}
@@ -788,6 +825,13 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                 setOpen={setOpendelete}
                 handleConfirm={handleConfirmWrapper}
             />
+            {show && (
+                <ResponseModal
+                    successful={successful}
+                    message={message}
+                    setShow={setShow}
+                />
+            )}
         </Card>
     );
 }

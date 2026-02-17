@@ -9,12 +9,20 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { Edit, Plus } from "lucide-react";
 import { DataTable } from "@/components/table/datatable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/contexts/auth-context";
+import ResponseModal from "@/components/widgets/response";
 
 
 export default function CustomerRelationsManagement() {
     const navigate = useNavigate();
+    const { permission } = useAuth();//auth state
     const [filteredCustomerSites, setFilteredCustomerSites] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [crmPermissions, setCrmPermissions] = useState(false);
+
+    const [show, setShow] = useState(false);
+    const [successful, setSuccessful] = useState(false);
+    const [message, setMessage] = useState("");
 
 
 
@@ -62,6 +70,28 @@ export default function CustomerRelationsManagement() {
 
         return () => subscription.unsubscribe();
     }, []);
+
+
+    useEffect(() => {
+        if (permission?.permissions?.includes('crm.edit') || permission?.isAdmin) {
+            setCrmPermissions(true);
+        } else {
+            setCrmPermissions(false);
+        }
+
+    }, [permission]);
+
+    const addCustomer = () => {
+        if (!crmPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm edit permission")
+
+            return;
+        }
+        navigate('/customerrelationsmanagement/create')
+
+    }
 
     // Mobile-friendly columns
     const customerColumns: ColumnDef<object, any>[] = [
@@ -191,7 +221,7 @@ export default function CustomerRelationsManagement() {
                                 </div>
                                 <div className="flex gap-3">
                                     <Button
-                                        onClick={() => navigate('/customerrelationsmanagement/create')}
+                                        onClick={() => addCustomer()}
                                         className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25"
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
@@ -218,6 +248,13 @@ export default function CustomerRelationsManagement() {
                         </CardContent>
                     </Card>
                 </div>
+                {show && (
+                    <ResponseModal
+                        successful={successful}
+                        message={message}
+                        setShow={setShow}
+                    />
+                )}
             </main>
             <Footer />
         </div>

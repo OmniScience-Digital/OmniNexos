@@ -36,13 +36,13 @@ const ResponseModal = ({
           <div className="modal-content bg-background text-foreground">
             {successful ? (
               <>
-                <span className="success-icon">✔️</span>
-                <p className="bg-background text-foreground">{message}</p>
+                <span className="success-icon text-xs">✔️</span>
+                <p className="bg-background text-foreground text-base">{message}</p>
               </>
             ) : (
               <>
-                <span className="failure-icon">❌</span>
-                <p className="bg-background text-foreground">{message}</p>
+                <span className="failure-icon text-xs">❌</span>
+                <p className="bg-background text-foreground text-base">{message}</p>
               </>
             )}
             <button className="modal-close-button" onClick={closeModal}>

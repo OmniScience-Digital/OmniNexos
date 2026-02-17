@@ -15,14 +15,14 @@ import { useAuth } from "@/contexts/auth-context";
 
 
 export default function ComponentForm() {
-  const { user } = useAuth();
+  const { user, permission } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [displayedComponents, setDisplayedComponents] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [transactionType, setTransactionType] = useState<boolean>(false);
 
-
+  const [writePermissions, setWritePermissions] = useState(false);
   const [show, setShow] = useState(false);
   const [successful, setSuccessful] = useState(false);
   const [message, setMessage] = useState("");
@@ -32,7 +32,9 @@ export default function ComponentForm() {
 
 
 
+
   const addNewComponent = () => {
+
     const newComponent: Component = {
       id: Date.now().toString(),
       componentId: "",
@@ -80,6 +82,15 @@ export default function ComponentForm() {
     return () => subscription.unsubscribe();
   }, [addNewComponent, displayedComponents.length]);
 
+  useEffect(() => {
+    if (permission?.permissions?.includes('scf.edit') || permission?.isAdmin) {
+      setWritePermissions(true);
+    } else {
+      setWritePermissions(false);
+    }
+
+  }, [permission]);
+
   const updateComponent = (id: string, updatedComponent: Component) => {
     setDisplayedComponents(
       displayedComponents.map((component) =>
@@ -110,6 +121,13 @@ export default function ComponentForm() {
     try {
       setLoading(true);
       e.preventDefault();
+      if (!writePermissions) {
+        setShow(true);
+        setSuccessful(false)
+        setMessage("⛔ No edit permission")
+
+        return;
+      }
 
 
       const result = displayedComponents.reduce((acc, component) => {
@@ -198,6 +216,7 @@ export default function ComponentForm() {
     });
     return usedKeys;
   };
+
   //track used subcategories
   const getUsedSubcategoryIds = (currentComponentId?: string): string[] => {
     return displayedComponents

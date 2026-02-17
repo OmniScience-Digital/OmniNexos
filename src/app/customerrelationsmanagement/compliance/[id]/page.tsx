@@ -27,7 +27,7 @@ import { useAuth } from "@/contexts/auth-context";
 export default function Compliance() {
     const navigate = useNavigate();
     const params = useParams();
-    const { user } = useAuth();
+    const { user, permission } = useAuth();
 
     const customerSiteId = decodeURIComponent(params.id as string);
     const [siteName, setSiteName] = useState("");
@@ -49,6 +49,8 @@ export default function Compliance() {
     const [loading, setLoading] = useState(true);
     const [notes, setNotes] = useState<string>("");
 
+    const [CrmPermissions, setCrmPermissions] = useState(false);
+
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
@@ -60,6 +62,15 @@ export default function Compliance() {
     //site additional documents 
     const [existingdocs, setAdditionalDocs] = useState<ComplianceAdditionals[]>([]);
     const [editingNotes, setEditingNotes] = useState(false);
+
+    useEffect(() => {
+        if (permission?.permissions?.includes('crm.compliance.edit') || permission?.isAdmin) {
+            setCrmPermissions(true);
+        } else {
+            setCrmPermissions(false);
+        }
+
+    }, [permission]);
 
 
     // Fetch employees from your Employee model with relations
@@ -262,6 +273,13 @@ export default function Compliance() {
     };
 
     const handleLinkRequirements = async () => {
+        if (!CrmPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm edit permission")
+
+            return;
+        }
         if (selectedEmployees.size === 0 || selectedRequirements.size === 0) return;
         setLinkingLoading(true);
         try {
@@ -401,6 +419,13 @@ export default function Compliance() {
     };
 
     const handleUnlinkRequirements = async () => {
+        if (!CrmPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm edit permission")
+
+            return;
+        }
         if (selectedEmployees.size === 0 || selectedRequirements.size === 0) return;
         setUnlinkingLoading(true);
 
@@ -549,10 +574,24 @@ export default function Compliance() {
 
 
     const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        if (!CrmPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm edit permission")
+
+            return;
+        }
         setNotes(e.target.value);
     };
 
     const saveNotes = async () => {
+        if (!CrmPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm edit permission")
+
+            return;
+        }
 
         try {
             const johannesburgTime = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
@@ -643,7 +682,6 @@ export default function Compliance() {
                                     </div>
 
                                     <div className="space-y-4">
-
                                         <div className="pt-4">
                                             <Label className="mb-2 block">Site Summary</Label>
                                             <div className="space-y-1 text-sm">
@@ -675,15 +713,10 @@ export default function Compliance() {
                                                     </Badge>
                                                 </div>
                                             </div>
-
                                         </div>
-
                                     </div>
-
-
                                 </CardContent>
                             </Card>
-
                         </div>
 
                         {/* Main Form */}

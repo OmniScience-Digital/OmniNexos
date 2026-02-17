@@ -159,26 +159,6 @@ export default function FleetEditPage() {
 
             let historyEntries = "";
 
-            // Clean function that works for both create and delete
-            // const cleanValueForHistory = (value: any): string => {
-            //     if (!value || value === "") return "empty";
-
-            //     const str = String(value);
-
-            //     // Handle comma-separated values (multiple files)
-            //     if (str.includes(',')) {
-            //         return str.split(',').map(item => {
-            //             const part = item.trim();
-            //             // Extract just the filename from any path or URL
-            //             const filename = part.split('/').pop() || 'document';
-            //             return filename.split('?')[0]; // Remove query params
-            //         }).join(', ');
-            //     }
-
-            //     // Handle single value - just get the filename
-            //     const filename = str.split('/').pop() || 'document';
-            //     return filename.split('?')[0]; // Remove query params
-            // };
             const cleanValueForHistory = (value: any): string => {
                 if (!value || value === "") return "empty";
 
@@ -327,7 +307,6 @@ export default function FleetEditPage() {
         }
         setEditedFleet(prev => ({ ...prev, [field]: value }));
     };
-
 
 
     if (loading) {

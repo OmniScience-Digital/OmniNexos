@@ -21,7 +21,7 @@ export const allPermissions = [
     { module: 'crm', subModule: 'compliance', label: 'CRM - Compliance', description: 'Compliance tracking' },
     { module: 'crm', subModule: 'site', label: 'CRM - Site', description: 'Customer sites' },
     { module: 'fms', label: 'Fleet Management', description: 'Vehicle fleet module' },
-    { module: 'fms', subModule: 'Inspections', label: 'Fleet Management', description: 'Vehicle fleet module' },
+    { module: 'fms', subModule: 'Inspections', label: 'FMS Inspections', description: 'Vehicle fleet module' },
     { module: 'hrd', label: 'HR Department', description: 'Human Resources module' },
     { module: 'ims', label: 'Inventory Management', description: 'Inventory module' },
     { module: 'scf', label: 'Stock Control Form', description: 'Stock Control form' },

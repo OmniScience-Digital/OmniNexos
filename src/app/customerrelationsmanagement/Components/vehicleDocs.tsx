@@ -11,6 +11,7 @@ import { formatDate, getDocumentStatus } from "@/utils/helper/time";
 import { client } from "@/services/schema";
 import { viewDoc } from "@/utils/helper/helper";
 import { useAuth } from "@/contexts/auth-context";
+import ResponseModal from "@/components/widgets/response";
 
 interface VehicleDocsProps {
     vehicles: any[];
@@ -20,12 +21,18 @@ interface VehicleDocsProps {
 
 export default function VehicleDocs({ vehicles, complianceData, onComplianceUpdate }: VehicleDocsProps) {
 
-      const { user } = useAuth();
+    const { user, permission } = useAuth();
     const [selectedVehicles, setSelectedVehicles] = useState<Set<string>>(new Set());
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
     const [linkedVehicles, setLinkedVehicles] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    const [show, setShow] = useState(false);
+    const [successful, setSuccessful] = useState(false);
+    const [message, setMessage] = useState("");
+
+    const [CrmPermissions, setCrmPermissions] = useState(false);
 
     // Initialize selected vehicles with linked vehicles
     useEffect(() => {
@@ -41,6 +48,16 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
             setSelectedVehicles(new Set());
         }
     }, [complianceData, vehicles]);
+
+
+    useEffect(() => {
+        if (permission?.permissions?.includes('crm.compliance.edit') || permission?.isAdmin) {
+            setCrmPermissions(true);
+        } else {
+            setCrmPermissions(false);
+        }
+
+    }, [permission]);
 
     const toggleVehicle = (vehicleId: string) => {
         const newSelected = new Set(selectedVehicles);
@@ -71,6 +88,13 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
 
 
     const handleLinkVehicles = async () => {
+        if (!CrmPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm edit permission")
+
+            return;
+        }
         if (selectedVehicles.size === 0) return;
         setLoading(true);
 
@@ -129,7 +153,7 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
                 entityId: complianceData.customerSiteId,
                 action: "LINK_VEHICLES",
                 timestamp: new Date().toISOString(),
-                updatedBy:user?.preferred_username||user?.email,
+                updatedBy: user?.preferred_username || user?.email,
                 details: historyEntry
             });
 
@@ -145,6 +169,13 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
     };
 
     const handleUnlinkVehicles = async () => {
+        if (!CrmPermissions) {
+            setShow(true);
+            setSuccessful(false)
+            setMessage("⛔ No crm edit permission")
+
+            return;
+        }
         if (selectedVehicles.size === 0) return;
         setLoading(true);
 
@@ -201,7 +232,7 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
                 entityId: complianceData.customerSiteId,
                 action: "UNLINK_VEHICLES",
                 timestamp: new Date().toISOString(),
-                 updatedBy:user?.preferred_username||user?.email,
+                updatedBy: user?.preferred_username || user?.email,
                 details: historyEntry
             });
 
@@ -510,6 +541,13 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
                     </div>
                 </CardContent>
             </Card>
+            {show && (
+                <ResponseModal
+                    successful={successful}
+                    message={message}
+                    setShow={setShow}
+                />
+            )}
         </div>
     );
 }

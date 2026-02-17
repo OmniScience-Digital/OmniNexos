@@ -28,10 +28,13 @@ import { useAuth } from "@/contexts/auth-context";
 
 export default function EditCustomerPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, permission } = useAuth();
   const params = useParams();
   const customerSiteId = decodeURIComponent(params.id as string);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const [sitePermissions, setsitePermissions] = useState(false);
+
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -131,12 +134,28 @@ export default function EditCustomerPage() {
     fetchCustomerSite();
   }, [customerSiteId]);
 
+  useEffect(() => {
+    if (permission?.permissions?.includes('crm.site.edit') || permission?.isAdmin) {
+      setsitePermissions(true);
+    } else {
+      setsitePermissions(false);
+    }
+
+  }, [permission]);
+
   const handleAssetCreated = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
 
   const handleInputChange = (field: keyof CustomerSiteState, value: string) => {
+    if (!sitePermissions) {
+      setShow(true);
+      setSuccessful(false)
+      setMessage("⛔ No crm site edit permission")
+
+      return;
+    }
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -145,6 +164,13 @@ export default function EditCustomerPage() {
 
   const handleSave = async () => {
     if (!validateForm) return;
+    if (!sitePermissions) {
+      setShow(true);
+      setSuccessful(false)
+      setMessage("⛔ No component edit permission")
+
+      return;
+    }
 
     try {
       setSaving(true);
