@@ -1,0 +1,30 @@
+export interface Inspection {
+    id: string;
+    fleetid: string;
+    inspectionNo: number | null;
+    vehicleVin: string | null;
+    inspectionDate: string | null;
+    inspectionTime: string | null;
+    odometerStart: number | null;
+    vehicleReg: string | null;
+    inspectorOrDriver: string | null;
+    oilAndCoolant: boolean | null;
+    fuelLevel: boolean | null;
+    seatbeltDoorsMirrors: boolean | null;
+    handbrake: boolean | null;
+    tyreCondition: boolean | null;
+    spareTyre: boolean | null;
+    numberPlate: boolean | null;
+    licenseDisc: boolean | null;
+    leaks: boolean | null;
+    lights: boolean | null;
+    defrosterAircon: boolean | null;
+    emergencyKit: boolean | null;
+    clean: boolean | null;
+    warnings: boolean | null;
+    windscreenWipers: boolean | null;
+    serviceBook: boolean | null;
+    siteKit: boolean | null;
+    photo: string[] | [];
+    history: string | null;
+}

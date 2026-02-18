@@ -2,13 +2,13 @@
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
 import Loading from "@/components/widgets/loading";
-import {  useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Package, ArrowLeft, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Component, SubCategory } from "@/types/ims.types";
+import type {  SubCategory } from "@/types/ims.types";
 import { client } from "@/services/schema";
 import { SubCategoriesList } from "@/app/inventorymanagementsystem/components/subcategorieslist";
 import { ComponentsList } from "@/app/inventorymanagementsystem/components/components.list";
@@ -21,8 +21,8 @@ export default function SubcategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | null>(null);
-  const [components, setComponents] = useState<Component[]>([]);
-  const [componentsLoading, setComponentsLoading] = useState(false);
+  const [componentsLoading, setComponentsLoading] = useState(true);
+  const [componentsLength,setcomponentsLength ] = useState(0);
 
   // Fetch subcategories by category ID
   useEffect(() => {
@@ -46,6 +46,7 @@ export default function SubcategoriesPage() {
               categoryId: item.categoryId,
             }));
             setSubcategories(mappedSubcategories);
+
             if (isSynced) {
               setLoading(false);
             }
@@ -66,95 +67,17 @@ export default function SubcategoriesPage() {
 
   }, [id]);
 
-
-  // Fetch components when a subcategory is selected
-  useEffect(() => {
-    const fetchComponents = async () => {
-      if (!selectedSubCategory) {
-        setComponents([]);
-        return;
-      }
-
-      try {
-        setComponentsLoading(true);
-        const subscription = client.models.Component.observeQuery({
-          filter: { subcategoryId: { eq: selectedSubCategory.id } }
-        }).subscribe({
-          next: ({ items, isSynced }) => {
-            const mappedComponents: Component[] = (items || []).map(item => ({
-              id: item.id,
-              componentId: item.componentId,
-              componentName: item.componentName || "",
-              description: item.description || "",
-              primarySupplierId: item.primarySupplierId || "",
-              primarySupplier: item.primarySupplier || "",
-              primarySupplierItemCode: item.primarySupplierItemCode || "",
-              secondarySupplierId: item.secondarySupplierId || "",
-              secondarySupplier: item.secondarySupplier || "",
-              secondarySupplierItemCode: item.secondarySupplierItemCode || "",
-              minimumStock: item.minimumStock || 0,
-              currentStock: item.currentStock || 0,
-              notes: item.notes || "",
-              subcategoryId: item.subcategoryId,
-            }));
-            setComponents(mappedComponents);
-
-            if (isSynced) {
-              setComponentsLoading(false);
-            }
-          },
-          error: (error) => {
-            console.error("Error subscribing to components:", error);
-            setComponentsLoading(false);
-          }
-        });
-
-        return () => subscription.unsubscribe();
-      } catch (error) {
-        console.error("Error fetching components:", error);
-        setComponentsLoading(false);
-      }
-    };
-
-    fetchComponents();
-  }, [selectedSubCategory]);
-
-  const handleComponentUpdate = async (updatedComponent: Component) => {
-    try {
-      await client.models.Component.update({
-        id: updatedComponent.id,
-        componentId: updatedComponent.componentId,
-        componentName: updatedComponent.componentName,
-        description: updatedComponent.description,
-        primarySupplier: updatedComponent.primarySupplier,
-        primarySupplierItemCode: updatedComponent.primarySupplierItemCode,
-        secondarySupplier: updatedComponent.secondarySupplier,
-        secondarySupplierItemCode: updatedComponent.secondarySupplierItemCode,
-        minimumStock: updatedComponent.minimumStock,
-        currentStock: updatedComponent.currentStock,
-        notes: updatedComponent.notes,
-      });
-    } catch (error) {
-      console.error("Error updating component:", error);
-    }
-  };
-
   const handleBackToSubcategories = () => {
     setSelectedSubCategory(null);
-    setComponents([]);
   };
 
-  //  handleComponentDelete function:
-  const handleComponentDelete = async (componentId: string) => {
-    try {
-      await client.models.Component.delete({
-        id: componentId
-      });
-    } catch (error) {
-      console.error("Error deleting component:", error);
-    }
-  };
+  const setComponentIconLoading=()=>{
+    setComponentsLoading(false);
+  }
 
+  const setComponentsLength=(val:number)=>{
+   setcomponentsLength(val);
+  }
 
 
   return (
@@ -202,7 +125,7 @@ export default function SubcategoriesPage() {
                       {selectedSubCategory.subcategoryName}
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      {components.length} {components.length === 1 ? "component" : "components"}
+                      {componentsLength} {componentsLength === 1 ? "component" : "components"}
                     </p>
 
                   </div>
@@ -211,22 +134,13 @@ export default function SubcategoriesPage() {
                       Loading...
                     </Badge>
                   )}
+     
                 </div>
-
-                {componentsLoading ? (
-                  <Card>
-                    <CardContent className="p-6">
-                      <Loading />
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <ComponentsList
-                    components={components}
-                    onComponentUpdate={handleComponentUpdate}
-                    onComponentDelete={handleComponentDelete}
-                  />
-
-                )}
+                   <ComponentsList
+                   setComponentIconLoading={setComponentIconLoading}
+                   setComponentsLength={setComponentsLength}
+                    subcategoryid={selectedSubCategory.id}
+                  />  
               </div>
             )}
 
@@ -244,7 +158,10 @@ export default function SubcategoriesPage() {
             )}
           </div>
         )}
+
       </div>
+
+
 
       <Footer />
     </div>
