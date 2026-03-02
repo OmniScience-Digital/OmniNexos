@@ -472,7 +472,12 @@ const schema = a.schema({
       index("xeroContactId")
     ]),
 
-
+    xeroConfig: a.model({
+    quotesDate: a.string(), //last fetch date
+    purchasesDate: a.string(),//last fetch date
+    refreshToken: a.string(),
+  }).authorization((allow) => [allow.publicApiKey()])
+  
 });
 
 export type Schema = ClientSchema<typeof schema>;
