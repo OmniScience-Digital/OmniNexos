@@ -434,7 +434,8 @@ const schema = a.schema({
     contactId: a.string().required(),
     contactName: a.string(),
     contactTaxNo: a.string(),
-    contactRegNo: a.string()
+    contactRegNo: a.string(),
+    suppliers: a.hasMany("Supplier", "xeroContactId") 
   })
     .authorization((allow) => [
       allow.authenticated()
