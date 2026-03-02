@@ -431,14 +431,19 @@ const schema = a.schema({
     ]),
 
   XeroContacts: a.model({
-    contactId: a.string().required(), // Xero ContactID
+    contactId: a.string().required(),
     contactName: a.string(),
     contactTaxNo: a.string(),
     contactRegNo: a.string()
-  }).authorization((allow) => [allow.publicApiKey()])
+  })
+    .authorization((allow) => [
+      allow.authenticated()
+    ])
     .secondaryIndexes((index) => [
+      index("contactId"),
       index("contactName")
     ]),
+
 
   Supplier: a.model({
     xeroContactId: a.string().required(),
@@ -471,13 +476,17 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index("xeroContactId")
     ]),
+  xeroConfig: a.model({
+    tenantId: a.string().required(),
+    quotesLastSyncUTC: a.datetime(),
+    purchasesLastSyncUTC: a.datetime(),
+    refreshTokenEncrypted: a.string()
+  })
+    .authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [
+      index("tenantId")
+    ])
 
-    xeroConfig: a.model({
-    quotesDate: a.string(), //last fetch date
-    purchasesDate: a.string(),//last fetch date
-    refreshToken: a.string(),
-  }).authorization((allow) => [allow.publicApiKey()])
-  
 });
 
 export type Schema = ClientSchema<typeof schema>;
