@@ -446,3 +446,13 @@ export function ServerDataTable<TData extends object>({
     </div>
   );
 }
+
+
+
+
+
+
+// const getAll = async <T>(model: any): Promise<T[]> => {
+//   const result = await model.list();
+//   return result.data;
+// };

@@ -2,11 +2,11 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { listUsers } from "../function/listUsers/resource";
 
 const schema = a.schema({
-   usersList: a
-  .query()
-  .returns(a.json().array())  
-  .authorization((allow) => [allow.publicApiKey()])
-  .handler(a.handler.function(listUsers)),
+  usersList: a
+    .query()
+    .returns(a.json().array())
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(listUsers)),
 
   Landing: a
     .model({
@@ -260,7 +260,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.publicApiKey()]),
 
   History: a.model({
-    entityType: a.enum(["COMPONENT", "FLEET", "INSPECTION", "EMPLOYEE", "CUSTOMER", "ASSET", "COMPLIANCE","PERMISSIONS"]),
+    entityType: a.enum(["COMPONENT", "FLEET", "INSPECTION", "EMPLOYEE", "CUSTOMER", "ASSET", "COMPLIANCE", "PERMISSIONS", "SUPPLIER"]),
     entityId: a.string().required(),
     action: a.string().required(),
     timestamp: a.datetime().required(),
@@ -427,9 +427,51 @@ const schema = a.schema({
   })
     .authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
-      index("userId") //
+      index("userId")
     ]),
-   
+
+  XeroContacts: a.model({
+    contactId: a.string().required(), // Xero ContactID
+    contactName: a.string(),
+    contactTaxNo: a.string(),
+    contactRegNo: a.string()
+  }).authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [
+      index("contactName")
+    ]),
+
+  Supplier: a.model({
+    xeroContactId: a.string().required(),
+    xeroContact: a.belongsTo("XeroContacts", "xeroContactId"),
+
+    supplierAddress: a.string(),
+    primaryName: a.string(),
+    primaryEmail: a.email(),
+    primaryCell: a.phone(),
+
+    secondaryName: a.string(),
+    secondaryEmail: a.email(),
+    secondaryCell: a.phone(),
+
+    doesDeliver: a.boolean(),
+    aveLeadTime: a.integer(),//B_Days 
+    accountType: a.enum([//single select [100% in advance ,Deposit requirement ,Cash on collection ,X Day Account]
+      "ADVANCE",
+      "DEPOSIT",
+      "CASH_ON_COLLECTION",
+      "X_DAY_ACCOUNT"
+    ]),
+    paymentDelay: a.integer(),
+    discountAvailable: a.boolean(),
+    discountAmt: a.string(),
+    discountNote: a.string(),
+    notes: a.string()
+
+  }).authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [
+      index("xeroContactId")
+    ]),
+
 
 });
 
