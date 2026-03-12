@@ -435,7 +435,7 @@ const schema = a.schema({
     contactName: a.string(),
     contactTaxNo: a.string(),
     contactRegNo: a.string(),
-    suppliers: a.hasMany("Supplier", "xeroContactId") 
+    suppliers: a.hasMany("Supplier", "xeroContactId")
   })
     .authorization((allow) => [
       allow.authenticated()
@@ -478,15 +478,12 @@ const schema = a.schema({
       index("xeroContactId")
     ]),
   xeroConfig: a.model({
-    tenantId: a.string().required(),
+    tenantId: a.id().required(),
     quotesLastSyncUTC: a.datetime(),
     purchasesLastSyncUTC: a.datetime(),
     refreshTokenEncrypted: a.string()
   })
     .authorization((allow) => [allow.publicApiKey()])
-    .secondaryIndexes((index) => [
-      index("tenantId")
-    ])
 
 });
 
