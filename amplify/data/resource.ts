@@ -486,7 +486,27 @@ const schema = a.schema({
     .authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
       index("tenantId")
-    ])
+    ]),
+
+    Quote:a.model({
+      quoteId: a.string().required(),
+      quoteNumber: a.string(),
+      quoteReference: a.string(),
+      customerID: a.string(),
+      customerName: a.string(),
+      quoteIssueDate: a.datetime(),
+      quoteExpireyDate: a.datetime(),
+      quoteStatus: a.string(),
+      currencyCode:a.string(),
+      lineItems:a.json().array(),
+      subTotal: a.float(),
+      taxTotal: a.float(),
+      quTotal: a.float(),
+      QuoteAction:a.string()//derived state 
+    }) .authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [
+      index("quoteId")
+    ]),
 
 });
 
