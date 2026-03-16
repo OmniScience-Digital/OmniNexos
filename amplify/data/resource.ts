@@ -505,7 +505,8 @@ const schema = a.schema({
       quoteAction:a.string()//derived state 
     }) .authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
-      index("quoteId")
+      index("quoteId"),
+      index("quoteNumber")
     ]),
 
 });
