@@ -502,7 +502,7 @@ const schema = a.schema({
       subTotal: a.float(),
       taxTotal: a.float(),
       quTotal: a.float(),
-      QuoteAction:a.string()//derived state 
+      quoteAction:a.string()//derived state 
     }) .authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
       index("quoteId")
