@@ -502,8 +502,12 @@ const schema = a.schema({
     subTotal: a.float(),
     taxTotal: a.float(),
     quTotal: a.float(),
-    quoteAction: a.string(),
-    clickUpTaskIds: a.json().array(),
+    quoteAction: a.string(),//derived state 
+    clickUpTaskidCrm1: a.string(),
+    clickUpTaskidCrm2: a.string(),
+    clickUpTaskidCrm5: a.string(),
+    clickUpTaskidCrm7: a.string(),
+    clickUpTaskidCrm9: a.string(),
   }).authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
       index("quoteId"),
