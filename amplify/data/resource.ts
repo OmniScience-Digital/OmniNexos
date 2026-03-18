@@ -435,7 +435,7 @@ const schema = a.schema({
     contactName: a.string(),
     contactTaxNo: a.string(),
     contactRegNo: a.string(),
-    suppliers: a.hasMany("Supplier", "xeroContactId") 
+    suppliers: a.hasMany("Supplier", "xeroContactId")
   })
     .authorization((allow) => [
       allow.authenticated()
@@ -488,27 +488,26 @@ const schema = a.schema({
       index("tenantId")
     ]),
 
-    Quote:a.model({
-      quoteId: a.string().required(),
-      quoteNumber: a.string(),
-      quoteReference: a.string(),
-      customerID: a.string(),
-      customerName: a.string(),
-      quoteIssueDate: a.datetime(),
-      quoteExpireyDate: a.datetime(),
-      quoteStatus: a.string(),
-      currencyCode:a.string(),
-      lineItems:a.json().array(),
-      subTotal: a.float(),
-      taxTotal: a.float(),
-      quTotal: a.float(),
-      quoteAction:a.string(),//derived state 
-      clickUpTaskid:a.string()
-    }) .authorization((allow) => [allow.publicApiKey()])
+  Quote: a.model({
+    quoteId: a.string().required(),
+    quoteNumber: a.string(),
+    quoteReference: a.string(),
+    customerID: a.string(),
+    customerName: a.string(),
+    quoteIssueDate: a.datetime(),
+    quoteExpireyDate: a.datetime(),
+    quoteStatus: a.string(),
+    currencyCode: a.string(),
+    lineItems: a.json().array(),
+    subTotal: a.float(),
+    taxTotal: a.float(),
+    quTotal: a.float(),
+    quoteAction: a.string(),
+    clickUpTaskIds: a.json().array(),
+  }).authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
       index("quoteId"),
-      index("quoteNumber"),
-      index("clickUpTaskid")
+      index("quoteNumber")
     ]),
 
 });
