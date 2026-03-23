@@ -503,6 +503,7 @@ const schema = a.schema({
     taxTotal: a.float(),
     quTotal: a.float(),
     title:a.string(),
+    PoNumber:a.string(),
     businessUnitvalueid: a.string(),
     businessUnitvalue: a.string(),
     quoteAction: a.string(),//derived state 
