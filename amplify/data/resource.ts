@@ -424,8 +424,7 @@ const schema = a.schema({
   Permission: a.model({
     userId: a.string().required(),
     permissions: a.string().array(),// ["hrd.edit", "crm.assets.view"]
-  })
-    .authorization((allow) => [allow.publicApiKey()])
+  }).authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
       index("userId")
     ]),
@@ -504,6 +503,7 @@ const schema = a.schema({
     quTotal: a.float(),
     title:a.string(),
     PoNumber:a.string(),
+    invNumber:a.string(),
     businessUnitvalueid: a.string(),
     businessUnitvalue: a.string(),
     quoteAction: a.string(),//derived state 
