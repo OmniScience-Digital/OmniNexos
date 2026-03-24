@@ -518,6 +518,57 @@ const schema = a.schema({
       index("quoteNumber")
     ]),
 
+    Invoice: a.model({
+  invoiceId: a.string().required(),          // your internal / Xero InvoiceID
+  invoiceNumber: a.string(),
+
+  // 🔗 LINK TO QUOTE
+  xeroQuoteId: a.string(),                   // from Xero if available
+  quoteNumber: a.string(),                   // your main link (important)
+
+  reference: a.string(),                     // usually where quoteNumber can live
+
+  customerID: a.string(),
+  customerName: a.string(),
+
+  invoiceDate: a.datetime(),
+  dueDate: a.datetime(),
+
+  status: a.string(),                        // DRAFT / AUTHORISED / PAID etc
+  invoiceAction: a.string(),                 // derived 
+
+  currencyCode: a.string(),
+
+  lineItems: a.json().array(),
+
+  subTotal: a.float(),
+  taxTotal: a.float(),
+  total: a.float(),
+
+  amountPaid: a.float(),                   
+  amountDue: a.float(),                      
+
+  PoNumber: a.string(),
+  title: a.string(),
+
+  businessUnitvalueid: a.string(),
+  businessUnitvalue: a.string(),
+
+  // reuse your CRM links
+  clickUpTaskidCrm1: a.string(),
+  clickUpTaskidCrm2: a.string(),
+  clickUpTaskidCrm5: a.string(),
+  clickUpTaskidCrm7: a.string(),
+  clickUpTaskidCrm9: a.string(),
+
+}).authorization((allow) => [allow.publicApiKey()])
+  .secondaryIndexes((index) => [
+    index("invoiceId"),
+    index("invoiceNumber"),
+    index("quoteNumber"),     
+    index("xeroQuoteId")
+  ])
+
 });
 
 export type Schema = ClientSchema<typeof schema>;
