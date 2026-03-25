@@ -549,7 +549,7 @@ const schema = a.schema({
   amountDue: a.float(),                      
 
   PoNumber: a.string(),
-  title: a.string(),
+
 
   businessUnitvalueid: a.string(),
   businessUnitvalue: a.string(),
