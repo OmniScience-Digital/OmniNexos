@@ -518,14 +518,13 @@ const schema = a.schema({
       index("quoteNumber")
     ]),
 
-    Invoice: a.model({
-  invoiceId: a.string().required(),          // your internal / Xero InvoiceID
+Invoice: a.model({
+  invoiceId: a.string().required(),          // Xero InvoiceID
   invoiceNumber: a.string(),
 
   // 🔗 LINK TO QUOTE
   xeroQuoteId: a.string(),                   // from Xero if available
   quoteNumber: a.string(),                   // your main link (important)
-
   reference: a.string(),                     // usually where quoteNumber can live
 
   customerID: a.string(),
@@ -538,7 +537,6 @@ const schema = a.schema({
   invoiceAction: a.string(),                 // derived 
 
   currencyCode: a.string(),
-
   lineItems: a.json().array(),
 
   subTotal: a.float(),
@@ -550,10 +548,8 @@ const schema = a.schema({
 
   PoNumber: a.string(),
 
-
   businessUnitvalueid: a.string(),
   businessUnitvalue: a.string(),
-
   // reuse your CRM links
   clickUpTaskidCrm1: a.string(),
   clickUpTaskidCrm2: a.string(),
