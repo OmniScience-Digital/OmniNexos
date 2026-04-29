@@ -131,11 +131,11 @@ export const auth = defineAuth({
 
       },
       callbackUrls: [
-        "http://localhost:5173/landing","https://vite.d2ib10qin54ac6.amplifyapp.com/landing","https://test.d2ib10qin54ac6.amplifyapp.com/landing","https://main.d2ib10qin54ac6.amplifyapp.com/landing"
+        "http://localhost:5173/landing","https://vite.d2ib10qin54ac6.amplifyapp.com/landing","https://test.d2ib10qin54ac6.amplifyapp.com/landing","https://main.d2ib10qin54ac6.amplifyapp.com/landing","reactnativeomninexos://"
 
       ],
       logoutUrls: [
-        "http://localhost:5173/","https://vite.d2ib10qin54ac6.amplifyapp.com/","https://test.d2ib10qin54ac6.amplifyapp.com/","https://main.d2ib10qin54ac6.amplifyapp.com/"
+        "http://localhost:5173/","https://vite.d2ib10qin54ac6.amplifyapp.com/","https://test.d2ib10qin54ac6.amplifyapp.com/","https://main.d2ib10qin54ac6.amplifyapp.com/","reactnativeomninexos://"
 
       ],
     },

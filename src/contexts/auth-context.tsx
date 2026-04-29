@@ -52,65 +52,115 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
+  // const checkAuth = async () => {
+  //   try {
+  //     const session = await fetchAuthSession();
+
+  //     if (session.tokens) {
+  //       // Run these two independent calls in parallel
+  //       const [attributes, userInfo] = await Promise.all([
+  //         fetchUserAttributes(),
+  //         getCurrentUserInfo()
+  //       ]);
+
+  //       setUser(attributes);
+  //       setIsAuthenticated(true);
+
+  //       let isAdminUser = false;
+  //       let userPermissions: string[] = [];
+
+  //       if (attributes.email) {
+  //         try {
+  //           // Fetch permissions in parallel while we process other data
+  //           const permissionPromise = client.models.Permission.listPermissionByUserId({
+  //             userId: attributes.email
+  //           });
+
+  //           // Process user info while waiting for permissions
+  //           const permissionData = await permissionPromise;
+
+  //           if (permissionData.data && permissionData.data[0]?.permissions) {
+  //             userPermissions = permissionData.data[0].permissions.filter(p => p !== null) as string[];
+  //             isAdminUser = userPermissions.includes('admin');
+  //           }
+  //         } catch (permError) {
+  //           console.error('Error fetching permissions:', permError);
+  //         }
+  //       }
+  //       console.log(userPermissions);
+  //       setPermission({
+  //         username: userInfo.currentUser?.username || '',
+  //         email: userInfo.currentUser?.email || '',
+  //         name: userInfo.currentUser?.name || '',
+  //         isAdmin: isAdminUser,
+  //         permissions: userPermissions
+  //       });
+
+  //       setAllUsers(userInfo.allUsers);
+  //     } else {
+  //       setUser(null);
+  //       setPermission(null);
+  //       setIsAuthenticated(false);
+  //     }
+  //   } catch (error) {
+  //     setUser(null);
+  //     setPermission(null);
+  //     setIsAuthenticated(false);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const checkAuth = async () => {
     try {
-      const session = await fetchAuthSession();
+        const session = await fetchAuthSession();
 
-      if (session.tokens) {
-        // Run these two independent calls in parallel
-        const [attributes, userInfo] = await Promise.all([
-          fetchUserAttributes(),
-          getCurrentUserInfo()
-        ]);
+        if (session.tokens) {
+            const attributes = await fetchUserAttributes();
+            setUser(attributes);
+            setIsAuthenticated(true); 
 
-        setUser(attributes);
-        setIsAuthenticated(true);
+            // Fetch permissions for current user only — fast, no Lambda
+            let userPermissions: string[] = [];
+            if (attributes.email) {
+                try {
+                    const permissionData = await client.models.Permission
+                        .listPermissionByUserId({ userId: attributes.email });
+                    userPermissions = (permissionData.data?.[0]?.permissions ?? [])
+                        .filter((p): p is string => p !== null);
+                } catch (e) {
+                    console.error('Permissions fetch failed:', e);
+                }
+            }
 
-        let isAdminUser = false;
-        let userPermissions: string[] = [];
-
-        if (attributes.email) {
-          try {
-            // Fetch permissions in parallel while we process other data
-            const permissionPromise = client.models.Permission.listPermissionByUserId({
-              userId: attributes.email
+            // Set current user from attributes directly — no Lambda needed
+            setPermission({
+                username: attributes.sub || '',
+                email: attributes.email || '',
+                name: attributes.preferred_username || '',
+                isAdmin: userPermissions.includes('admin'),
+                permissions: userPermissions
             });
 
-            // Process user info while waiting for permissions
-            const permissionData = await permissionPromise;
+            // ✅ Load all users lazily in background — don't block auth
+            getCurrentUserInfo()
+                .then(userInfo => setAllUsers(userInfo.allUsers))
+                .catch(console.error);
 
-            if (permissionData.data && permissionData.data[0]?.permissions) {
-              userPermissions = permissionData.data[0].permissions.filter(p => p !== null) as string[];
-              isAdminUser = userPermissions.includes('admin');
-            }
-          } catch (permError) {
-            console.error('Error fetching permissions:', permError);
-          }
+        } else {
+            setUser(null);
+            setPermission(null);
+            setIsAuthenticated(false);
         }
-        console.log(userPermissions);
-        setPermission({
-          username: userInfo.currentUser?.username || '',
-          email: userInfo.currentUser?.email || '',
-          name: userInfo.currentUser?.name || '',
-          isAdmin: isAdminUser,
-          permissions: userPermissions
-        });
-
-        setAllUsers(userInfo.allUsers);
-      } else {
+    } catch (error) {
+        console.error('checkAuth error:', error);
         setUser(null);
         setPermission(null);
         setIsAuthenticated(false);
-      }
-    } catch (error) {
-      setUser(null);
-      setPermission(null);
-      setIsAuthenticated(false);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false); // ✅ always fires, not blocked by usersList
     }
-  };
-
+};
   const logout = async () => {
     try {
       setIsLoading(true);
