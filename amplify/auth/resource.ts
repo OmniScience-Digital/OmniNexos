@@ -11,7 +11,7 @@ export const auth = defineAuth({
   loginWith: {
     email: {
       verificationEmailStyle: 'CODE',
-      verificationEmailSubject: 'Welcome to Omni-Nexos | Verify Your Email',
+      verificationEmailSubject: 'Omni-Nexos | Verify Your Email',
       verificationEmailBody: (createCode) => `
         <!DOCTYPE html>
         <html lang="en">
