@@ -55,11 +55,11 @@ export default function Navbar() {
         {/* Logo */}
         <Link to={"/"} className="flex items-center cursor-pointer">
           <img
-            src="/assets/logo_white.png"
+            src="/assets/logo-2.png"
             alt="Logo"
-            width={120}
-            height={60}
-            className="h-10 mr-2"
+            // width={100}
+            // height={80}
+            className="h-11 mr-4"
             loading="lazy"
           />
         </Link>

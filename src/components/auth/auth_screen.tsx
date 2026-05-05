@@ -13,7 +13,7 @@ export const AuthScreen = () => {
     const [resetEmail, setResetEmail] = useState('');
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#226392]">
-            <div className="md:h-auto md:w-[420px]">
+            <div className="md:h-auto md:w-105">
 
                 {currentFlow === 'signIn' && (
                     <SignInCard setState={setCurrentFlow} />
