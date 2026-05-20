@@ -179,7 +179,7 @@ export default function Vehicle_Inspection_Form() {
                 history: historyEntry,
             };
 
-            const customFields = await calculateCustomFields(formState, vehicles, timestamp);
+            const customFields = await calculateCustomFields(formState, vehicles, timestamp, user);
 
             // 1. Create the inspection first
             await client.models.Inspection.create(inspectionData);

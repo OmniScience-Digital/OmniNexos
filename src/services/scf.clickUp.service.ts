@@ -3,7 +3,7 @@ import * as constants from '@/app/constants';
 
 export const SCF_clickUpService = {
     async createTask(username: string | null, result: any) {
-        const response = await fetch(`${constants.securebaseUrltest}/clickuppost`, {
+        const response = await fetch(`${constants.securebaseUrlProd}/clickuppost`, {
             method: "POST" as const,
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, result }),

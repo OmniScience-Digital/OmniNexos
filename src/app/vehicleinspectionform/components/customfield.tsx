@@ -1,14 +1,13 @@
-import { useAuth } from "@/contexts/auth-context";
 import { client } from "@/services/schema";
 import { Vif_clickUpTasksService } from "@/services/vif.clickUp.service";
 
 export const calculateCustomFields = async (
     formState: any,
     vehicles: any[],
-    timestamp: string
+    timestamp: string,
+    user: any,  
 ) => {
-      const { user } = useAuth();
-
+    
     const vehicle = vehicles.find(v => v.id === formState.selectedVehicleId);
     if (!vehicle) throw new Error("Vehicle not found");
 

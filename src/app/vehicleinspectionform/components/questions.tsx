@@ -451,7 +451,7 @@ export const PhotoUpload = ({
             {photos.map((photo, index) => (
               <div 
                 key={photo.id} 
-                className="flex-shrink-0 w-32 h-32 relative border rounded-lg p-2 bg-gray-50"
+                className="shrink-0 w-32 h-32 relative border rounded-lg p-2 bg-gray-50"
               >
                 <img
                   src={photo.previewUrl}

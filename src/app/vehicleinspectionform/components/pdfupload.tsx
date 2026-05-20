@@ -387,18 +387,18 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
               <div className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <FileText className="h-5 w-5 text-red-500 flex-shrink-0" />
+                    <FileText className="h-5 w-5 text-red-500 shrink-0" />
                     <span className="text-sm font-medium truncate flex-1" title={pdfs[0].name}>
                       {pdfs[0].name.split('?')[0]}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="flex-shrink-0">{getUploadStatusIcon(pdfs[0])}</div>
+                    <div className="shrink-0">{getUploadStatusIcon(pdfs[0])}</div>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => replacePDF(0)}
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-gray-500 flex-shrink-0"
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-gray-500 shrink-0"
                       disabled={pdfs[0].status === 'uploading'}
                     >
                       <Replace className="h-3 w-3" />
@@ -407,7 +407,7 @@ export const PDFUpload = ({ onPDFsChange, vehicleReg, existingFiles = [], canWri
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteClick(0, pdfs[0])}
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 flex-shrink-0"
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 shrink-0"
                       disabled={pdfs[0].status === 'uploading'}
                     >
                       <X className="h-3 w-3" />
