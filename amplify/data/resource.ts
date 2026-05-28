@@ -14,110 +14,123 @@ const schema = a.schema({
       items: a.string(),
     })
     .authorization((allow) => [allow.publicApiKey()]),
-  Category: a.model({
-    categoryName: a.string().required(),
-    subcategories: a.hasMany('SubCategory', 'categoryId'),
-  }).authorization((allow) => [allow.publicApiKey()])
+  Category: a
+    .model({
+      categoryName: a.string().required(),
+      subcategories: a.hasMany("SubCategory", "categoryId"),
+    })
+    .authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [index("categoryName")]),
 
-  SubCategory: a.model({
-    subcategoryName: a.string().required(),
-    categoryId: a.string().required(),
-    category: a.belongsTo('Category', 'categoryId'),
-    components: a.hasMany('Component', 'subcategoryId'),
-  }).secondaryIndexes((index) => [
-    index("categoryId")
-      .sortKeys(["subcategoryName"])
-      .queryField("listSubCategoriesByCategoryIdAndName")
-  ]).authorization((allow) => [allow.publicApiKey()]),
+  SubCategory: a
+    .model({
+      subcategoryName: a.string().required(),
+      categoryId: a.string().required(),
+      category: a.belongsTo("Category", "categoryId"),
+      components: a.hasMany("Component", "subcategoryId"),
+    })
+    .secondaryIndexes((index) => [
+      index("categoryId")
+        .sortKeys(["subcategoryName"])
+        .queryField("listSubCategoriesByCategoryIdAndName"),
+    ])
+    .authorization((allow) => [allow.publicApiKey()]),
 
-  Component: a.model({
-    componentId: a.string().required(),
-    componentName: a.string(),
-    description: a.string(),
-    primarySupplierId: a.string(),
-    primarySupplier: a.string(),
-    primarySupplierItemCode: a.string(),
-    secondarySupplierId: a.string(),
-    secondarySupplier: a.string(),
-    secondarySupplierItemCode: a.string(),
-    minimumStock: a.integer(),
-    currentStock: a.integer(),
-    notes: a.string(),
-    subcategoryId: a.string().required(),
-    subcategory: a.belongsTo('SubCategory', 'subcategoryId'),
-  }).secondaryIndexes((index) => [
-    index("subcategoryId")
-      .sortKeys(["componentId"])
-      .queryField("listComponentsBySubCategoryId"),
-    index("primarySupplierId")
-      .sortKeys(["componentId"])
-      .queryField("listComponentsByPrimarySupplier"),
-  ]).authorization((allow) => [allow.publicApiKey()]),
+  Component: a
+    .model({
+      componentId: a.string().required(),
+      componentName: a.string(),
+      description: a.string(),
+      primarySupplierId: a.string(),
+      primarySupplier: a.string(),
+      primarySupplierItemCode: a.string(),
+      secondarySupplierId: a.string(),
+      secondarySupplier: a.string(),
+      secondarySupplierItemCode: a.string(),
+      minimumStock: a.integer(),
+      currentStock: a.integer(),
+      notes: a.string(),
+      subcategoryId: a.string().required(),
+      subcategory: a.belongsTo("SubCategory", "subcategoryId"),
+    })
+    .secondaryIndexes((index) => [
+      index("subcategoryId")
+        .sortKeys(["componentId"])
+        .queryField("listComponentsBySubCategoryId"),
+      index("primarySupplierId")
+        .sortKeys(["componentId"])
+        .queryField("listComponentsByPrimarySupplier"),
+    ])
+    .authorization((allow) => [allow.publicApiKey()]),
 
-  Fleet: a.model({
-    vehicleVin: a.string(),
-    vehicleReg: a.string(),
-    vehicleMake: a.string(),
-    vehicleModel: a.string(),
-    transmitionType: a.string(),
-    ownershipStatus: a.string(),
-    fleetIndex: a.string(),
-    fleetNumber: a.string(),
-    lastServicedate: a.date(),
-    lastServicekm: a.float(),
-    lastRotationdate: a.date(),
-    lastRotationkm: a.float(),
-    servicePlanStatus: a.boolean(),
-    servicePlan: a.string(),
-    currentDriver: a.string(),
-    currentkm: a.float(),
-    codeRequirement: a.string(),
-    pdpRequirement: a.boolean(),
-    breakandLuxTest: a.string(),
-    serviceplankm: a.float(),
-    breakandLuxExpirey: a.date(),
-    liscenseDiscExpirey: a.date(),
-    inspection: a.hasMany('Inspection', 'fleetid'),
-  }).authorization((allow) => [allow.publicApiKey()]),
+  Fleet: a
+    .model({
+      vehicleVin: a.string(),
+      vehicleReg: a.string(),
+      vehicleMake: a.string(),
+      vehicleModel: a.string(),
+      transmitionType: a.string(),
+      ownershipStatus: a.string(),
+      fleetIndex: a.string(),
+      fleetNumber: a.string(),
+      lastServicedate: a.date(),
+      lastServicekm: a.float(),
+      lastRotationdate: a.date(),
+      lastRotationkm: a.float(),
+      servicePlanStatus: a.boolean(),
+      servicePlan: a.string(),
+      currentDriver: a.string(),
+      currentkm: a.float(),
+      codeRequirement: a.string(),
+      pdpRequirement: a.boolean(),
+      breakandLuxTest: a.string(),
+      serviceplankm: a.float(),
+      breakandLuxExpirey: a.date(),
+      liscenseDiscExpirey: a.date(),
+      inspection: a.hasMany("Inspection", "fleetid"),
+    })
+    .authorization((allow) => [allow.publicApiKey()]),
 
-  Inspection: a.model({
-    fleetid: a.string().required(),
-    inspectionNo: a.integer(),
-    vehicleVin: a.string(),
-    inspectionDate: a.date(),
-    inspectionTime: a.time(),
-    odometerStart: a.float(),
-    vehicleReg: a.string(),
-    inspectorOrDriver: a.string(),
-    oilAndCoolant: a.boolean(),
-    fuelLevel: a.boolean(),
-    seatbeltDoorsMirrors: a.boolean(),
-    handbrake: a.boolean(),
-    tyreCondition: a.boolean(),
-    spareTyre: a.boolean(),
-    numberPlate: a.boolean(),
-    licenseDisc: a.boolean(),
-    leaks: a.boolean(),
-    lights: a.boolean(),
-    defrosterAircon: a.boolean(),
-    emergencyKit: a.boolean(),
-    clean: a.boolean(),
-    warnings: a.boolean(),
-    windscreenWipers: a.boolean(),
-    serviceBook: a.boolean(),
-    siteKit: a.boolean(),
-    photo: a.string().array(),
-    history: a.string(),
-    fleet: a.belongsTo('Fleet', 'fleetid'),
-  }).secondaryIndexes((index) => [
-    index('fleetid')
-      .sortKeys(['inspectionDate'])
-      .queryField('inspectionsByFleetAndDate'),
-    index('fleetid')
-      .sortKeys(['inspectionNo'])
-      .queryField('inspectionsByFleetAndNumber')
-  ]).authorization((allow) => [allow.publicApiKey()]),
+  Inspection: a
+    .model({
+      fleetid: a.string().required(),
+      inspectionNo: a.integer(),
+      vehicleVin: a.string(),
+      inspectionDate: a.date(),
+      inspectionTime: a.time(),
+      odometerStart: a.float(),
+      vehicleReg: a.string(),
+      inspectorOrDriver: a.string(),
+      oilAndCoolant: a.boolean(),
+      fuelLevel: a.boolean(),
+      seatbeltDoorsMirrors: a.boolean(),
+      handbrake: a.boolean(),
+      tyreCondition: a.boolean(),
+      spareTyre: a.boolean(),
+      numberPlate: a.boolean(),
+      licenseDisc: a.boolean(),
+      leaks: a.boolean(),
+      lights: a.boolean(),
+      defrosterAircon: a.boolean(),
+      emergencyKit: a.boolean(),
+      clean: a.boolean(),
+      warnings: a.boolean(),
+      windscreenWipers: a.boolean(),
+      serviceBook: a.boolean(),
+      siteKit: a.boolean(),
+      photo: a.string().array(),
+      history: a.string(),
+      fleet: a.belongsTo("Fleet", "fleetid"),
+    })
+    .secondaryIndexes((index) => [
+      index("fleetid")
+        .sortKeys(["inspectionDate"])
+        .queryField("inspectionsByFleetAndDate"),
+      index("fleetid")
+        .sortKeys(["inspectionNo"])
+        .queryField("inspectionsByFleetAndNumber"),
+    ])
+    .authorization((allow) => [allow.publicApiKey()]),
 
   TaskTable: a
     .model({
@@ -127,7 +140,7 @@ const schema = a.schema({
     })
     .secondaryIndexes((index) => [
       index("vehicleReg").sortKeys(["taskType"]), // Check if task exists for vehicle+type
-      index("clickupTaskId")
+      index("clickupTaskId"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
@@ -141,11 +154,13 @@ const schema = a.schema({
       clickupTaskId: a.string(),
     })
     .secondaryIndexes((index) => [
-      index("employeeId").sortKeys(["employeeName"]).queryField("listEmployeeTaskTableByEmployeeIdAndEmployeeName"),
+      index("employeeId")
+        .sortKeys(["employeeName"])
+        .queryField("listEmployeeTaskTableByEmployeeIdAndEmployeeName"),
       index("employeeId"),
       index("taskType"),
       index("documentIdentifier"),
-      index("clickupTaskId")
+      index("clickupTaskId"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
@@ -171,17 +186,26 @@ const schema = a.schema({
       ppeListAttachment: a.string(),
       ppeExpiry: a.date(),
       // Medical certificates as relations
-      medicalCertificates: a.hasMany('EmployeeMedicalCertificate', 'employeeId'),
+      medicalCertificates: a.hasMany(
+        "EmployeeMedicalCertificate",
+        "employeeId",
+      ),
       // Training certificates as relations
-      trainingCertificates: a.hasMany('EmployeeTrainingCertificate', 'employeeId'),
+      trainingCertificates: a.hasMany(
+        "EmployeeTrainingCertificate",
+        "employeeId",
+      ),
       // Additional certificates
-      additionalCertificates: a.hasMany('EmployeeAdditionalCertificate', 'employeeId'),
+      additionalCertificates: a.hasMany(
+        "EmployeeAdditionalCertificate",
+        "employeeId",
+      ),
     })
     .secondaryIndexes((index) => [
       index("employeeId"),
       index("employeeNumber"),
       index("driversLicenseExpiry").queryField("employeesByLicenseExpiry"),
-      index("passportExpiry").queryField("employeesByPassportExpiry")
+      index("passportExpiry").queryField("employeesByPassportExpiry"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
@@ -196,15 +220,17 @@ const schema = a.schema({
         "LUYUYO_MEDICAL",
         "KRIEL_MEDICAL",
         "PRO_HEALTH_MEDICAL",
-        "WILGE_VXR"
+        "WILGE_VXR",
       ]),
       expiryDate: a.date().required(),
       attachment: a.string(),
-      employee: a.belongsTo('Employee', 'employeeId'),
+      employee: a.belongsTo("Employee", "employeeId"),
     })
     .secondaryIndexes((index) => [
-      index("employeeId").sortKeys(["expiryDate"]).queryField("medicalCertsByEmployee"),
-      index("expiryDate").queryField("medicalCertsByExpiry")
+      index("employeeId")
+        .sortKeys(["expiryDate"])
+        .queryField("medicalCertsByEmployee"),
+      index("expiryDate").queryField("medicalCertsByExpiry"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
@@ -226,16 +252,18 @@ const schema = a.schema({
         "HIRA_TRAINING",
         "APPOINTMENT_2_9_2",
         "OEM_CERT",
-        "LEGAL_LIABILITY"
+        "LEGAL_LIABILITY",
       ]),
       expiryDate: a.date().required(),
       attachment: a.string(),
-      employee: a.belongsTo('Employee', 'employeeId'),
+      employee: a.belongsTo("Employee", "employeeId"),
     })
     .secondaryIndexes((index) => [
-      index("employeeId").sortKeys(["expiryDate"]).queryField("trainingCertsByEmployee"),
+      index("employeeId")
+        .sortKeys(["expiryDate"])
+        .queryField("trainingCertsByEmployee"),
       index("expiryDate").queryField("trainingCertsByExpiry"),
-      index("certificateType").queryField("trainingCertsByType")
+      index("certificateType").queryField("trainingCertsByType"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
@@ -245,11 +273,13 @@ const schema = a.schema({
       certificateName: a.string().required(),
       expiryDate: a.date().required(),
       attachment: a.string(),
-      employee: a.belongsTo('Employee', 'employeeId'),
+      employee: a.belongsTo("Employee", "employeeId"),
     })
     .secondaryIndexes((index) => [
-      index("employeeId").sortKeys(["expiryDate"]).queryField("additionalCertsByEmployee"),
-      index("expiryDate").queryField("additionalCertsByExpiry")
+      index("employeeId")
+        .sortKeys(["expiryDate"])
+        .queryField("additionalCertsByEmployee"),
+      index("expiryDate").queryField("additionalCertsByExpiry"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
@@ -259,17 +289,34 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.publicApiKey()]),
 
-  History: a.model({
-    entityType: a.enum(["COMPONENT", "FLEET", "INSPECTION", "EMPLOYEE", "CUSTOMER", "ASSET", "COMPLIANCE", "PERMISSIONS", "SUPPLIER"]),
-    entityId: a.string().required(),
-    action: a.string().required(),
-    timestamp: a.datetime().required(),
-    updatedBy: a.string().required(),
-    details: a.string().required(),
-  }).secondaryIndexes((index) => [
-    index("entityId").sortKeys(["timestamp"]).queryField("getHistoryByEntityId"),
-    index("updatedBy").sortKeys(["timestamp"]).queryField("getHistoryByUpdatedBy"),
-  ]).authorization((allow) => [allow.publicApiKey()]),
+  History: a
+    .model({
+      entityType: a.enum([
+        "COMPONENT",
+        "FLEET",
+        "INSPECTION",
+        "EMPLOYEE",
+        "CUSTOMER",
+        "ASSET",
+        "COMPLIANCE",
+        "PERMISSIONS",
+        "SUPPLIER",
+      ]),
+      entityId: a.string().required(),
+      action: a.string().required(),
+      timestamp: a.datetime().required(),
+      updatedBy: a.string().required(),
+      details: a.string().required(),
+    })
+    .secondaryIndexes((index) => [
+      index("entityId")
+        .sortKeys(["timestamp"])
+        .queryField("getHistoryByEntityId"),
+      index("updatedBy")
+        .sortKeys(["timestamp"])
+        .queryField("getHistoryByUpdatedBy"),
+    ])
+    .authorization((allow) => [allow.publicApiKey()]),
 
   CustomerSite: a
     .model({
@@ -307,15 +354,15 @@ const schema = a.schema({
       siteCreditorsName: a.string(),
       siteCreditorsMail: a.string(),
       siteCreditorsNumber: a.string(),
-      assets: a.hasMany('Asset', 'customerSiteId'),
-      compliance: a.hasMany('Compliance', 'customerSiteId'),
+      assets: a.hasMany("Asset", "customerSiteId"),
+      compliance: a.hasMany("Compliance", "customerSiteId"),
       comment: a.string(),
     })
     .secondaryIndexes((index) => [
       index("customerName"),
       index("siteName"),
       index("vendorNumber"),
-      index("registrationNo")
+      index("registrationNo"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
@@ -344,12 +391,9 @@ const schema = a.schema({
       submittedmaintplanAttach: a.string(),
       notes: a.string(),
       customerSiteId: a.id().required(),
-      customerSite: a.belongsTo('CustomerSite', 'customerSiteId'),
+      customerSite: a.belongsTo("CustomerSite", "customerSiteId"),
     })
-    .secondaryIndexes((index) => [
-      index("customerSiteId"),
-      index("scaleTag")
-    ])
+    .secondaryIndexes((index) => [index("customerSiteId"), index("scaleTag")])
     .authorization((allow) => [allow.publicApiKey()]),
 
   Compliance: a
@@ -394,177 +438,194 @@ const schema = a.schema({
       breakAndLuxRqd: a.string().array(),
       licenseDiscExpiry: a.string().array(),
 
-
       customerSiteId: a.id().required(),
-      customerSite: a.belongsTo('CustomerSite', 'customerSiteId'),
+      customerSite: a.belongsTo("CustomerSite", "customerSiteId"),
 
       // CHANGE TO STRING:
       employeeLookup: a.string(), // Store as JSON string: '{"employeeId": ["req1", "req2"]}'
-      ComplianceAdditionals: a.hasMany('ComplianceAdditionals', 'complianceid'),
+      ComplianceAdditionals: a.hasMany("ComplianceAdditionals", "complianceid"),
     })
     .secondaryIndexes((index) => [
       index("customerSiteId"),
       index("complianceRating"),
-      index("employeeLookup")
+      index("employeeLookup"),
     ])
     .authorization((allow) => [allow.publicApiKey()]),
 
-  ComplianceAdditionals: a.model({
-    complianceid: a.id().required(),
-    name: a.string(),
-    expirey: a.string(),
-    requirementDoc: a.string(),
-    critical: a.string(),
-    Compliance: a.belongsTo('Compliance', 'complianceid'),
-  }).secondaryIndexes((index) => [
-    index("name"),
-    index("complianceid"),
-  ]).authorization((allow) => [allow.publicApiKey()]),
+  ComplianceAdditionals: a
+    .model({
+      complianceid: a.id().required(),
+      name: a.string(),
+      expirey: a.string(),
+      requirementDoc: a.string(),
+      critical: a.string(),
+      Compliance: a.belongsTo("Compliance", "complianceid"),
+    })
+    .secondaryIndexes((index) => [index("name"), index("complianceid")])
+    .authorization((allow) => [allow.publicApiKey()]),
 
-  Permission: a.model({
-    userId: a.string().required(),
-    permissions: a.string().array(),// ["hrd.edit", "crm.assets.view"]
-  }).authorization((allow) => [allow.publicApiKey()])
-    .secondaryIndexes((index) => [
-      index("userId")
-    ]),
+  Permission: a
+    .model({
+      userId: a.string().required(),
+      permissions: a.string().array(), // ["hrd.edit", "crm.assets.view"]
+    })
+    .authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [index("userId")]),
 
-  XeroContacts: a.model({
-    contactId: a.string().required(),
-    contactName: a.string(),
-    contactTaxNo: a.string(),
-    contactRegNo: a.string(),
-    suppliers: a.hasMany("Supplier", "xeroContactId")
-  })
-    .authorization((allow) => [
-      allow.authenticated()
-    ])
-    .secondaryIndexes((index) => [
-      index("contactId"),
-      index("contactName")
-    ]),
+  XeroContacts: a
+    .model({
+      contactId: a.string().required(),
+      contactName: a.string(),
+      contactTaxNo: a.string(),
+      contactRegNo: a.string(),
+      suppliers: a.hasMany("Supplier", "xeroContactId"),
+    })
+    .authorization((allow) => [allow.authenticated()])
+    .secondaryIndexes((index) => [index("contactId"), index("contactName")]),
 
+  Supplier: a
+    .model({
+      xeroContactId: a.string().required(),
+      xeroContact: a.belongsTo("XeroContacts", "xeroContactId"),
 
-  Supplier: a.model({
-    xeroContactId: a.string().required(),
-    xeroContact: a.belongsTo("XeroContacts", "xeroContactId"),
+      supplierAddress: a.string(),
+      primaryName: a.string(),
+      primaryEmail: a.email(),
+      primaryCell: a.phone(),
 
-    supplierAddress: a.string(),
-    primaryName: a.string(),
-    primaryEmail: a.email(),
-    primaryCell: a.phone(),
+      secondaryName: a.string(),
+      secondaryEmail: a.email(),
+      secondaryCell: a.phone(),
 
-    secondaryName: a.string(),
-    secondaryEmail: a.email(),
-    secondaryCell: a.phone(),
+      doesDeliver: a.boolean(),
+      aveLeadTime: a.integer(), //B_Days
+      accountType: a.enum([
+        //single select [100% in advance ,Deposit requirement ,Cash on collection ,X Day Account]
+        "ADVANCE",
+        "DEPOSIT",
+        "CASH_ON_COLLECTION",
+        "X_DAY_ACCOUNT",
+      ]),
+      paymentDelay: a.integer(),
+      discountAvailable: a.boolean(),
+      discountAmt: a.string(),
+      discountNote: a.string(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [index("xeroContactId")]),
+  xeroConfig: a
+    .model({
+      tenantId: a.string().required(),
+      quotesLastSyncUTC: a.datetime(),
+      purchasesLastSyncUTC: a.datetime(),
+      refreshTokenEncrypted: a.string(),
+    })
+    .authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [index("tenantId")]),
 
-    doesDeliver: a.boolean(),
-    aveLeadTime: a.integer(),//B_Days 
-    accountType: a.enum([//single select [100% in advance ,Deposit requirement ,Cash on collection ,X Day Account]
-      "ADVANCE",
-      "DEPOSIT",
-      "CASH_ON_COLLECTION",
-      "X_DAY_ACCOUNT"
-    ]),
-    paymentDelay: a.integer(),
-    discountAvailable: a.boolean(),
-    discountAmt: a.string(),
-    discountNote: a.string(),
-    notes: a.string()
+  Quote: a
+    .model({
+      quoteId: a.string().required(),
+      quoteNumber: a.string(),
+      quoteReference: a.string(),
+      customerID: a.string(),
+      customerName: a.string(),
+      quoteIssueDate: a.datetime(),
+      quoteExpireyDate: a.datetime(),
+      quoteStatus: a.string(),
+      currencyCode: a.string(),
+      lineItems: a.json().array(),
+      subTotal: a.float(),
+      taxTotal: a.float(),
+      quTotal: a.float(),
+      title: a.string(),
+      PoNumber: a.string(),
+      invNumber: a.string(),
+      businessUnitvalueid: a.string(),
+      businessUnitvalue: a.string(),
+      quoteAction: a.string(), //derived state
+      clickUpTaskidCrm1: a.string(),
+      clickUpTaskidCrm2: a.string(),
+      clickUpTaskidCrm5: a.string(),
+      clickUpTaskidCrm7: a.string(),
+      clickUpTaskidCrm9: a.string(),
+    })
+    .authorization((allow) => [allow.publicApiKey()])
+    .secondaryIndexes((index) => [index("quoteId"), index("quoteNumber")]),
 
-  }).authorization((allow) => [allow.publicApiKey()])
-    .secondaryIndexes((index) => [
-      index("xeroContactId")
-    ]),
-  xeroConfig: a.model({
-    tenantId: a.string().required(),
-    quotesLastSyncUTC: a.datetime(),
-    purchasesLastSyncUTC: a.datetime(),
-    refreshTokenEncrypted: a.string()
-  })
+  Invoice: a
+    .model({
+      invoiceId: a.string().required(), // Xero InvoiceID
+      invoiceNumber: a.string(),
+
+      // 🔗 LINK TO QUOTE
+      xeroQuoteId: a.string(), // from Xero if available
+      quoteNumber: a.string(), // your main link (important)
+      reference: a.string(), // usually where quoteNumber can live
+
+      customerID: a.string(),
+      customerName: a.string(),
+
+      invoiceDate: a.datetime(),
+      dueDate: a.datetime(),
+
+      status: a.string(), // DRAFT / AUTHORISED / PAID etc
+      invoiceAction: a.string(), // derived
+
+      currencyCode: a.string(),
+      lineItems: a.json().array(),
+
+      subTotal: a.float(),
+      taxTotal: a.float(),
+      total: a.float(),
+
+      amountPaid: a.float(),
+      amountDue: a.float(),
+
+      PoNumber: a.string(),
+
+      businessUnitvalueid: a.string(),
+      businessUnitvalue: a.string(),
+      // reuse your CRM links
+      clickUpTaskidCrm1: a.string(),
+      clickUpTaskidCrm2: a.string(),
+      clickUpTaskidCrm5: a.string(),
+      clickUpTaskidCrm7: a.string(),
+      clickUpTaskidCrm9: a.string(),
+    })
     .authorization((allow) => [allow.publicApiKey()])
     .secondaryIndexes((index) => [
-      index("tenantId")
+      index("invoiceId"),
+      index("invoiceNumber"),
+      index("quoteNumber"),
+      index("xeroQuoteId"),
     ]),
+  ClockRecordStatus: a.enum([
+    "VERIFIED",
+    "PENDING_VERIFICATION",
+    "REVIEW_REQUIRED",
+  ]),
 
-  Quote: a.model({
-    quoteId: a.string().required(),
-    quoteNumber: a.string(),
-    quoteReference: a.string(),
-    customerID: a.string(),
-    customerName: a.string(),
-    quoteIssueDate: a.datetime(),
-    quoteExpireyDate: a.datetime(),
-    quoteStatus: a.string(),
-    currencyCode: a.string(),
-    lineItems: a.json().array(),
-    subTotal: a.float(),
-    taxTotal: a.float(),
-    quTotal: a.float(),
-    title:a.string(),
-    PoNumber:a.string(),
-    invNumber:a.string(),
-    businessUnitvalueid: a.string(),
-    businessUnitvalue: a.string(),
-    quoteAction: a.string(),//derived state 
-    clickUpTaskidCrm1: a.string(),
-    clickUpTaskidCrm2: a.string(),
-    clickUpTaskidCrm5: a.string(),
-    clickUpTaskidCrm7: a.string(),
-    clickUpTaskidCrm9: a.string(),
-  }).authorization((allow) => [allow.publicApiKey()])
-    .secondaryIndexes((index) => [
-      index("quoteId"),
-      index("quoteNumber")
-    ]),
-
-Invoice: a.model({
-  invoiceId: a.string().required(),          // Xero InvoiceID
-  invoiceNumber: a.string(),
-
-  // 🔗 LINK TO QUOTE
-  xeroQuoteId: a.string(),                   // from Xero if available
-  quoteNumber: a.string(),                   // your main link (important)
-  reference: a.string(),                     // usually where quoteNumber can live
-
-  customerID: a.string(),
-  customerName: a.string(),
-
-  invoiceDate: a.datetime(),
-  dueDate: a.datetime(),
-
-  status: a.string(),                        // DRAFT / AUTHORISED / PAID etc
-  invoiceAction: a.string(),                 // derived 
-
-  currencyCode: a.string(),
-  lineItems: a.json().array(),
-
-  subTotal: a.float(),
-  taxTotal: a.float(),
-  total: a.float(),
-
-  amountPaid: a.float(),                   
-  amountDue: a.float(),                      
-
-  PoNumber: a.string(),
-
-  businessUnitvalueid: a.string(),
-  businessUnitvalue: a.string(),
-  // reuse your CRM links
-  clickUpTaskidCrm1: a.string(),
-  clickUpTaskidCrm2: a.string(),
-  clickUpTaskidCrm5: a.string(),
-  clickUpTaskidCrm7: a.string(),
-  clickUpTaskidCrm9: a.string(),
-
-}).authorization((allow) => [allow.publicApiKey()])
-  .secondaryIndexes((index) => [
-    index("invoiceId"),
-    index("invoiceNumber"),
-    index("quoteNumber"),     
-    index("xeroQuoteId")
-  ])
-
+  ClockRecord: a
+    .model({
+      userId: a.string().required(),
+      employeeName: a.string().required(),
+      clockInTime: a.datetime().required(),
+      clockOutTime: a.datetime(),
+      hoursWorked: a.float(),
+      clockInLat: a.float(),
+      clockInLng: a.float(),
+      clockOutLat: a.float(),
+      clockOutLng: a.float(),
+      clockInAddress: a.string(),
+      clockOutAddress: a.string(),
+      verificationStatus: a.ref("ClockRecordStatus").required(),
+      similarityScore: a.float(),
+      syncedOffline: a.boolean().required(),
+      date: a.date().required(), // YYYY-MM-DD — for date-range queries
+    })
+    .authorization((allow) => [allow.publicApiKey()]), // matches your existing apiKey pattern
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -578,4 +639,3 @@ export const data = defineData({
     },
   },
 });
-
