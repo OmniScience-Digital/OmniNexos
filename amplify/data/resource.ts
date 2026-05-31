@@ -181,6 +181,7 @@ const schema = a.schema({
       authorizedDriver: a.boolean(),
       pdpExpiry: a.date(),
       pdpAttachment: a.string(),
+      referencePhotoKey: a.string(), //new addition for employee photo reference
       // Core documents
       cvAttachment: a.string(),
       ppeListAttachment: a.string(),
@@ -625,6 +626,12 @@ const schema = a.schema({
       syncedOffline: a.boolean().required(),
       date: a.date().required(), // YYYY-MM-DD — for date-range queries
     })
+    .secondaryIndexes((index) => [
+      index("userId")
+        .sortKeys(["clockInTime"])
+        .queryField("clockRecordsByUserAndTime"),
+      index("date").sortKeys(["clockInTime"]).queryField("clockRecordsByDate"),
+    ])
     .authorization((allow) => [allow.publicApiKey()]), // matches your existing apiKey pattern
 });
 
