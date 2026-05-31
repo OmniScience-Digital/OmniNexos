@@ -17,41 +17,49 @@ import Navbar from "@/components/layout/navbar";
 import Loading from "@/components/widgets/loading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { type Employee } from "@/types/hrd.types";
-
 
 export default function HumanResourcesPage() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<(Employee | any)[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<
+    (Employee | any)[]
+  >([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
   const [taskCount, setTaskCount] = useState(0);
-  const [tasks, setTasks] = useState<{
-    employeeId: string;
-    employeeName: string;
-    taskType: string;
-    documentType: string;
-    documentIdentifier: string;
-    clickupTaskId: string | null;
-    readonly id: string;
-    readonly createdAt: string;
-    readonly updatedAt: string;
-  }[]>([]);
-
+  const [tasks, setTasks] = useState<
+    {
+      employeeId: string;
+      employeeName: string;
+      taskType: string;
+      documentType: string;
+      documentIdentifier: string;
+      clickupTaskId: string | null;
+      readonly id: string;
+      readonly createdAt: string;
+      readonly updatedAt: string;
+    }[]
+  >([]);
 
   useEffect(() => {
     const fetchTaskCount = async () => {
@@ -67,8 +75,7 @@ export default function HumanResourcesPage() {
     fetchTaskCount();
     const subscription = client.models.Employee.observeQuery().subscribe({
       next: ({ items, isSynced }) => {
-
-        const mappedEmployees: Employee[] = (items || []).map(item => ({
+        const mappedEmployees: Employee[] = (items || []).map((item) => ({
           id: item.id,
           employeeId: item.employeeId,
           employeeNumber: item.employeeNumber ?? undefined,
@@ -98,7 +105,7 @@ export default function HumanResourcesPage() {
       error: (error) => {
         console.error("Error subscribing to employees:", error);
         setLoading(false);
-      }
+      },
     });
 
     return () => subscription.unsubscribe();
@@ -113,42 +120,54 @@ export default function HumanResourcesPage() {
       if (activeTab === "expiring") {
         // Search in tasks
         filtered = tasks
-          .filter(task =>
-            task.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            task.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            task.taskType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            task.documentType.toLowerCase().includes(searchTerm.toLowerCase())
+          .filter(
+            (task) =>
+              task.employeeName
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase()) ||
+              task.employeeId
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase()) ||
+              task.taskType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              task.documentType
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase()),
           )
-          .map(task => ({
+          .map((task) => ({
             id: task.id,
             employeeId: task.employeeId,
-            firstName: task.employeeName.split(' ')[0],
-            surname: task.employeeName.split(' ')[1] || '',
+            firstName: task.employeeName.split(" ")[0],
+            surname: task.employeeName.split(" ")[1] || "",
             taskType: task.taskType,
             documentType: task.documentType,
-            isTask: true
+            isTask: true,
           }));
       } else {
         // Search in employees
-        filtered = filtered.filter(employee =>
-          `${employee.firstName} ${employee.surname}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          employee.knownAs?.toLowerCase().includes(searchTerm.toLowerCase())
+        filtered = filtered.filter(
+          (employee) =>
+            `${employee.firstName} ${employee.surname}`
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            employee.employeeId
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            employee.knownAs?.toLowerCase().includes(searchTerm.toLowerCase()),
         );
       }
     } else {
       // Apply tab filter when no search term
       if (activeTab === "drivers") {
-        filtered = filtered.filter(employee => employee.authorizedDriver);
+        filtered = filtered.filter((employee) => employee.authorizedDriver);
       } else if (activeTab === "expiring") {
-        const tasksWithEmployeeInfo = tasks.map(task => ({
+        const tasksWithEmployeeInfo = tasks.map((task) => ({
           id: task.id,
           employeeId: task.employeeId,
-          firstName: task.employeeName.split(' ')[0],
-          surname: task.employeeName.split(' ')[1] || '',
+          firstName: task.employeeName.split(" ")[0],
+          surname: task.employeeName.split(" ")[1] || "",
           taskType: task.taskType,
           documentType: task.documentType,
-          isTask: true
+          isTask: true,
         }));
         filtered = tasksWithEmployeeInfo;
       }
@@ -163,18 +182,39 @@ export default function HumanResourcesPage() {
 
   const getStatusBadge = (employee: Employee) => {
     if (employee.authorizedDriver) {
-      return <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-100">Driver</Badge>;
+      return (
+        <Badge
+          variant="default"
+          className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-100"
+        >
+          Driver
+        </Badge>
+      );
     }
-    return <Badge variant="secondary" className="text-xs">Active</Badge>;
+    return (
+      <Badge variant="secondary" className="text-xs">
+        Active
+      </Badge>
+    );
   };
 
   const getStatusCountBadge = (x: number) => {
     if (x > 0) {
-      return <Badge variant="default" className="text-xs bg-red-500 text-white hover:bg-red-100">{x}</Badge>;
+      return (
+        <Badge
+          variant="default"
+          className="text-xs bg-red-500 text-white hover:bg-red-100"
+        >
+          {x}
+        </Badge>
+      );
     }
-    return <Badge variant="secondary" className="text-xs">{x}</Badge>;
+    return (
+      <Badge variant="secondary" className="text-xs">
+        {x}
+      </Badge>
+    );
   };
-
 
   // Mobile-friendly columns
   const employeeColumns: ColumnDef<object, any>[] = [
@@ -184,8 +224,7 @@ export default function HumanResourcesPage() {
       cell: ({ row }: { row: any }) => (
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-slate-100">
-
-            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-bold">
+            <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white text-sm font-bold">
               {getInitials(row.original.firstName, row.original.surname)}
             </AvatarFallback>
           </Avatar>
@@ -223,7 +262,9 @@ export default function HumanResourcesPage() {
       header: "Doc Exp Count",
       cell: ({ row }: { row: any }) => {
         const employeeId = row.original.employeeId;
-        const count = tasks.filter(task => task.employeeId === employeeId).length;
+        const count = tasks.filter(
+          (task) => task.employeeId === employeeId,
+        ).length;
 
         return (
           <div className="flex justify-start">
@@ -236,9 +277,7 @@ export default function HumanResourcesPage() {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }: { row: any }) => (
-        <div className="flex justify-start">
-          {getStatusBadge(row.original)}
-        </div>
+        <div className="flex justify-start">{getStatusBadge(row.original)}</div>
       ),
     },
 
@@ -247,11 +286,13 @@ export default function HumanResourcesPage() {
       header: "Edit",
       cell: ({ row }: { row: any }) => (
         <div
-          onClick={() => navigate(`/humanresourcesdepartment/edit/${row.original.id}`)}
+          onClick={() =>
+            navigate(`/humanresourcesdepartment/edit/${row.original.id}`)
+          }
           className="cursor-pointer text-slate-700"
-
         >
-          <Edit className="
+          <Edit
+            className="
     h-4 w-4 mr-2
     cursor-pointer
     hover:bg-slate-100
@@ -260,8 +301,8 @@ export default function HumanResourcesPage() {
     rounded
     transition
     inline-block
-  " />
-
+  "
+          />
         </div>
       ),
     },
@@ -274,7 +315,7 @@ export default function HumanResourcesPage() {
       cell: ({ row }: { row: any }) => (
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-slate-100">
-            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-bold">
+            <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white text-sm font-bold">
               {getInitials(row.original.firstName, row.original.surname)}
             </AvatarFallback>
           </Avatar>
@@ -294,8 +335,7 @@ export default function HumanResourcesPage() {
       header: "Task Type",
       cell: ({ row }: { row: any }) => (
         <div className="text-sm text-slate-600">
-          {(row.original.taskType)?.toUpperCase()}
-
+          {row.original.taskType?.toUpperCase()}
         </div>
       ),
     },
@@ -303,37 +343,43 @@ export default function HumanResourcesPage() {
       accessorKey: "documentType",
       header: "Document Type",
       cell: ({ row }: { row: any }) => (
-        <Badge variant="destructive" className="text-xs text-white "> {row.original.documentType}</Badge>
+        <Badge variant="destructive" className="text-xs text-white ">
+          {" "}
+          {row.original.documentType}
+        </Badge>
       ),
     },
   ];
 
   const data = Array.isArray(filteredEmployees)
     ? filteredEmployees.map((employee) => ({
-      id: employee.id,
-      employeeId: employee.employeeId,
-      firstName: employee.firstName,
-      surname: employee.surname,
-      knownAs: employee.knownAs,
-      employeeNumber: employee.employeeNumber,
-      authorizedDriver: employee.authorizedDriver,
-      passportExpiry: employee.passportExpiry,
-      driversLicenseExpiry: employee.driversLicenseExpiry,
-      taskType: employee.taskType,
-      documentType: employee.documentType,
-    }))
+        id: employee.id,
+        employeeId: employee.employeeId,
+        firstName: employee.firstName,
+        surname: employee.surname,
+        knownAs: employee.knownAs,
+        employeeNumber: employee.employeeNumber,
+        authorizedDriver: employee.authorizedDriver,
+        passportExpiry: employee.passportExpiry,
+        driversLicenseExpiry: employee.driversLicenseExpiry,
+        taskType: employee.taskType,
+        documentType: employee.documentType,
+      }))
     : [];
 
   const stats = {
     total: employees.length,
-    drivers: employees.filter(e => e.authorizedDriver).length,
-    expiring: employees.filter(e => {
+    drivers: employees.filter((e) => e.authorizedDriver).length,
+    expiring: employees.filter((e) => {
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-      return (e.passportExpiry && new Date(e.passportExpiry) <= thirtyDaysFromNow) ||
-        (e.driversLicenseExpiry && new Date(e.driversLicenseExpiry) <= thirtyDaysFromNow);
+      return (
+        (e.passportExpiry && new Date(e.passportExpiry) <= thirtyDaysFromNow) ||
+        (e.driversLicenseExpiry &&
+          new Date(e.driversLicenseExpiry) <= thirtyDaysFromNow)
+      );
     }).length,
-    tasks: taskCount
+    tasks: taskCount,
   };
 
   if (loading) {
@@ -345,7 +391,6 @@ export default function HumanResourcesPage() {
       </div>
     );
   }
-
 
   return (
     <div className="flex flex-col min-h-screen bg-background from-slate-50 to-blue-50/30">
@@ -361,13 +406,14 @@ export default function HumanResourcesPage() {
                   Employee Management
                 </h1>
                 <p className="text-slate-600 max-w-2xl text-sm">
-                  Manage your workforce, track certifications, and ensure compliance across your organization.
+                  Manage your workforce, track certifications, and ensure
+                  compliance across your organization.
                 </p>
               </div>
               <div className="flex gap-3">
                 <Button
-                  onClick={() => navigate('/humanresourcesdepartment/create')}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25"
+                  onClick={() => navigate("/humanresourcesdepartment/create")}
+                  className="bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Employee
@@ -382,8 +428,12 @@ export default function HumanResourcesPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Total Employees</p>
-                    <p className="text-3xl font-bold text-shadow-slate-400 mt-2">{stats.total}</p>
+                    <p className="text-sm font-medium text-slate-500">
+                      Total Employees
+                    </p>
+                    <p className="text-3xl font-bold text-shadow-slate-400 mt-2">
+                      {stats.total}
+                    </p>
                   </div>
                   <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <User className="h-6 w-6 text-blue-600" />
@@ -396,8 +446,12 @@ export default function HumanResourcesPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Authorized Drivers</p>
-                    <p className="text-3xl font-bold text-foreground mt-2">{stats.drivers}</p>
+                    <p className="text-sm font-medium text-slate-500">
+                      Authorized Drivers
+                    </p>
+                    <p className="text-3xl font-bold text-foreground mt-2">
+                      {stats.drivers}
+                    </p>
                   </div>
                   <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
                     <Shield className="h-6 w-6 text-green-600" />
@@ -410,8 +464,12 @@ export default function HumanResourcesPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Expiring Soon</p>
-                    <p className="text-3xl font-bold text-shadow-slate-400 mt-2">{stats.tasks}</p>
+                    <p className="text-sm font-medium text-slate-500">
+                      Expiring Soon
+                    </p>
+                    <p className="text-3xl font-bold text-shadow-slate-400 mt-2">
+                      {stats.tasks}
+                    </p>
                   </div>
                   <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center">
                     <Calendar className="h-6 w-6 text-amber-600" />
@@ -426,18 +484,31 @@ export default function HumanResourcesPage() {
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-background">
                 <div>
-                  <CardTitle className="text-xl text-shadow-slate-400 bg-background">Employees</CardTitle>
+                  <CardTitle className="text-xl text-shadow-slate-400 bg-background">
+                    Employees
+                  </CardTitle>
                   <CardDescription>
                     Manage all employees in your organization
                   </CardDescription>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 bg-background">
+                  <Button
+                    onClick={() =>
+                      navigate("/humanresourcesdepartment/attendance")
+                    }
+                  >
+                    View Attendance
+                  </Button>
                   {/* Search */}
                   <div className="relative bg-background">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <Input
-                      placeholder={activeTab === "expiring" ? "Search tasks..." : "Search employees..."}
+                      placeholder={
+                        activeTab === "expiring"
+                          ? "Search tasks..."
+                          : "Search employees..."
+                      }
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 pr-4 h-10 w-full sm:w-64 border-slate-300 focus:border-blue-500"
@@ -446,7 +517,10 @@ export default function HumanResourcesPage() {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="border-slate-300 hover:bg-white">
+                      <Button
+                        variant="outline"
+                        className="border-slate-300 hover:bg-white"
+                      >
                         <Filter className="h-4 w-4 mr-2" />
                         Filter
                       </Button>
@@ -458,7 +532,9 @@ export default function HumanResourcesPage() {
                       <DropdownMenuItem onClick={() => setActiveTab("drivers")}>
                         Authorized Drivers
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setActiveTab("expiring")}>
+                      <DropdownMenuItem
+                        onClick={() => setActiveTab("expiring")}
+                      >
                         Documents Expiring
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -469,23 +545,45 @@ export default function HumanResourcesPage() {
 
             <CardContent className="p-0">
               {/* Tabs */}
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="px-6">
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="px-6"
+              >
                 <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger value="all" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 cursor-pointer">
+                  <TabsTrigger
+                    value="all"
+                    className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 cursor-pointer"
+                  >
                     All Employees
-                    <Badge variant="secondary" className="ml-2 bg-slate-200 text-slate-700">
+                    <Badge
+                      variant="secondary"
+                      className="ml-2 bg-slate-200 text-slate-700"
+                    >
                       {employees.length}
                     </Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="drivers" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 cursor-pointer">
+                  <TabsTrigger
+                    value="drivers"
+                    className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 cursor-pointer"
+                  >
                     Drivers
-                    <Badge variant="secondary" className="ml-2 bg-slate-200 text-slate-700">
+                    <Badge
+                      variant="secondary"
+                      className="ml-2 bg-slate-200 text-slate-700"
+                    >
                       {stats.drivers}
                     </Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="expiring" className="data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 cursor-pointer">
+                  <TabsTrigger
+                    value="expiring"
+                    className="data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 cursor-pointer"
+                  >
                     Expiring
-                    <Badge variant="secondary" className="ml-2 bg-slate-200 text-slate-700">
+                    <Badge
+                      variant="secondary"
+                      className="ml-2 bg-slate-200 text-slate-700"
+                    >
                       {taskCount}
                     </Badge>
                   </TabsTrigger>
@@ -497,10 +595,18 @@ export default function HumanResourcesPage() {
                 <DataTable
                   title={activeTab === "expiring" ? "Tasks" : "Employees"}
                   data={data}
-                  columns={activeTab === "expiring" ? taskColumns : employeeColumns}
+                  columns={
+                    activeTab === "expiring" ? taskColumns : employeeColumns
+                  }
                   pageSize={10}
-                  storageKey={activeTab === "expiring" ? "taskTablePagination" : "employeeTablePagination"}
-                  searchColumn={activeTab === "expiring" ? "taskType" : "firstName"}
+                  storageKey={
+                    activeTab === "expiring"
+                      ? "taskTablePagination"
+                      : "employeeTablePagination"
+                  }
+                  searchColumn={
+                    activeTab === "expiring" ? "taskType" : "firstName"
+                  }
                 />
               </div>
             </CardContent>

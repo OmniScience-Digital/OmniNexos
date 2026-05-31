@@ -388,7 +388,7 @@ export default function CreateEmployeePage() {
                                 <CardContent className="p-6">
                                     <div className="text-center mb-6">
                                         <Avatar className="h-24 w-24 border-4 border-white shadow-lg mx-auto mb-4">
-                                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xl font-bold">
+                                            <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white text-xl font-bold">
                                                 {formData.firstName && formData.surname
                                                     ? getInitials(formData.firstName, formData.surname)
                                                     : <User className="h-6 w-6" />

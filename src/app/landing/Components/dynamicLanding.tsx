@@ -33,7 +33,7 @@ export default function Home() {
 
                 const dashboardData = data.items
                     .filter(item => item.items) // Only include items with names
-                    .sort((a, b) => (a.items || "").localeCompare(b.items || ""));
+                    .sort((a, b) => (a.items || "").trim().localeCompare((b.items || "").trim()));
 
                 const cleanDashboardData: Dashboard[] = dashboardData
                     .filter(d => !/form$/i.test((d.items ?? "").trim())) // exclude items ending with 'Form'
@@ -79,7 +79,8 @@ export default function Home() {
             CRM: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
             FMS: "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
             HRD: "bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
-            GenerCRMal: "bg-gray-50 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300"
+            GenerCRMal: "bg-gray-50 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
+            ATS: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
         };
         return colors[category] || "bg-gray-50 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300";
     };
@@ -224,7 +225,7 @@ export default function Home() {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="my-2 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent dark:via-gray-600" />
+                                        <div className="my-2 h-px bg-linear-to-r from-transparent via-gray-300 to-transparent dark:via-gray-600" />
 
                                     </React.Fragment>
                                 ))}

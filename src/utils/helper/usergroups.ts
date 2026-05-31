@@ -1,7 +1,7 @@
 import { generateClient } from 'aws-amplify/data';
-import type { Schema } from "amplify/data/resource";
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import type { AllUserInfo, UserDataResponse, UserInfo } from '@/types/user.types';
+import type { Schema } from '../../../amplify/data/resource';
 
 
 

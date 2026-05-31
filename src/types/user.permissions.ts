@@ -29,4 +29,5 @@ export const allPermissions = [
     { module: 'scf', subModule: 'subcategory', label: 'SCF - Subcategory', description: 'Stock Control form' },
     { module: 'scf', subModule: 'component', label: 'SCF - Component', description: 'Stock Control form' },
     { module: 'vif', label: 'Vehicle inspection Form', description: 'Vehicle Inspection form' },
+    { module: 'ats', label: 'Attendance Tracking System', description: 'Attendance tracking system' },
 ]

@@ -632,7 +632,7 @@ const schema = a.schema({
         .queryField("clockRecordsByUserAndTime"),
       index("date").sortKeys(["clockInTime"]).queryField("clockRecordsByDate"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]), // matches your existing apiKey pattern
+    .authorization((allow) => [allow.publicApiKey()]), 
 });
 
 export type Schema = ClientSchema<typeof schema>;
