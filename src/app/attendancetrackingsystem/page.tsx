@@ -299,7 +299,6 @@ export default function AttendancePage() {
   const [show,          setShow]          = useState(false);
   const [successful,    setSuccessful]    = useState(false);
   const [message,       setMessage]       = useState("");
-  const [page,          setPage]          = useState(0);
   const [hasMore,       setHasMore]       = useState(false);
   const [nextToken,     setNextToken]     = useState<string | null>(null);
   const PAGE_SIZE = 10;
@@ -339,7 +338,6 @@ export default function AttendancePage() {
 
   const loadMore = () => {
     if (!hasMore || !nextToken) return;
-    setPage((p) => p + 1);
     fetchRecords(nextToken, true);
   };
 
