@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.1060.0",
     "@aws-sdk/types": "^3.973.4",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -46,7 +47,7 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.975.0",
     "@eslint/js": "^9.39.1",
     "@types/luxon": "^3.7.1",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.9.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
