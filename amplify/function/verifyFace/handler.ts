@@ -17,31 +17,40 @@ import {
   CompareFacesCommandInput,
 } from "@aws-sdk/client-rekognition";
 
-
 declare const process: {
   env: {
     AWS_REGION?: string;
     STORAGE_BUCKET_NAME: string;
-  }
+  };
 };
 
-const rekognition = new RekognitionClient({ region: process.env.AWS_REGION ?? "us-east-1" });
+const rekognition = new RekognitionClient({
+  region: process.env.AWS_REGION ?? "us-east-1",
+});
 
-const BUCKET     = process.env.STORAGE_BUCKET_NAME!;
-const THRESHOLD  = 80; // minimum similarity % to accept
+const BUCKET = process.env.STORAGE_BUCKET_NAME!;
+const THRESHOLD = 80; // minimum similarity % to accept
 
-const referenceKey = (userId: string) => `hr/reference-faces/${userId}/profile.jpg`;
+const referenceKey = (userId: string) =>
+  `hr/reference-faces/${userId}/profile.jpg`;
 
 interface VerifyFaceEvent {
-  userId:    string;
+  userId: string;
   selfieKey: string;
 }
 
 export const handler = async (event: VerifyFaceEvent) => {
   const { userId, selfieKey } = event;
+  console.log("EVENT:", JSON.stringify(event, null, 2));
+  console.log("userId:", event.userId);
+  console.log("selfieKey:", event.selfieKey);
 
   if (!userId || !selfieKey) {
-    return { verified: false, similarity: 0, reason: "Missing userId or selfieKey" };
+    return {
+      verified: false,
+      similarity: 0,
+      reason: "Missing userId or selfieKey",
+    };
   }
 
   const params: CompareFacesCommandInput = {
@@ -56,18 +65,18 @@ export const handler = async (event: VerifyFaceEvent) => {
 
   try {
     const response = await rekognition.send(new CompareFacesCommand(params));
-    const matches  = response.FaceMatches ?? [];
+    const matches = response.FaceMatches ?? [];
 
     if (matches.length === 0) {
       return {
-        verified:   false,
+        verified: false,
         similarity: 0,
-        reason:     "No face match found",
+        reason: "No face match found",
       };
     }
 
     const similarity = matches[0].Similarity ?? 0;
-    const verified   = similarity >= THRESHOLD;
+    const verified = similarity >= THRESHOLD;
 
     return {
       verified,
@@ -80,16 +89,17 @@ export const handler = async (event: VerifyFaceEvent) => {
     // InvalidParameterException means no face detected in one of the images
     if (error?.name === "InvalidParameterException") {
       return {
-        verified:   false,
+        verified: false,
         similarity: 0,
-        reason:     "No face detected in the image. Please retake in good lighting.",
+        reason:
+          "No face detected in the image. Please retake in good lighting.",
       };
     }
     console.error("Rekognition error:", error);
     return {
-      verified:   false,
+      verified: false,
       similarity: 0,
-      reason:     "Verification service error. Record flagged for review.",
+      reason: "Verification service error. Record flagged for review.",
     };
   }
 };
