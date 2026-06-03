@@ -39,11 +39,14 @@ interface VerifyFaceEvent {
   selfieKey: string;
 }
 
-export const handler = async (event: VerifyFaceEvent) => {
-  const { userId, selfieKey } = event;
+export const handler = async (event: any) => {
   console.log("EVENT:", JSON.stringify(event, null, 2));
-  console.log("userId:", event.userId);
-  console.log("selfieKey:", event.selfieKey);
+
+  const body = JSON.parse(event.body);
+  const { userId, selfieKey } = body;
+
+  console.log("userId:", userId);
+  console.log("selfieKey:", selfieKey);
 
   if (!userId || !selfieKey) {
     return {
