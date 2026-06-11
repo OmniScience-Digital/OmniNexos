@@ -81,6 +81,7 @@ export default function Home() {
             HRD: "bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
             GenerCRMal: "bg-gray-50 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
             ATS: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+            IJ: "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
         };
         return colors[category] || "bg-gray-50 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300";
     };
