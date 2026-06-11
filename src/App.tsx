@@ -30,6 +30,7 @@ import AttendancePage from "./app/attendancetrackingsystem/page";
 import EditCustomerPage from "./app/customerrelationsmanagement/edit/[id]/page";
 import Compliance from "./app/customerrelationsmanagement/compliance/[id]/page";
 import AdminAttendancePage from "./app/humanresourcesdepartment/attendance/page";
+import JobCardChecklistPage from "./app/jobcards/page";
 
 function Layout() {
   const location = useLocation();
@@ -228,6 +229,12 @@ function Layout() {
           element={requireAuth(<HumanResourcesPage />, false, "hrd.")}
         />
          <Route path="/humanresourcesdepartment/attendance" element={requireAuth(<AdminAttendancePage />, false, 'hrd.')} />
+
+         {/* Job card */}
+          <Route
+          path="/installationjobcard"
+          element={requireAuth(<JobCardChecklistPage />)}
+        />
       </Routes>
       {!isAuthPage && <Footer />}
     </div>
