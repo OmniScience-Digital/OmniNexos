@@ -47,7 +47,7 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.975.0",
     "@eslint/js": "^9.39.1",
     "@types/luxon": "^3.7.1",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
