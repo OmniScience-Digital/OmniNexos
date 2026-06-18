@@ -79,14 +79,12 @@ backend.addOutput({
   },
 });
 
-// ── notifyPhotoApproval — calls GraphQL to fetch tokens ──────────────────────
+// ── notifyPhotoApproval — calls GraphQL to fetch tokens (no DynamoDB) ──────
 const notifyLambda = backend.notifyPhotoApproval.resources.lambda as Function;
 
-// Cast to `any` because the exact types from Amplify's CDK wrappers are narrow
+// Cast to any because the exact CDK types are too narrow
 const graphqlApi = backend.data.resources.graphqlApi as any;
 const apiKey = (backend.data.resources as any).apiKey;
 
 notifyLambda.addEnvironment("APPSYNC_ENDPOINT", graphqlApi.graphqlUrl);
 notifyLambda.addEnvironment("APPSYNC_API_KEY", apiKey.attrApiKey);
-
-// No DynamoDB grants needed – everything goes through AppSync.

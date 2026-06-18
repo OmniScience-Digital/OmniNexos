@@ -1,4 +1,4 @@
-// Declare `process` to avoid TypeScript error (it exists at runtime)
+// Tell TypeScript that `process` exists (Node.js global)
 declare const process: {
   env: {
     APPSYNC_ENDPOINT: string;
@@ -6,6 +6,7 @@ declare const process: {
   };
 };
 
+// Now these are type‑safe
 const APPSYNC_ENDPOINT = process.env.APPSYNC_ENDPOINT!;
 const APPSYNC_API_KEY = process.env.APPSYNC_API_KEY!;
 
@@ -18,7 +19,6 @@ interface NotifyEvent {
   };
 }
 
-// GraphQL query – uses the existing pushTokensByUser index.
 const GET_PUSH_TOKENS = /* GraphQL */ `
   query GetPushTokens($userId: String!) {
     pushTokensByUser(userId: $userId) {
