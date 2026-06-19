@@ -13,10 +13,19 @@ const schema = a.schema({
   // PhotoChangeRequest — sends a push notification to the employee via
   // Expo's Push API. Server-side, so it reaches the device even if the
   // app is fully closed.
+  //
+  // Takes the push token(s) directly as an argument rather than a userId:
+  // the admin app already looks up the employee's token via the existing
+  // pushTokensByUser query (normal Data client call) right before calling
+  // this. That keeps this function fully standalone — no DynamoDB or
+  // AppSync access from inside the Lambda at all, which avoids the
+  // circular dependency that comes from a function reading
+  // backend.data.resources... while also being registered as a resolver
+  // in this same schema.
   notifyPhotoRequestStatus: a
     .mutation()
     .arguments({
-      userId: a.string().required(),
+      pushTokens: a.string().array().required(),
       status: a.string().required(), // "APPROVED" | "DENIED"
     })
     .returns(a.json())

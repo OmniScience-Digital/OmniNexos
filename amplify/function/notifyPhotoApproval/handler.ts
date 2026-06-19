@@ -1,61 +1,4 @@
-// Tell TypeScript that `process` exists (Node.js global)
-declare const process: {
-  env: {
-    APPSYNC_ENDPOINT: string;
-    APPSYNC_API_KEY: string;
-  };
-};
-
-// Now these are type‑safe
-const APPSYNC_ENDPOINT = process.env.APPSYNC_ENDPOINT!;
-const APPSYNC_API_KEY = process.env.APPSYNC_API_KEY!;
-
 const EXPO_PUSH_ENDPOINT = "https://exp.host/--/api/v2/push/send";
-
-interface NotifyEvent {
-  arguments: {
-    userId: string;
-    status: string;
-  };
-}
-
-const GET_PUSH_TOKENS = /* GraphQL */ `
-  query GetPushTokens($userId: String!) {
-    pushTokensByUser(userId: $userId) {
-      items {
-        token
-      }
-    }
-  }
-`;
-
-async function getPushTokensForUser(userId: string): Promise<string[]> {
-  const response = await fetch(APPSYNC_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": APPSYNC_API_KEY,
-    },
-    body: JSON.stringify({
-      query: GET_PUSH_TOKENS,
-      variables: { userId },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`AppSync request failed: ${response.status}`);
-  }
-
-  const json = await response.json();
-  if (json.errors) {
-    throw new Error(json.errors[0].message);
-  }
-
-  const items = json.data?.pushTokensByUser?.items ?? [];
-  return items
-    .map((item: any) => item.token)
-    .filter((token: string) => token && token.startsWith("ExponentPushToken"));
-}
 
 async function sendExpoPush(
   tokens: string[],
@@ -94,11 +37,26 @@ async function sendExpoPush(
   }
 }
 
-export const handler = async (event: NotifyEvent) => {
-  const { userId, status } = event.arguments ?? {};
+// Invoked directly as the resolver for the notifyPhotoRequestStatus custom
+// mutation (see data/resource.ts) — the admin app calls this right when it
+// approves/denies a PhotoChangeRequest. Takes the employee's push token(s)
+// directly as an argument (looked up client-side by the admin app via the
+// normal Data client, pushTokensByUser) — this function never touches
+// DynamoDB or AppSync at all, it's a pure "send this push" operation.
+// Still server-side, so it reaches the device even if the employee's app
+// is fully closed.
+interface NotifyEvent {
+  arguments: {
+    pushTokens: string[];
+    status: string; // "APPROVED" | "DENIED"
+  };
+}
 
-  if (!userId || !status) {
-    return { success: false, reason: "Missing userId or status" };
+export const handler = async (event: NotifyEvent) => {
+  const { pushTokens, status } = event.arguments ?? {};
+
+  if (!pushTokens?.length || !status) {
+    return { success: false, reason: "Missing pushTokens or status" };
   }
 
   let title: string | null = null;
@@ -114,20 +72,19 @@ export const handler = async (event: NotifyEvent) => {
     return { success: false, reason: `Status "${status}" is not notification-worthy` };
   }
 
+  const validTokens = pushTokens.filter(
+    (t): t is string => !!t && t.startsWith("ExponentPushToken")
+  );
+
+  if (validTokens.length === 0) {
+    return { success: false, reason: "No valid Expo push tokens provided" };
+  }
+
   try {
-    const tokens = await getPushTokensForUser(userId);
-
-    if (tokens.length === 0) {
-      console.log(`No valid push tokens for user ${userId}`);
-      return { success: false, reason: "No registered push tokens for this user" };
-    }
-
-    await sendExpoPush(tokens, title, body, {
+    await sendExpoPush(validTokens, title, body, {
       type: "PHOTO_CHANGE_REQUEST",
       status,
-      userId,
     });
-
     return { success: true };
   } catch (err) {
     console.error("Error sending photo approval notification:", err);

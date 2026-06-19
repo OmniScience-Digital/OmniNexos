@@ -7,7 +7,6 @@ import { verifyFace } from './function/verifyFace/resource.js';
 import { notifyPhotoApproval } from './function/notifyPhotoApproval/resource.js';
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
-import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { Stack } from "aws-cdk-lib";
 import { Function } from 'aws-cdk-lib/aws-lambda';
 
@@ -79,12 +78,13 @@ backend.addOutput({
   },
 });
 
-// ── notifyPhotoApproval — calls GraphQL to fetch tokens (no DynamoDB) ──────
-const notifyLambda = backend.notifyPhotoApproval.resources.lambda as Function;
-
-// Cast to any because the exact CDK types are too narrow
-const graphqlApi = backend.data.resources.graphqlApi as any;
-const apiKey = (backend.data.resources as any).apiKey;
-
-notifyLambda.addEnvironment("APPSYNC_ENDPOINT", graphqlApi.graphqlUrl);
-notifyLambda.addEnvironment("APPSYNC_API_KEY", apiKey.attrApiKey);
+// ── notifyPhotoApproval — called directly when admin approves/denies ────────
+// Instead of watching the PhotoChangeRequest table for changes via a
+// DynamoDB Stream, the admin app calls this directly as a custom GraphQL
+// mutation (see data/resource.ts: notifyPhotoRequestStatus) right when it
+// approves/denies a request. The mutation takes the employee's push
+// token(s) directly as an argument — the admin app looks those up via the
+// normal Data client (pushTokensByUser) BEFORE calling this mutation, so
+// this Lambda never touches DynamoDB or AppSync at all. No environment
+// variables, no IAM grants, no circular dependency: it's just a plain
+// function-backed resolver, same pattern as `usersList` / listUsers.
