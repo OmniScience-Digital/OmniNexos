@@ -192,11 +192,11 @@
 //   );
 // }
 
+
 // Navbar.tsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Sun, Moon, User, Settings, LogOut, Menu, Loader2, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
@@ -271,11 +271,11 @@ export default function Navbar() {
         <div className="sm:hidden">
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative focus:outline-none focus:ring-0 hover:bg-transparent cursor-pointer">
+              <button className="flex items-center justify-center size-9 cursor-pointer focus:outline-none hover:bg-transparent bg-transparent border-none">
                 <Menu className="h-4 w-4 text-white" />
-              </Button>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-48 z-[100]">
               <DropdownMenuItem onClick={(e) => { e.preventDefault(); setTimeout(() => setMenuOpen(false), 200); }}>
                 <div className="flex items-center gap-2">
                   <Sun className="h-4 w-4" />
@@ -297,14 +297,14 @@ export default function Navbar() {
                   }}
                   className="flex items-center gap-2 cursor-pointer"
                 >
-                  <div className="flex items-center gap-1 bg-blue-800 px-2 py-1 rounded text-xs">
+                  <div className="flex items-center gap-1 bg-blue-800 px-2 py-1 rounded text-xs text-white">
                     <Shield className="h-3 w-3" />
                     Admin
                   </div>
                 </DropdownMenuItem>
               )}
 
-              <DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer">
                 <Settings className="h-4 w-4" />
                 Settings
               </DropdownMenuItem>
@@ -312,7 +312,7 @@ export default function Navbar() {
               <DropdownMenuItem
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
                 Logout
@@ -340,12 +340,12 @@ export default function Navbar() {
           )}
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild className="cursor-pointer">
-              <Button variant="ghost" size="icon" className="focus:outline-none focus:ring-0 hover:bg-transparent">
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center justify-center size-9 cursor-pointer focus:outline-none hover:bg-transparent bg-transparent border-none">
                 <User className="h-4 w-4 text-white" />
-              </Button>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="z-[100]">
               <DropdownMenuItem className="text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer">
                 <User className="h-4 w-4" />
                 {permission?.name || user?.preferred_username || "User"}
