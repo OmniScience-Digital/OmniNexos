@@ -70,7 +70,6 @@ export default function Navbar() {
             className="h-11 mr-4"
             width={100}
             height={200}
-            fetchPriority="high"
           />
         </Link>
 
@@ -82,7 +81,7 @@ export default function Navbar() {
                 <Menu className="h-4 w-4 text-white" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 z-[100]">
+            <DropdownMenuContent align="end" className="w-48 z-100">
               <DropdownMenuItem onClick={(e) => { e.preventDefault(); setTimeout(() => setMenuOpen(false), 200); }}>
                 <div className="flex items-center gap-2">
                   <Sun className="h-4 w-4" />
@@ -152,7 +151,7 @@ export default function Navbar() {
                 <User className="h-4 w-4 text-white" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-[100]">
+            <DropdownMenuContent align="end" className="z-100">
               <DropdownMenuItem className="text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer">
                 <User className="h-4 w-4" />
                 {permission?.name || user?.preferred_username || "User"}
