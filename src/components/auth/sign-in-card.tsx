@@ -107,8 +107,9 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
         <img
           src="/assets/logo.png"
           alt="Logo"
-          loading="lazy"
           className="h-15 mr-2"
+          width={120}
+          height={250}
         />
       </div>
       <CardHeader className="px-0  my-5">

@@ -232,7 +232,7 @@ export default function ComponentForm() {
       {loading || categoriesLoading ? (
         <Loading />
       ) : (
-        <main className="flex-1 p-6 mt-20 pb-20">
+        <main className="flex-1 p-6 mt-25 pb-20">
           <div className="max-w-4xl mx-auto">
             <Card>
               <CardHeader>

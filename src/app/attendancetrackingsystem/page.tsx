@@ -441,7 +441,7 @@ export default function AttendancePage() {
     <div className="flex flex-col min-h-screen bg-background">
       <Navbar />
 
-      <main className="flex-1 px-4 sm:px-6 mt-20 pb-20">
+      <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
         <div className="container mx-auto max-w-3xl mt-8 space-y-6">
 
           {/* Header */}
