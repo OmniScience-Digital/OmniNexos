@@ -107,11 +107,12 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
         <img
           src="/assets/logo.png"
           alt="Logo"
-          className="h-15 mr-2"
-          width={120}
-          height={250}
+          className="h-13 w-auto mr-2"
+          loading="eager"
+          decoding="async"
         />
       </div>
+
       <CardHeader className="px-0  my-5">
         <CardTitle>Login to continue</CardTitle>
         <CardDescription>NB: Only Company domains are accepted</CardDescription>

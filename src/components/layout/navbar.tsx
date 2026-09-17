@@ -1,7 +1,16 @@
 // Navbar.tsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sun, Moon, User, Settings, LogOut, Menu, Loader2, Shield } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  User,
+  Settings,
+  LogOut,
+  Menu,
+  Loader2,
+  Shield,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
@@ -17,7 +26,7 @@ const getIsTestEnv = () => {
   const hostname = window.location.hostname;
   if (hostname === "localhost") return true;
   const redirectUris: string[] = amplifyOutputs.auth.oauth.redirect_sign_in_uri;
-  const matchedUri = redirectUris.find(uri => uri.includes(hostname));
+  const matchedUri = redirectUris.find((uri) => uri.includes(hostname));
   if (!matchedUri) return false;
   return matchedUri.includes("vite.");
 };
@@ -51,7 +60,7 @@ export default function Navbar() {
       localStorage.clear();
       sessionStorage.clear();
       await logout();
-      window.location.href = '/';
+      window.location.href = "/";
     } catch (error) {
       console.error("Sign out error:", error);
     }
@@ -67,10 +76,9 @@ export default function Navbar() {
           <img
             src="/assets/logo-2.png"
             alt="Logo"
-            className="h-11 mr-4"
-            width={100}
-            height={200}
-            fetchPriority="high"
+            className="h-11 w-auto mr-2"
+            loading="eager"
+            decoding="async"
           />
         </Link>
 
@@ -82,11 +90,19 @@ export default function Navbar() {
                 <Menu className="h-4 w-4 text-white" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 z-[100]">
-              <DropdownMenuItem onClick={(e) => { e.preventDefault(); setTimeout(() => setMenuOpen(false), 200); }}>
+            <DropdownMenuContent align="end" className="w-48 z-100">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault();
+                  setTimeout(() => setMenuOpen(false), 200);
+                }}
+              >
                 <div className="flex items-center gap-2">
                   <Sun className="h-4 w-4" />
-                  <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
+                  <Switch
+                    checked={isDarkMode}
+                    onCheckedChange={toggleDarkMode}
+                  />
                   <Moon className="h-4 w-4" />
                 </div>
               </DropdownMenuItem>
@@ -99,7 +115,7 @@ export default function Navbar() {
               {permission?.isAdmin && (
                 <DropdownMenuItem
                   onClick={() => {
-                    navigate('/admin');
+                    navigate("/admin");
                     setMenuOpen(false);
                   }}
                   className="flex items-center gap-2 cursor-pointer"
@@ -132,13 +148,17 @@ export default function Navbar() {
         <div className="hidden sm:flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Sun className="h-4 w-4 text-white" />
-            <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} className="cursor-pointer" />
+            <Switch
+              checked={isDarkMode}
+              onCheckedChange={toggleDarkMode}
+              className="cursor-pointer"
+            />
             <Moon className="h-4 w-4 text-white" />
           </div>
 
           {permission?.isAdmin && (
             <div
-              onClick={() => navigate('/admin')}
+              onClick={() => navigate("/admin")}
               className="flex items-center gap-1 bg-blue-800 px-2 py-1 rounded text-xs text-white cursor-pointer hover:bg-blue-700"
             >
               <Shield className="h-3 w-3" />
@@ -152,7 +172,7 @@ export default function Navbar() {
                 <User className="h-4 w-4 text-white" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-[100]">
+            <DropdownMenuContent align="end" className="z-100">
               <DropdownMenuItem className="text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 cursor-pointer">
                 <User className="h-4 w-4" />
                 {permission?.name || user?.preferred_username || "User"}
@@ -160,7 +180,7 @@ export default function Navbar() {
 
               {permission?.isAdmin && (
                 <DropdownMenuItem
-                  onClick={() => navigate('/admin')}
+                  onClick={() => navigate("/admin")}
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <Shield className="h-4 w-4" />

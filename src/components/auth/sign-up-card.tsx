@@ -141,9 +141,9 @@ export const SignUpCard = ({ setState }: SignUpCardProps) => {
         <img
           src="/assets/logo.png"
           alt="Logo"
-          className="h-16 mr-2"
-             width={120}
-          height={250}
+          className="h-13 w-auto mr-2"
+          loading="eager"
+          decoding="async"
         />
       </div>
       <CardHeader className="px-0 pt-3 my-5">
