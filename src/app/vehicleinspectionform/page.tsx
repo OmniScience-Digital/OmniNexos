@@ -306,7 +306,7 @@ export default function Vehicle_Inspection_Form() {
             {loading ? (
                 <Loading />
             ) : (
-                <main className="flex-1 p-6 mt-20 pb-20">
+                <main className="flex-1 p-6 mt-25 pb-20">
 
                     {/* Image Upload Loader */}
                     {uploadProgress.isUploading && (

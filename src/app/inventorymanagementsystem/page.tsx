@@ -380,7 +380,7 @@ export default function IMS() {
                 <Loading />
             ) : (
 
-                <main className="flex-1 p-1 mt-20 pb-20">
+                <main className="flex-1 p-1 mt-25 pb-20">
                     <DataTable
                         title={"Category Selection"}
                         data={data}

@@ -238,7 +238,7 @@ export default function InspectionsPage() {
             {loading ? (
                 <Loading />
             ) : (
-                <main className="flex-1 px-2 sm:px-4 mt-25 pb-20">
+                <main className="flex-1 px-2 sm:px-4 mt-30 pb-20">
                     <div className="container mx-auto max-w-7xl">
                         {/* Header */}
                         <div className="mb-4 sm:mb-6">

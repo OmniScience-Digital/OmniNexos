@@ -68,7 +68,9 @@ export default function Navbar() {
             src="/assets/logo-2.png"
             alt="Logo"
             className="h-11 mr-4"
-            loading="lazy"
+            width={100}
+            height={200}
+            fetchPriority="high"
           />
         </Link>
 
