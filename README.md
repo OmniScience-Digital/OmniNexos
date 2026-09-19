@@ -15,6 +15,8 @@ The React Compiler is not enabled on this template because of its impact on dev 
 
 If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
+npm install --package-lock-only --legacy-peer-deps
+npm ci --legacy-peer-deps
 
 zip -r OmniNexos_Frontend.zip . \
   -x "node_modules/*" \
