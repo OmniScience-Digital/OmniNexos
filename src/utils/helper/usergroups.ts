@@ -1,11 +1,18 @@
-import { generateClient } from 'aws-amplify/data';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import type { AllUserInfo, UserDataResponse, UserInfo } from '@/types/user.types';
-import type { Schema } from '../../../amplify/data/resource';
+import { client } from '@/services/schema';
 
+// Cognito's ListUsers is a relatively expensive Lambda call that gets slower
+// and more expensive as the user base grows. It's only needed occasionally
+// (e.g. populating an "assign to" dropdown), so cache the result in memory
+// for a short window instead of re-fetching it on every checkAuth() call
+// (app mount + every sign-in).
+const USER_LIST_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let cachedResponse: UserDataResponse | null = null;
+let cachedAt = 0;
+let inFlight: Promise<UserDataResponse> | null = null;
 
-
-export async function getCurrentUserInfo(): Promise<UserDataResponse> {
+export async function getCurrentUserInfo(options?: { force?: boolean }): Promise<UserDataResponse> {
     const defaultResponse: UserDataResponse = {
         currentUser: {
             username: '',
@@ -16,14 +23,25 @@ export async function getCurrentUserInfo(): Promise<UserDataResponse> {
         allUsers: []
     };
 
-    try {
-        // 1. Get current user attributes
-        const userAttributes = await fetchUserAttributes();
-        const currentEmail = userAttributes.email?.toLowerCase().trim() || '';
+    const now = Date.now();
+    if (!options?.force && cachedResponse && (now - cachedAt) < USER_LIST_CACHE_TTL_MS) {
+        return cachedResponse;
+    }
 
-        // 2. Fetch all users from Lambda/Cognito
-        const client = generateClient<Schema>();
-        const { data: usersList } = await client.queries.usersList();
+    // Coalesce concurrent callers so a burst of calls (e.g. multiple
+    // components mounting at once) only triggers a single Lambda invocation.
+    if (!options?.force && inFlight) {
+        return inFlight;
+    }
+
+    const fetchPromise = (async (): Promise<UserDataResponse> => {
+        try {
+            // 1. Get current user attributes
+            const userAttributes = await fetchUserAttributes();
+            const currentEmail = userAttributes.email?.toLowerCase().trim() || '';
+
+            // 2. Fetch all users from Lambda/Cognito
+            const { data: usersList } = await client.queries.usersList();
 
         if (!usersList || !currentEmail) {
             return defaultResponse;
@@ -77,14 +95,32 @@ export async function getCurrentUserInfo(): Promise<UserDataResponse> {
             }
         }
 
-        // Use uniqueUsers instead of allUsers
-        return {
-            currentUser: currentUserInfo,
-            allUsers: uniqueUsers
-        };
+            // Use uniqueUsers instead of allUsers
+            return {
+                currentUser: currentUserInfo,
+                allUsers: uniqueUsers
+            };
 
-    } catch (error) {
-        console.error('Error fetching user data:', error);
-        return defaultResponse;
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            return defaultResponse;
+        }
+    })();
+
+    inFlight = fetchPromise;
+    try {
+        const result = await fetchPromise;
+        cachedResponse = result;
+        cachedAt = Date.now();
+        return result;
+    } finally {
+        inFlight = null;
     }
+}
+
+// Call after actions that change Cognito group membership/user list
+// (e.g. the admin "manage users" screen) so the next read is fresh.
+export function invalidateUserListCache() {
+    cachedResponse = null;
+    cachedAt = 0;
 }

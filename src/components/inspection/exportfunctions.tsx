@@ -76,6 +76,10 @@ export const downloadCSV = (csvContent: string, filename: string) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    // Release the Blob URL once the click has been dispatched — otherwise
+    // it stays registered (and the Blob stays in memory) for the life of
+    // the document, which adds up over a long-lived SPA session.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
 // Helper function to generate PDF

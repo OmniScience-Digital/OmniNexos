@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,34 +11,74 @@ import { AuthProvider, useAuth } from "./contexts/auth-context";
 import Navbar from "./components/layout/navbar";
 import { AuthScreen } from "./components/auth/auth_screen";
 import Footer from "./components/layout/footer";
-import FormsLanding from "./app/forms";
-import Landing from "./app/landing";
-import ComponentForm from "./app/stockcontrolform/page";
-import AdminPermissionsPage from "./app/admin/page";
-import FleetPage from "./app/fleetmanagementsystem/page";
-import IMS from "./app/inventorymanagementsystem/page";
-import CustomerRelationsManagement from "./app/customerrelationsmanagement/page";
-import HumanResourcesPage from "./app/humanresourcesdepartment/page";
-import Vehicle_Inspection_Form from "./app/vehicleinspectionform/page";
-import SubcategoriesPage from "./app/subcategories/[id]/page";
-import FleetEditPage from "./app/fleetmanagementsystem/edit/[id]/page";
-import InspectionsPage from "./app/fleetmanagementsystem/[id]/page";
-import InspectionEditPage from "./app/fleetmanagementsystem/[id]/edit/[inspectionId]/page";
-import CreateEmployeePage from "./app/humanresourcesdepartment/create/page";
-import EditEmployeePage from "./app/humanresourcesdepartment/edit/[id]/page";
-import CreateCustomer from "./app/customerrelationsmanagement/create/page";
-import AttendancePage from "./app/attendancetrackingsystem/page";
-import EditCustomerPage from "./app/customerrelationsmanagement/edit/[id]/page";
-import Compliance from "./app/customerrelationsmanagement/compliance/[id]/page";
-import AdminAttendancePage from "./app/humanresourcesdepartment/attendance/page";
-import JobCardChecklistPage from "./app/jobcards/page";
+
+// Route-level code splitting: none of these pages need to be in the initial
+// bundle the sign-in screen loads. Each becomes its own chunk, fetched only
+// when the user actually navigates to that route.
+const FormsLanding = lazy(() => import("./app/forms"));
+const Landing = lazy(() => import("./app/landing"));
+const ComponentForm = lazy(() => import("./app/stockcontrolform/page"));
+const AdminPermissionsPage = lazy(() => import("./app/admin/page"));
+const FleetPage = lazy(() => import("./app/fleetmanagementsystem/page"));
+const IMS = lazy(() => import("./app/inventorymanagementsystem/page"));
+const CustomerRelationsManagement = lazy(
+  () => import("./app/customerrelationsmanagement/page"),
+);
+const HumanResourcesPage = lazy(
+  () => import("./app/humanresourcesdepartment/page"),
+);
+const Vehicle_Inspection_Form = lazy(
+  () => import("./app/vehicleinspectionform/page"),
+);
+const SubcategoriesPage = lazy(() => import("./app/subcategories/[id]/page"));
+const FleetEditPage = lazy(
+  () => import("./app/fleetmanagementsystem/edit/[id]/page"),
+);
+const InspectionsPage = lazy(
+  () => import("./app/fleetmanagementsystem/[id]/page"),
+);
+const InspectionEditPage = lazy(
+  () => import("./app/fleetmanagementsystem/[id]/edit/[inspectionId]/page"),
+);
+const CreateEmployeePage = lazy(
+  () => import("./app/humanresourcesdepartment/create/page"),
+);
+const EditEmployeePage = lazy(
+  () => import("./app/humanresourcesdepartment/edit/[id]/page"),
+);
+const CreateCustomer = lazy(
+  () => import("./app/customerrelationsmanagement/create/page"),
+);
+const AttendancePage = lazy(() => import("./app/attendancetrackingsystem/page"));
+const EditCustomerPage = lazy(
+  () => import("./app/customerrelationsmanagement/edit/[id]/page"),
+);
+const Compliance = lazy(
+  () => import("./app/customerrelationsmanagement/compliance/[id]/page"),
+);
+const AdminAttendancePage = lazy(
+  () => import("./app/humanresourcesdepartment/attendance/page"),
+);
+const JobCardChecklistPage = lazy(() => import("./app/jobcards/page"));
+
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+    </div>
+  );
+}
 
 function Layout() {
   const location = useLocation();
   const { isAuthenticated, isLoading, permission } = useAuth();
+  const isAuthPage = location.pathname === "/";
 
-  // Show loading while checking auth
-  if (isLoading) {
+  // The auth screen doesn't depend on the outcome of checkAuth() at all —
+  // it should render immediately rather than sit behind a spinner while
+  // fetchAuthSession()/fetchUserAttributes() round-trip to Cognito.
+  // Only routes that actually require auth state need to wait.
+  if (isLoading && !isAuthPage) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -45,15 +86,15 @@ function Layout() {
     );
   }
 
-  const isAuthPage = location.pathname === "/";
+  // Once loading finishes, do the redirects as before.
+  if (!isLoading) {
+    if (!isAuthPage && !isAuthenticated) {
+      return <Navigate to="/" replace />;
+    }
 
-  // Only do redirects AFTER loading is complete
-  if (!isAuthPage && !isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (isAuthPage && isAuthenticated) {
-    return <Navigate to="/landing" replace />;
+    if (isAuthPage && isAuthenticated) {
+      return <Navigate to="/landing" replace />;
+    }
   }
 
   // Minimal Access Denied Component
@@ -147,6 +188,7 @@ function Layout() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {!isAuthPage && <Navbar />}
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<AuthScreen />} />
         <Route path="/landing" element={requireAuth(<Landing />)} />
@@ -236,6 +278,7 @@ function Layout() {
           element={requireAuth(<JobCardChecklistPage />)}
         />
       </Routes>
+      </Suspense>
       {!isAuthPage && <Footer />}
     </div>
   );

@@ -441,7 +441,7 @@ export default function UserPermissionsAssign() {
   }
 
   return (
-    <main className="flex-1 px-4 sm:px-6 mt-20 pb-20">
+    <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
       {showResponse && (
         <ResponseModal
           successful={responseSuccessful}

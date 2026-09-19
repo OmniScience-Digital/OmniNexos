@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { fetchAuthSession, fetchUserAttributes, signOut } from 'aws-amplify/auth';
 import { getCurrentUserInfo } from '@/utils/helper/usergroups';
@@ -41,77 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: boolean;
   }[] | null>(null);
 
-  useEffect(() => {
-    const justLoggedOut = localStorage.getItem('just_logged_out');
-    if (justLoggedOut === 'true') {
-      localStorage.removeItem('just_logged_out');
-      setIsLoading(false);
-      return;
-    }
-    checkAuth();
-  }, []);
-
-
-  // const checkAuth = async () => {
-  //   try {
-  //     const session = await fetchAuthSession();
-
-  //     if (session.tokens) {
-  //       // Run these two independent calls in parallel
-  //       const [attributes, userInfo] = await Promise.all([
-  //         fetchUserAttributes(),
-  //         getCurrentUserInfo()
-  //       ]);
-
-  //       setUser(attributes);
-  //       setIsAuthenticated(true);
-
-  //       let isAdminUser = false;
-  //       let userPermissions: string[] = [];
-
-  //       if (attributes.email) {
-  //         try {
-  //           // Fetch permissions in parallel while we process other data
-  //           const permissionPromise = client.models.Permission.listPermissionByUserId({
-  //             userId: attributes.email
-  //           });
-
-  //           // Process user info while waiting for permissions
-  //           const permissionData = await permissionPromise;
-
-  //           if (permissionData.data && permissionData.data[0]?.permissions) {
-  //             userPermissions = permissionData.data[0].permissions.filter(p => p !== null) as string[];
-  //             isAdminUser = userPermissions.includes('admin');
-  //           }
-  //         } catch (permError) {
-  //           console.error('Error fetching permissions:', permError);
-  //         }
-  //       }
-  //       console.log(userPermissions);
-  //       setPermission({
-  //         username: userInfo.currentUser?.username || '',
-  //         email: userInfo.currentUser?.email || '',
-  //         name: userInfo.currentUser?.name || '',
-  //         isAdmin: isAdminUser,
-  //         permissions: userPermissions
-  //       });
-
-  //       setAllUsers(userInfo.allUsers);
-  //     } else {
-  //       setUser(null);
-  //       setPermission(null);
-  //       setIsAuthenticated(false);
-  //     }
-  //   } catch (error) {
-  //     setUser(null);
-  //     setPermission(null);
-  //     setIsAuthenticated(false);
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
         const session = await fetchAuthSession();
 
@@ -142,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 permissions: userPermissions
             });
 
-            // ✅ Load all users lazily in background — don't block auth
+            //  Load all users lazily in background — don't block auth
             getCurrentUserInfo()
                 .then(userInfo => setAllUsers(userInfo.allUsers))
                 .catch(console.error);
@@ -158,10 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPermission(null);
         setIsAuthenticated(false);
     } finally {
-        setIsLoading(false); // ✅ always fires, not blocked by usersList
+        setIsLoading(false); //  always fires, not blocked by usersList
     }
-};
-  const logout = async () => {
+  }, []);
+
+  const logout = useCallback(async () => {
     try {
       setIsLoading(true);
       await signOut();
@@ -176,19 +107,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    const justLoggedOut = localStorage.getItem('just_logged_out');
+    if (justLoggedOut === 'true') {
+      localStorage.removeItem('just_logged_out');
+      setIsLoading(false);
+      return;
+    }
+    checkAuth();
+  }, [checkAuth]);
+
+  // Memoize the context value so components consuming useAuth() only
+  // re-render when a value they actually depend on changes, instead of
+  // on every AuthProvider render (e.g. the background allUsers fetch).
+  const value = useMemo<AuthContextType>(() => ({
+    user,
+    permission,
+    allUsers,
+    isAuthenticated,
+    isLoading,
+    checkAuth,
+    logout
+  }), [user, permission, allUsers, isAuthenticated, isLoading, checkAuth, logout]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      permission,
-      allUsers,
-      isAuthenticated,
-      isLoading,
-      checkAuth,
-      logout
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
