@@ -18,6 +18,10 @@ If you are developing a production application, we recommend updating the config
 npm install --package-lock-only --legacy-peer-deps
 npm ci --legacy-peer-deps
 
+------
+npm install --package-lock-only
+npm ci
+
 zip -r OmniNexos_Frontend.zip . \
   -x "node_modules/*" \
   -x ".git/*" \
