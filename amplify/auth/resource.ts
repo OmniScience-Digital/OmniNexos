@@ -131,12 +131,10 @@ export const auth = defineAuth({
 
       },
       callbackUrls: [
-        "http://localhost:5173/landing","https://vite.d2ib10qin54ac6.amplifyapp.com/landing","https://test.d2ib10qin54ac6.amplifyapp.com/landing","https://main.d2ib10qin54ac6.amplifyapp.com/landing","reactnativeomninexos://"
-
+        "http://localhost:5173/landing","https://vite.d2ib10qin54ac6.amplifyapp.com/landing","https://test.d2ib10qin54ac6.amplifyapp.com/landing","https://main.d2ib10qin54ac6.amplifyapp.com/landing","reactnativeomninexos://","https://omninexos.fray.co.za/landing","https://test.omninexos.fray.co.za/landing"
       ],
       logoutUrls: [
-        "http://localhost:5173/","https://vite.d2ib10qin54ac6.amplifyapp.com/","https://test.d2ib10qin54ac6.amplifyapp.com/","https://main.d2ib10qin54ac6.amplifyapp.com/","reactnativeomninexos://"
-
+        "http://localhost:5173/","https://vite.d2ib10qin54ac6.amplifyapp.com/","https://test.d2ib10qin54ac6.amplifyapp.com/","https://main.d2ib10qin54ac6.amplifyapp.com/","reactnativeomninexos://","https://omninexos.fray.co.za/","https://test.omninexos.fray.co.za/"
       ],
     },
   }, userAttributes: {

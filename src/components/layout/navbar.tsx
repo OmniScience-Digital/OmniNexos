@@ -28,7 +28,7 @@ const getIsTestEnv = () => {
   const redirectUris: string[] = amplifyOutputs.auth.oauth.redirect_sign_in_uri;
   const matchedUri = redirectUris.find((uri) => uri.includes(hostname));
   if (!matchedUri) return false;
-  return matchedUri.includes("vite.");
+  return matchedUri.includes("vite.")||matchedUri.includes("test.");
 };
 
 const isTestEnv = getIsTestEnv();
