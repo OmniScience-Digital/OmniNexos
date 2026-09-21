@@ -71,9 +71,15 @@ export default function FleetEditPage() {
         const fetchFleet = async () => {
             try {
 
-                const { data: fleetData } = await client.models.Fleet.get({ id: fleetId });
+                const { data: fleetData,errors } = await client.models.Fleet.get({ id: fleetId });
+                  // ADD THIS — log the id you're querying and any errors Amplify returns
+            console.log("Fetching fleet with id:", fleetId);
+            if (errors) {
+                console.error("Fleet.get returned errors:", errors);
+            }
 
-                if (fleetData) {
+
+                              if (fleetData) {
 
                     // Convert S3 keys to actual URLs for documents
                     const s3Keys = fleetData.breakandLuxTest ? [fleetData.breakandLuxTest] : [];
@@ -106,23 +112,29 @@ export default function FleetEditPage() {
 
                     };
 
-                    // fetch latest 20 record
-                    const employeeHistory = await client.models.History.getHistoryByEntityId({
-                        entityId: fleetData.id,
-
-                    }, {
-                        sortDirection: 'DESC',
-                        limit: 20
-                    });
-                    // Convert to string format
-                    const historyString = employeeHistory.data
-                        .map(entry => entry.details)
-                        .join('');
-                    setHistory(historyString);
-
-
+                    // Commit fleet to state FIRST so the edit form renders
+                    // even if the history fetch below fails
                     setFleet(mappedFleet);
                     setEditedFleet({ ...mappedFleet });
+
+                    // History fetch isolated in its own try/catch so a
+                    // problem here can never block editing the vehicle
+                    try {
+                        const employeeHistory = await client.models.History.getHistoryByEntityId({
+                            entityId: fleetData.id,
+                        }, {
+                            sortDirection: 'DESC',
+                            limit: 20
+                        });
+
+                        const historyString = (employeeHistory.data ?? [])
+                            .map(entry => entry?.details ?? '')
+                            .join('');
+                        setHistory(historyString);
+                    } catch (historyError) {
+                        console.error("Error fetching history:", historyError);
+                        setHistory('');
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching fleet:", error);
