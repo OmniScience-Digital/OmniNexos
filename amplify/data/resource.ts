@@ -330,7 +330,7 @@ const schema = a.schema({
       entityId: a.string().required(),
       action: a.string().required(),
       timestamp: a.datetime().required(),
-      updatedBy: a.string().required(),
+      updatedBy: a.string(),
       details: a.string().required(),
     })
     .secondaryIndexes((index) => [

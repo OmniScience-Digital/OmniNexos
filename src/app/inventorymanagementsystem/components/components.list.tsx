@@ -36,7 +36,9 @@ export function ComponentsList({
   const { user } = useAuth();
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const [saving, setSaving] = useState(false);
-  const [fullComponentCache, setFullComponentCache] = useState<Component[] | null>(null);
+  const [fullComponentCache, setFullComponentCache] = useState<
+    Component[] | null
+  >(null);
 
   const [editingComponent, setEditingComponent] = useState<Component | null>(
     null,
@@ -226,6 +228,7 @@ export function ComponentsList({
         { entityId: editedComponent.id },
         { sortDirection: "DESC", limit: 20 },
       );
+      console.log("history result:", editedComponent.id, employeeHistory);
       const historyString = (employeeHistory.data || [])
         .filter((entry) => entry && entry.details) // skip null or entries without details
         .map((entry) => entry.details)
@@ -237,30 +240,17 @@ export function ComponentsList({
     getHistory();
   }, [editedComponent?.id]);
 
-  //for live serach proper from db
-  // const filteredComponents = useMemo(() => {
-  //   // console.log(components);
-  //   return components.filter((component) => {
-  //     const matchesStock =
-  //       stockFilter === "all" ||
-  //       (stockFilter === "in-stock" &&
-  //         component.currentStock >= component.minimumStock) ||
-  //       (stockFilter === "out-of-stock" &&
-  //         component.currentStock < component.minimumStock);
-
-  //     return matchesStock;
-  //   });
-  // }, [components, searchTerm, stockFilter]);
-
   const filteredComponents = useMemo(() => {
-  return components.filter((component) => {
-    const matchesStock =
-      stockFilter === "all" ||
-      (stockFilter === "in-stock" && component.currentStock >= component.minimumStock) ||
-      (stockFilter === "out-of-stock" && component.currentStock < component.minimumStock);
-    return matchesStock;
-  });
-}, [components, stockFilter]);   // searchTerm is no longer used here
+    return components.filter((component) => {
+      const matchesStock =
+        stockFilter === "all" ||
+        (stockFilter === "in-stock" &&
+          component.currentStock >= component.minimumStock) ||
+        (stockFilter === "out-of-stock" &&
+          component.currentStock < component.minimumStock);
+      return matchesStock;
+    });
+  }, [components, stockFilter]); // searchTerm is no longer used here
   const totalPages = Math.ceil(filteredComponents.length / itemsPerPage);
   const paginatedComponents = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -390,80 +380,103 @@ export function ComponentsList({
   //     setComponentsLoading(false);
   //   }, 300);
   // };
-    
-const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const term = e.target.value;
-  setSearchTerm(term);
-  setCurrentPage(1);
 
-  if (searchTimeout.current) {
-    clearTimeout(searchTimeout.current);
-  }
+  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    setCurrentPage(1);
 
-  // --- Empty search → load paginated list (requires nextToken) ---
-  if (!term.trim()) {
-    setComponentsLoading(true);
-    const { nextToken, data } = await client.models.Component.listComponentsBySubCategoryId(
-      { subcategoryId: subcategoryid },
-      {
-        limit: 10,
-        selectionSet: [
-          "id", "componentId", "componentName", "description",
-          "primarySupplierId", "primarySupplier", "primarySupplierItemCode",
-          "secondarySupplierId", "secondarySupplier", "secondarySupplierItemCode",
-          "minimumStock", "currentStock", "notes", "subcategoryId"
-        ]
-      }
-    );
-    setComponents(data as Component[]);
-    setPaginationToken(nextToken);
-    setshowmoreButton(!!nextToken);
-    setFullComponentCache(null);
-    setComponentsLoading(false);
-    return;
-  }
-
-  // --- Less than 3 letters → do nothing ---
-  if (term.length < 3) return;
-
-  // --- Search with 3+ letters → fetch all (no token loop) and filter client-side ---
-  searchTimeout.current = setTimeout(async () => {
-    setComponentsLoading(true);
-
-    let allComponents = fullComponentCache;
-    if (!allComponents) {
-      // One single fetch – no pagination loop
-      const { data } = await client.models.Component.listComponentsBySubCategoryId(
-        { subcategoryId: subcategoryid },
-        {
-          limit: 10000, // large enough to get all components
-          selectionSet: [
-            "id", "componentId", "componentName", "description",
-            "primarySupplierId", "primarySupplier", "primarySupplierItemCode",
-            "secondarySupplierId", "secondarySupplier", "secondarySupplierItemCode",
-            "minimumStock", "currentStock", "notes", "subcategoryId"
-          ]
-        }
-      );
-      allComponents = (data || []) as Component[];
-      setFullComponentCache(allComponents);
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
     }
 
-    const lowerTerm = term.toLowerCase();
-    const filtered = allComponents.filter(comp =>
-      comp.componentId?.toLowerCase().includes(lowerTerm) ||
-      comp.componentName?.toLowerCase().includes(lowerTerm) ||
-      comp.description?.toLowerCase().includes(lowerTerm) ||
-      comp.primarySupplier?.toLowerCase().includes(lowerTerm) ||
-      comp.secondarySupplier?.toLowerCase().includes(lowerTerm)
-    );
+    // --- Empty search → load paginated list (requires nextToken) ---
+    if (!term.trim()) {
+      setComponentsLoading(true);
+      const { nextToken, data } =
+        await client.models.Component.listComponentsBySubCategoryId(
+          { subcategoryId: subcategoryid },
+          {
+            limit: 10,
+            selectionSet: [
+              "id",
+              "componentId",
+              "componentName",
+              "description",
+              "primarySupplierId",
+              "primarySupplier",
+              "primarySupplierItemCode",
+              "secondarySupplierId",
+              "secondarySupplier",
+              "secondarySupplierItemCode",
+              "minimumStock",
+              "currentStock",
+              "notes",
+              "subcategoryId",
+            ],
+          },
+        );
+      setComponents(data as Component[]);
+      setPaginationToken(nextToken);
+      setshowmoreButton(!!nextToken);
+      setFullComponentCache(null);
+      setComponentsLoading(false);
+      return;
+    }
 
-    setComponents(filtered);
-    setPaginationToken(null);      // disable pagination while searching
-    setshowmoreButton(false);
-    setComponentsLoading(false);
-  }, 300);
-};
+    // --- Less than 3 letters → do nothing ---
+    if (term.length < 3) return;
+
+    // --- Search with 3+ letters → fetch all (no token loop) and filter client-side ---
+    searchTimeout.current = setTimeout(async () => {
+      setComponentsLoading(true);
+
+      let allComponents = fullComponentCache;
+      if (!allComponents) {
+        // One single fetch – no pagination loop
+        const { data } =
+          await client.models.Component.listComponentsBySubCategoryId(
+            { subcategoryId: subcategoryid },
+            {
+              limit: 10000, // large enough to get all components
+              selectionSet: [
+                "id",
+                "componentId",
+                "componentName",
+                "description",
+                "primarySupplierId",
+                "primarySupplier",
+                "primarySupplierItemCode",
+                "secondarySupplierId",
+                "secondarySupplier",
+                "secondarySupplierItemCode",
+                "minimumStock",
+                "currentStock",
+                "notes",
+                "subcategoryId",
+              ],
+            },
+          );
+        allComponents = (data || []) as Component[];
+        setFullComponentCache(allComponents);
+      }
+
+      const lowerTerm = term.toLowerCase();
+      const filtered = allComponents.filter(
+        (comp) =>
+          comp.componentId?.toLowerCase().includes(lowerTerm) ||
+          comp.componentName?.toLowerCase().includes(lowerTerm) ||
+          comp.description?.toLowerCase().includes(lowerTerm) ||
+          comp.primarySupplier?.toLowerCase().includes(lowerTerm) ||
+          comp.secondarySupplier?.toLowerCase().includes(lowerTerm),
+      );
+
+      setComponents(filtered);
+      setPaginationToken(null); // disable pagination while searching
+      setshowmoreButton(false);
+      setComponentsLoading(false);
+    }, 300);
+  };
 
   const handleComponentDelete = async (componentId: string) => {
     try {
@@ -495,72 +508,74 @@ const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
 
-  const handleSave = async () => {
-    if (!writePermissions) {
-      setShow(true);
-      setSuccessful(false);
-      setMessage("⛔ No edit permission");
+const handleSave = async () => {
+  if (!writePermissions) {
+    setShow(true);
+    setSuccessful(false);
+    setMessage("⛔ No edit permission");
 
-      return;
+    return;
+  }
+  setSaving(true);
+  if (editingComponent && editedComponent) {
+    // Get Johannesburg time
+    const johannesburgTime = new Date().toLocaleString("en-ZA", {
+      timeZone: "Africa/Johannesburg",
+    });
+
+    let historyEntries = "";
+
+    // Check if minimumStock changed
+    if (
+      editedComponent.minimumStock !== undefined &&
+      editedComponent.minimumStock !== editingComponent.minimumStock
+    ) {
+      historyEntries += `IMS Dashboard: ${user?.preferred_username} updated minimumStock from ${editingComponent.minimumStock} to ${editedComponent.minimumStock} at ${johannesburgTime}\n`;
     }
-    setSaving(true);
-    if (editingComponent && editedComponent) {
-      // Get Johannesburg time
-      const johannesburgTime = new Date().toLocaleString("en-ZA", {
-        timeZone: "Africa/Johannesburg",
-      });
 
-      let historyEntries = "";
-
-      // Check if minimumStock changed
-      if (
-        editedComponent.minimumStock !== undefined &&
-        editedComponent.minimumStock !== editingComponent.minimumStock
-      ) {
-        historyEntries += `IMS Dashboard: ${user?.preferred_username} updated minimumStock from ${editingComponent.minimumStock} to ${editedComponent.minimumStock} at ${johannesburgTime}\n`;
-      }
-
-      // Check if currentStock changed
-      if (
-        editedComponent.currentStock !== undefined &&
-        editedComponent.currentStock !== editingComponent.currentStock
-      ) {
-        historyEntries += `IMS Dashboard: ${user?.preferred_username} updated currentStock from ${editingComponent.currentStock} to ${editedComponent.currentStock} at ${johannesburgTime}\n`;
-      }
-
-      // Create the updated component with history
-      const updatedComponent = {
-        ...editingComponent,
-        ...editedComponent,
-      };
-
-      handleComponentUpdate(updatedComponent);
-      setComponents(prev =>
-  prev.map(comp => comp.id === updatedComponent.id ? updatedComponent : comp)
-);
-
-      // Save to new History DB if there were changes
-      if (historyEntries.trim() !== "") {
-        try {
-          await client.models.History.create({
-            entityType: "COMPONENT",
-            entityId: editingComponent.id,
-            action: "UPDATE",
-            timestamp: new Date().toISOString(),
-            updatedBy: user?.preferred_username || user?.email,
-            details: historyEntries,
-          });
-          setHistory(historyEntries);
-        } catch (error) {
-          console.log(error);
-        }
-      }
-
-      setEditingComponent(null);
-      setEditedComponent({});
+    // Check if currentStock changed
+    if (
+      editedComponent.currentStock !== undefined &&
+      editedComponent.currentStock !== editingComponent.currentStock
+    ) {
+      historyEntries += `IMS Dashboard: ${user?.preferred_username} updated currentStock from ${editingComponent.currentStock} to ${editedComponent.currentStock} at ${johannesburgTime}\n`;
     }
-    setSaving(false);
-  };
+
+    // Create the updated component with history
+    const updatedComponent = {
+      ...editingComponent,
+      ...editedComponent,
+    };
+
+    handleComponentUpdate(updatedComponent);
+    setComponents((prev) =>
+      prev.map((comp) =>
+        comp.id === updatedComponent.id ? updatedComponent : comp,
+      ),
+    );
+
+    // Save to new History DB if there were changes
+    if (historyEntries.trim() !== "") {
+      try {
+        await client.models.History.create({
+          entityType: "COMPONENT",
+          entityId: editingComponent.id,
+          action: "UPDATE",
+          timestamp: new Date().toISOString(),
+          updatedBy: user?.preferred_username || user?.email || "unknown",
+          details: historyEntries,
+        });
+        setHistory(historyEntries);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    setEditingComponent(null);
+    setEditedComponent({});
+  }
+  setSaving(false);
+};
 
   const handleChange = (field: keyof Component, value: string | number) => {
     if (!writePermissions) {
@@ -587,8 +602,7 @@ const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
       handleComponentDelete(componentId);
       setComponentToDelete(null); // Clear after deletion
-      setComponents(prev => prev.filter(comp => comp.id !== componentId));
-
+      setComponents((prev) => prev.filter((comp) => comp.id !== componentId));
     } catch (error) {
       console.error("Error deleting component:", error);
     }
