@@ -11,6 +11,7 @@ export interface AllUserInfo {
   name: string;
   isAdmin: boolean;
   groups: string[];
+  enabled: boolean;
 }
 
 export interface UserDataResponse {

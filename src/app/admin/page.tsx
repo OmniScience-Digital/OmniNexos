@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Search, Save, Trash2, Plus, Users, AlertCircle, Loader2, ChevronRight, Filter, X, Minimize2, History, Clock, UserCheck } from 'lucide-react'
+import { Search, Save, Trash2, Plus, Users, AlertCircle, Loader2, ChevronRight, Filter, X, Minimize2, History, Clock, UserCheck, UserPlus, Ban, Power } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import ResponseModal from '@/components/widgets/response'
 import { client } from '@/services/schema'
@@ -12,6 +12,8 @@ import { allPermissions, type Access, type Permission, type User } from '@/types
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Loading from '@/components/widgets/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { invalidateUserListCache } from '@/utils/helper/usergroups'
 
 
 // Permission mapping helpers
@@ -37,7 +39,7 @@ const stringToPermission = (str: string | null | undefined): Permission => {
 }
 
 export default function UserPermissionsAssign() {
-  const { allUsers, user } = useAuth();
+  const { allUsers, user, checkAuth } = useAuth();
   const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [search, setSearch] = useState('')
@@ -51,6 +53,13 @@ export default function UserPermissionsAssign() {
   const [expandedPermissions, setExpandedPermissions] = useState<Set<string>>(new Set())
   const [permissionHistory, setPermissionHistory] = useState<any[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+
+  // ── Invite / account-control state ────────────────────────────────────────
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteSending, setInviteSending] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
 
 
@@ -128,6 +137,66 @@ export default function UserPermissionsAssign() {
     setShowResponse(true)
   }
 
+  // ── Invite a non-company user directly (admin-initiated onboarding) ────────
+const handleInvite = async () => {
+  if (!inviteEmail || !inviteName) return
+  try {
+    setInviteSending(true)
+    const { data, errors } = await client.mutations.inviteUserAccount({
+      email: inviteEmail,
+      name: inviteName,
+    })
+
+    const result = data as { success: boolean; reason?: string } | null
+
+    if (errors?.length || !result?.success) {
+      showResponseMessage('Failed to send invite', false)
+      return
+    }
+
+    showResponseMessage(`Invite sent to ${inviteEmail}`, true)
+    setInviteOpen(false)
+    setInviteEmail('')
+    setInviteName('')
+    invalidateUserListCache()
+    await checkAuth()
+  } catch (error) {
+    console.error('inviteUser error:', error)
+    showResponseMessage('Failed to send invite', false)
+  } finally {
+    setInviteSending(false)
+  }
+}
+
+  // ── Enable / disable / delete a user's Cognito account ──────────────────────
+const handleManageUser = async (
+  username: string,
+  action: 'ENABLE' | 'DISABLE' | 'DELETE',
+  label: string
+) => {
+  try {
+    setActionLoading(username)
+    const { data, errors } = await client.mutations.manageUserAccount({ username, action })
+
+    const result = data as { success: boolean; reason?: string } | null
+
+    if (errors?.length || !result?.success) {
+      showResponseMessage(`Failed to ${label.toLowerCase()} user`, false)
+      return
+    }
+
+    showResponseMessage(`User ${label.toLowerCase()}d`, true)
+    invalidateUserListCache()
+    await checkAuth()
+    if (action === 'DELETE') setSelectedUser(null)
+  } catch (error) {
+    console.error(`manageUser (${action}) error:`, error)
+    showResponseMessage(`Failed to ${label.toLowerCase()} user`, false)
+  } finally {
+    setActionLoading(null)
+  }
+}
+
   const isAdmin = (user: User): boolean => {
     return user.permissions.some(p => p.module === 'admin' && p.access === 'edit')
   }
@@ -152,6 +221,13 @@ export default function UserPermissionsAssign() {
   }, [filteredUsers, page])
 
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage)
+
+  // Cognito-level account info (enabled/disabled) for the selected user,
+  // sourced from allUsers rather than the permissions-only `User` type.
+  const selectedAccountInfo = useMemo(() => {
+    if (!selectedUser || !allUsers) return null
+    return allUsers.find(u => u.email === selectedUser.email) ?? null
+  }, [selectedUser, allUsers])
 
   const toggleExpandPermission = (permissionKey: string) => {
     setExpandedPermissions(prev => {
@@ -450,23 +526,59 @@ export default function UserPermissionsAssign() {
         />
       )}
 
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite a user</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Input
+              placeholder="Email"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+            />
+            <Input
+              placeholder="Full name"
+              value={inviteName}
+              onChange={(e) => setInviteName(e.target.value)}
+            />
+            <p className="text-xs text-gray-500">
+              They'll receive an email with a temporary password and be asked to set a new one on first login.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+            <Button onClick={handleInvite} disabled={inviteSending || !inviteEmail || !inviteName}>
+              {inviteSending ? 'Sending...' : 'Send Invite'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h1 className="text-1xl md:text-2xl font-bold mt-3">User Permissions</h1>
           <p className="text-gray-600">Manage access for {filteredUsers.length} users</p>
         </div>
-        <Button
-          onClick={saveChanges}
-          className="gap-2"
-          disabled={saving || !selectedUser}
-        >
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setInviteOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Invite User
+          </Button>
+          <Button
+            onClick={saveChanges}
+            className="gap-2"
+            disabled={saving || !selectedUser}
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
@@ -630,6 +742,58 @@ export default function UserPermissionsAssign() {
                         disabled={saving}
                       />
                     </div>
+
+                    {selectedAccountInfo && (
+                      <div className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${selectedAccountInfo.enabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                            <Power className={`h-5 w-5 ${selectedAccountInfo.enabled ? 'text-green-600' : 'text-red-600'}`} />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900 dark:text-gray-100">
+                              Account {selectedAccountInfo.enabled ? 'Enabled' : 'Disabled'}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {selectedAccountInfo.enabled ? 'User can sign in' : 'User cannot sign in'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {selectedAccountInfo.enabled ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleManageUser(selectedAccountInfo.username, 'DISABLE', 'Disable')}
+                              disabled={actionLoading === selectedAccountInfo.username}
+                              className="gap-1.5 text-amber-700 dark:text-amber-400"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                              Disable
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleManageUser(selectedAccountInfo.username, 'ENABLE', 'Enable')}
+                              disabled={actionLoading === selectedAccountInfo.username}
+                              className="gap-1.5"
+                            >
+                              <Power className="h-3.5 w-3.5" />
+                              Enable
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleManageUser(selectedAccountInfo.username, 'DELETE', 'Delete')}
+                            disabled={actionLoading === selectedAccountInfo.username}
+                            className="gap-1.5 text-red-600 dark:text-red-400"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete Account
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-6">
                       <div className="border rounded-lg p-4 dark:border-gray-700 dark:bg-gray-800/30">

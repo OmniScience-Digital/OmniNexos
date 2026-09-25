@@ -20,6 +20,7 @@ interface AuthContextType {
     email: string;
     name: string;
     isAdmin: boolean;
+    enabled: boolean;
   }[] | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string;
     name: string;
     isAdmin: boolean;
+    enabled: boolean;
   }[] | null>(null);
 
   const checkAuth = useCallback(async () => {

@@ -1,6 +1,8 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { listUsers } from "../function/listUsers/resource";
 import { notifyPhotoApproval } from "../function/notifyPhotoApproval/resource";
+import { manageUser } from "../function/manageUser/resource";
+import { inviteUser } from "../function/inviteUser/resource";
 
 const schema = a.schema({
   usersList: a
@@ -31,6 +33,36 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(notifyPhotoApproval)),
+
+  // General account control (offboarding, temporarily blocking a user,
+  // permanent removal). No longer tied to a signup-approval flow.
+  manageUserAccount: a
+    .mutation()
+    .arguments({
+      username: a.string().required(),
+      action: a.string().required(), // "ENABLE" | "DISABLE" | "DELETE"
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(manageUser)),
+
+  // Admin-initiated onboarding for non-company people (contractors,
+  // clients). Creates the Cognito user directly and emails them a
+  // temporary password — no self-signup involved.
+  inviteUserAccount: a
+    .mutation()
+    .arguments({
+      email: a.string().required(),
+      name: a.string().required(),
+    })
+    .returns(
+      a.customType({
+        success: a.boolean().required(),
+        reason: a.string(),
+      }),
+    )
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(inviteUser)),
 
   Landing: a
     .model({
