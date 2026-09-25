@@ -1,0 +1,1 @@
+import{g as n}from"./getUrl-B0PR1XVD.js";function i(t){return t.trim().split(/\s+/).map(r=>r[0].toUpperCase()).join("")}const o=async t=>{if(!t)return;const r=await n({path:t});window.open(r.url.href,"_blank")};export{i as g,o as v};

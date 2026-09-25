@@ -1,1 +1,0 @@
-import{j as e}from"./index-CevhFQ25.js";function s(){return e.jsxs("div",{className:"fixed inset-0 flex flex-col items-center justify-center",children:[e.jsx("div",{className:"animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900 dark:border-gray-100"}),e.jsx("span",{className:"mt-2",children:"Loading..."})]})}export{s as L};
