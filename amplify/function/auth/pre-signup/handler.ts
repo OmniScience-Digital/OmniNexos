@@ -32,11 +32,26 @@ export const handler: PreSignUpTriggerHandler = async (event) => {
             domain.includes(allowedDomain.toLowerCase())
         );
 
-        if (!isDomainAllowed) {
-            // Self-signup stays company-only. Non-company users (contractors,
-            // clients) are onboarded by an admin via inviteUser instead —
-            // AdminCreateUser bypasses this trigger's normal signup path.
+        // Admin-created users (via inviteUser/AdminCreateUser) bypass the
+        // domain restriction — that's the whole point of the invite flow.
+        // Only self-signup (native email/password) enforces company-only.
+        const isAdminCreated = event.triggerSource === "PreSignUp_AdminCreateUser";
+
+        if (!isDomainAllowed && !isAdminCreated) {
             throw new Error("Only company email addresses (@omniscience, @mass, or @sb-plant.com domains) are allowed for sign-up.");
+        }
+
+        // Admin-created accounts: the admin already vouched for this email
+        // (typed it in themselves) so there's no OTP step to complete —
+        // auto-confirm and auto-verify so the account is immediately usable
+        // once the invited person signs in with their temporary password.
+        // Cognito still forces a password change on first login
+        // (FORCE_CHANGE_PASSWORD status) independently of this flag — that
+        // part is handled on the frontend via the NEW_PASSWORD_REQUIRED
+        // sign-in challenge, not here.
+        if (isAdminCreated) {
+            event.response.autoConfirmUser = true;
+            event.response.autoVerifyEmail = true;
         }
 
         // ── Account linking for federated (Google, etc.) sign-ins ───────────

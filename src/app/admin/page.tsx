@@ -149,8 +149,15 @@ const handleInvite = async () => {
 
     const result = data as { success: boolean; reason?: string } | null
 
-    if (errors?.length || !result?.success) {
-      showResponseMessage('Failed to send invite', false)
+    console.log('inviteUserAccount result:', result, 'errors:', errors)
+
+    if (errors?.length) {
+      showResponseMessage(`Failed to send invite: ${errors[0].message}`, false)
+      return
+    }
+
+    if (!result?.success) {
+      showResponseMessage(`Failed to send invite: ${result?.reason || 'Unknown error'}`, false)
       return
     }
 
@@ -162,12 +169,11 @@ const handleInvite = async () => {
     await checkAuth()
   } catch (error) {
     console.error('inviteUser error:', error)
-    showResponseMessage('Failed to send invite', false)
+    showResponseMessage(`Failed to send invite: ${error instanceof Error ? error.message : String(error)}`, false)
   } finally {
     setInviteSending(false)
   }
 }
-
   // ── Enable / disable / delete a user's Cognito account ──────────────────────
 const handleManageUser = async (
   username: string,

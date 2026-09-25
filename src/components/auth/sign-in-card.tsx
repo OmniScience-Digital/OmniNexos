@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { SignInFlow } from "@/types/schema";
-import { signIn, signInWithRedirect } from "aws-amplify/auth";
+import { signIn, signInWithRedirect, confirmSignIn } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -30,12 +30,28 @@ const validationSchema = Yup.object({
   password: Yup.string().required("Password is required"),
 });
 
+const newPasswordSchema = Yup.object({
+  newPassword: Yup.string()
+    .min(8, "Password must be at least 8 characters")
+    .required("New password is required"),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref("newPassword")], "Passwords must match")
+    .required("Please confirm your password"),
+});
+
 export const SignInCard = ({ setState }: SignInCardProps) => {
   const navigate = useNavigate();
   const { checkAuth } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Invited users (created via admin AdminCreateUser) sign in with a
+  // temporary password and Cognito forces them to pick a new one before
+  // sign-in completes — this state renders that second step in place of
+  // the normal email/password form.
+  const [needsNewPassword, setNeedsNewPassword] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   // ✅ Hub listener — fires AFTER Amplify fully commits the session
   useEffect(() => {
@@ -80,6 +96,12 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
         if (isSignedIn) {
           setIsSuccess(true);
           // ✅ Don't navigate here — Hub 'signedIn' event handles it
+        } else if (nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
+          // Invited user's first login — they must set their own password
+          // before sign-in can complete.
+          setPendingEmail(values.email);
+          setNeedsNewPassword(true);
+          setIsSubmitting(false);
         } else {
           console.log("Sign in requires additional steps:", nextStep);
           setIsSubmitting(false);
@@ -87,6 +109,35 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
       } catch (err: any) {
         console.error("Error signing in:", err);
         setError(err.message || "Invalid email or password");
+        setIsSubmitting(false);
+      }
+    },
+  });
+
+  const newPasswordFormik = useFormik({
+    initialValues: {
+      newPassword: "",
+      confirmPassword: "",
+    },
+    validationSchema: newPasswordSchema,
+    onSubmit: async (values) => {
+      setIsSubmitting(true);
+      setError(null);
+      try {
+        const { isSignedIn, nextStep } = await confirmSignIn({
+          challengeResponse: values.newPassword,
+        });
+
+        if (isSignedIn) {
+          setIsSuccess(true);
+          // ✅ Hub 'signedIn' event handles navigation
+        } else {
+          console.log("Sign in requires additional steps:", nextStep);
+          setIsSubmitting(false);
+        }
+      } catch (err: any) {
+        console.error("Error setting new password:", err);
+        setError(err.message || "Failed to set new password");
         setIsSubmitting(false);
       }
     },
@@ -100,6 +151,97 @@ export const SignInCard = ({ setState }: SignInCardProps) => {
       },
     });
   };
+
+  if (needsNewPassword) {
+    return (
+      <Card className="w-full h-full px-8 py-6">
+        <div className="flex items-center w-full justify-center">
+          <img
+            src="/assets/logo.png"
+            alt="Logo"
+            className="h-13 w-auto mr-2"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+
+        <CardHeader className="px-0 my-5">
+          <CardTitle>Set your password</CardTitle>
+          <CardDescription>
+            Welcome, {pendingEmail}. Please set a new password to continue.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-5 px-0 pb-0">
+          {error && (
+            <div className="text-red-500 text-sm p-2 bg-red-50 rounded-md">
+              {error}
+            </div>
+          )}
+
+          {isSuccess && (
+            <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-md flex items-center gap-2">
+              <CheckCircle className="h-5 w-5" />
+              <span>Sign in successful! Redirecting...</span>
+            </div>
+          )}
+
+          <form onSubmit={newPasswordFormik.handleSubmit} className="space-y-2.5">
+            <div>
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type="password"
+                placeholder="New password"
+                onChange={newPasswordFormik.handleChange}
+                onBlur={newPasswordFormik.handleBlur}
+                value={newPasswordFormik.values.newPassword}
+                disabled={isSubmitting || isSuccess}
+              />
+              {newPasswordFormik.touched.newPassword && newPasswordFormik.errors.newPassword && (
+                <div className="text-red-500 text-xs mt-1">
+                  {newPasswordFormik.errors.newPassword}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                onChange={newPasswordFormik.handleChange}
+                onBlur={newPasswordFormik.handleBlur}
+                value={newPasswordFormik.values.confirmPassword}
+                disabled={isSubmitting || isSuccess}
+              />
+              {newPasswordFormik.touched.confirmPassword && newPasswordFormik.errors.confirmPassword && (
+                <div className="text-red-500 text-xs mt-1">
+                  {newPasswordFormik.errors.confirmPassword}
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={isSubmitting || isSuccess || !newPasswordFormik.isValid}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isSuccess ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                "Set Password & Continue"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full h-full px-8 py-6">
