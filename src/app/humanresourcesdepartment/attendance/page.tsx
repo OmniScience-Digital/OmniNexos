@@ -1,6 +1,8 @@
 // src/app/humanresourcesdepartment/attendance/page.tsx — Manager view
 import { client } from "@/services/schema";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api, useListClockRecordsQuery } from "@/state/api";
+import { useAppDispatch } from "@/state/store";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import Loading from "@/components/widgets/loading";
@@ -231,9 +233,18 @@ function SortHeader({ label, sortKey, current, dir, onClick }: {
 const PAGE_SIZE = 15;
 
 export default function AdminAttendancePage() {
-  const [records,     setRecords]     = useState<ClockRecord[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [refreshing,  setRefreshing]  = useState(false);
+  // Moved to the shared cache for consistency (this read already followed
+  // nextToken correctly before this change, so no pagination bug here). No
+  // live subscription: this is a full-table admin/reporting view, not
+  // something rendered by more than one page, and its own manual "Refresh"
+  // button already covers getting the latest data on demand.
+  const dispatch = useAppDispatch();
+  const {
+    data: records = [],
+    isLoading: loading,
+    isFetching: refreshing,
+    refetch: fetchAll,
+  } = useListClockRecordsQuery(undefined, { refetchOnMountOrArgChange: true });
   const [activeTab,   setActiveTab]   = useState<TabKey>("today");
   const [search,      setSearch]      = useState("");
   const [selected,    setSelected]    = useState<ClockRecord | null>(null);
@@ -244,29 +255,20 @@ export default function AdminAttendancePage() {
   const [successful,  setSuccessful]  = useState(false);
   const [message,     setMessage]     = useState("");
 
-  // ── Fetch all with pagination ───────────────────────────────────────────────
-  const fetchAll = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setRefreshing(true); else setLoading(true);
-    try {
-      let all: ClockRecord[] = [];
-      let token: string | null | undefined = null;
-      do {
-        const r: any = await client.models.ClockRecord.list({ limit: 100, nextToken: token ?? undefined });
-        all   = [...all, ...r.data];
-        token = r.nextToken;
-      } while (token);
-      setRecords(all);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── Resolve record ──────────────────────────────────────────────────────────
   const resolveRecord = async (id: string) => {
     try {
       await (client.models.ClockRecord as any).update({ id, verificationStatus: "VERIFIED" });
-      setRecords((prev) => prev.map((r) => r.id === id ? { ...r, verificationStatus: "VERIFIED" } : r));
+      // Optimistic patch of the shared cache (no live subscription for this
+      // model — see the note above), so the row updates instantly instead of
+      // waiting on a manual refetch.
+      dispatch(
+        api.util.updateQueryData("listClockRecords", undefined, (draft: ClockRecord[]) => {
+          const row = draft.find((r) => r.id === id);
+          if (row) row.verificationStatus = "VERIFIED";
+        }),
+      );
       setSelected(null);
       setSuccessful(true);
       setMessage("Record marked as verified.");
@@ -352,7 +354,7 @@ export default function AdminAttendancePage() {
               <p className="text-slate-600 text-sm">Monitor all employee clock records and verify attendance.</p>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => fetchAll(true)} disabled={refreshing} className="border-slate-300">
+              <Button variant="outline" onClick={() => fetchAll()} disabled={refreshing} className="border-slate-300">
                 <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
                 Refresh
               </Button>

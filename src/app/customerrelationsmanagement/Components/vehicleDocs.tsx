@@ -11,6 +11,7 @@ import { formatDate, getDocumentStatus } from "@/utils/helper/time";
 import { client } from "@/services/schema";
 import { viewDoc } from "@/utils/helper/helper";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
 
 interface VehicleDocsProps {
@@ -21,7 +22,7 @@ interface VehicleDocsProps {
 
 export default function VehicleDocs({ vehicles, complianceData, onComplianceUpdate }: VehicleDocsProps) {
 
-    const { user, permission } = useAuth();
+    const { user } = useAuth();
     const [selectedVehicles, setSelectedVehicles] = useState<Set<string>>(new Set());
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
     const [linkedVehicles, setLinkedVehicles] = useState<any[]>([]);
@@ -32,7 +33,7 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
 
-    const [CrmPermissions, setCrmPermissions] = useState(false);
+    const CrmPermissions = usePermission("crm.compliance.edit");
 
     // Initialize selected vehicles with linked vehicles
     useEffect(() => {
@@ -49,15 +50,6 @@ export default function VehicleDocs({ vehicles, complianceData, onComplianceUpda
         }
     }, [complianceData, vehicles]);
 
-
-    useEffect(() => {
-        if (permission?.permissions?.includes('crm.compliance.edit') || permission?.isAdmin) {
-            setCrmPermissions(true);
-        } else {
-            setCrmPermissions(false);
-        }
-
-    }, [permission]);
 
     const toggleVehicle = (vehicleId: string) => {
         const newSelected = new Set(selectedVehicles);

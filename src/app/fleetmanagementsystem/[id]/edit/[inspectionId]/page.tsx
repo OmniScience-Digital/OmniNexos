@@ -15,6 +15,7 @@ import { InspectionImageViewer } from "@/components/inspection/inspection-image-
 import { getUrl } from 'aws-amplify/storage';
 import type { Inspection } from "@/types/vifForm.types";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
 
 
@@ -38,19 +39,10 @@ export default function InspectionEditPage() {
     const [currentImages, setCurrentImages] = useState<string[]>([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-    const { permission } = useAuth();
-    const [writePermissions, setWritePermissions] = useState(false);
+    const writePermissions = usePermission("fms.edit");
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
-
-    useEffect(() => {
-        if (permission?.permissions?.includes('fms.edit') || permission?.isAdmin) {
-            setWritePermissions(true);
-        } else {
-            setWritePermissions(false);
-        }
-    }, [permission]);
 
 
     // Function to convert S3 keys to actual URLs

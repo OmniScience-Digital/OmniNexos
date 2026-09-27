@@ -8,6 +8,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/auth-context";
+import StoreProvider from "./state/redux";
 import Navbar from "./components/layout/navbar";
 import { AuthScreen } from "./components/auth/auth_screen";
 import Footer from "./components/layout/footer";
@@ -286,11 +287,13 @@ function Layout() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Layout />
-      </Router>
-    </AuthProvider>
+    <StoreProvider>
+      <AuthProvider>
+        <Router>
+          <Layout />
+        </Router>
+      </AuthProvider>
+    </StoreProvider>
   );
 }
 

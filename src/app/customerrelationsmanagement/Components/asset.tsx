@@ -1,5 +1,5 @@
 import { client } from "@/services/schema";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Save, X, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { handleUpload } from "@/services/s3.service";
 import { type PDFState } from "@/types/schema";
 import { FileUpload } from "@/components/widgets/fileUpload";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
 
 
@@ -21,8 +22,8 @@ interface ASSETPROPS {
 export default function AssetCreate({ customerSiteId, onAssetCreated }: ASSETPROPS) {
     const [saving, setSaving] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const { user, permission } = useAuth();//auth context
-    const [assetPermissions, setassetPermissions] = useState(false);
+    const { user } = useAuth();//auth context
+    const assetPermissions = usePermission("crm.assets.edit");
 
     const [scaleDatasheetFiles, setScaleDatasheetFiles] = useState<PDFState[]>([]);
     const [maintPlanFiles, setMaintPlanFiles] = useState<PDFState[]>([]);
@@ -56,16 +57,6 @@ export default function AssetCreate({ customerSiteId, onAssetCreated }: ASSETPRO
         submittedmaintplanAttach: "",
         notes: "",
     });
-    useEffect(() => {
-
-        if (permission?.permissions?.includes('crm.assets.edit') || permission?.isAdmin) {
-            setassetPermissions(true);
-        } else {
-            setassetPermissions(false);
-        }
-
-    }, [permission]);
-
 
 
     // Handle input changes

@@ -3,70 +3,39 @@ import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
 import Loading from "@/components/widgets/loading";
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Package, ArrowLeft, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type {  SubCategory } from "@/types/ims.types";
+import { useListSubcategoriesByCategoryQuery } from "@/state/api";
+import { useLiveQuerySync } from "@/state/useLiveQuerySync";
 import { client } from "@/services/schema";
 import { SubCategoriesList } from "@/app/inventorymanagementsystem/components/subcategorieslist";
 import { ComponentsList } from "@/app/inventorymanagementsystem/components/components.list";
 
 export default function SubcategoriesPage() {
   const params = useParams();
-  const [categoryName, setCategoryName] = useState("");
+  const [categoryName] = useState(() => localStorage.getItem("categoryName") || "");
   const id = decodeURIComponent(params.id as string);
 
-  const [loading, setLoading] = useState(true);
-  const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
+  // Single consumer today (this page), migrated for consistency with the
+  // rest of the app's data layer rather than a fix to a duplication bug.
+  const { data: subcategories = [], isLoading: loading } = useListSubcategoriesByCategoryQuery(id);
+  useLiveQuerySync(
+    "listSubcategoriesByCategory",
+    id,
+    (categoryId) => client.models.SubCategory.observeQuery({ filter: { categoryId: { eq: categoryId } } }),
+    (item: { id: string; subcategoryName: string; categoryId: string }) => ({ id: item.id, subcategoryName: item.subcategoryName, categoryId: item.categoryId }),
+  );
   const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | null>(null);
   const [componentsLoading, setComponentsLoading] = useState(true);
   const [componentsLength,setcomponentsLength ] = useState(0);
 
-  // Fetch subcategories by category ID
-  useEffect(() => {
-    const fetchSubcategories = async () => {
-      try {
-
-        // Get category name from localStorage or fetch it
-        const storedName = localStorage.getItem("categoryName");
-        if (storedName) {
-          setCategoryName(storedName);
-        }
-
-        // Subscribe to subcategories for this category
-        const subscription = client.models.SubCategory.observeQuery({
-          filter: { categoryId: { eq: id } }
-        }).subscribe({
-          next: ({ items, isSynced }) => {
-            const mappedSubcategories: SubCategory[] = (items || []).map(item => ({
-              id: item.id,
-              subcategoryName: item.subcategoryName,
-              categoryId: item.categoryId,
-            }));
-            setSubcategories(mappedSubcategories);
-
-            if (isSynced) {
-              setLoading(false);
-            }
-          },
-          error: (error) => {
-            console.error("Error subscribing to subcategories:", error);
-            setLoading(false);
-          }
-        });
-
-        return () => subscription.unsubscribe();
-      } catch (error) {
-        console.error("Error fetching subcategories:", error);
-        setLoading(false);
-      }
-    };
-    fetchSubcategories();
-
-  }, [id]);
-
+  // Category name doesn't change after mount, so read it once via a lazy
+  // initializer instead of a separate effect (avoids an unnecessary render
+  // and a brief empty-title flash before an effect would have run).
   const handleBackToSubcategories = () => {
     setSelectedSubCategory(null);
   };

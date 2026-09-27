@@ -2,12 +2,7 @@ import { fetchUserAttributes } from 'aws-amplify/auth';
 import type { AllUserInfo, UserDataResponse, UserInfo } from '@/types/user.types';
 import { client } from '@/services/schema';
 
-// Cognito's ListUsers is a relatively expensive Lambda call that gets slower
-// and more expensive as the user base grows. It's only needed occasionally
-// (e.g. populating an "assign to" dropdown), so cache the result in memory
-// for a short window instead of re-fetching it on every checkAuth() call
-// (app mount + every sign-in).
-const USER_LIST_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const USER_LIST_CACHE_TTL_MS = 5 * 60 * 1000;
 let cachedResponse: UserDataResponse | null = null;
 let cachedAt = 0;
 let inFlight: Promise<UserDataResponse> | null = null;
@@ -28,26 +23,21 @@ export async function getCurrentUserInfo(options?: { force?: boolean }): Promise
         return cachedResponse;
     }
 
-    // Coalesce concurrent callers so a burst of calls (e.g. multiple
-    // components mounting at once) only triggers a single Lambda invocation.
     if (!options?.force && inFlight) {
         return inFlight;
     }
 
     const fetchPromise = (async (): Promise<UserDataResponse> => {
         try {
-            // 1. Get current user attributes
             const userAttributes = await fetchUserAttributes();
             const currentEmail = userAttributes.email?.toLowerCase().trim() || '';
 
-            // 2. Fetch all users from Lambda/Cognito
             const { data: usersList } = await client.queries.usersList();
 
         if (!usersList || !currentEmail) {
             return defaultResponse;
         }
 
-        // 3. Parse all users and find current user
         const users = Array.isArray(usersList) ? usersList : [];
         let currentUserInfo: UserInfo = defaultResponse.currentUser;
 
@@ -60,14 +50,12 @@ export async function getCurrentUserInfo(options?: { force?: boolean }): Promise
             const emailAttr = user.Attributes?.find((a: any) => a.Name === 'email');
             const userEmail = emailAttr?.Value?.toLowerCase().trim() || '';
 
-            // Skip if we've already seen this email
             if (seenEmails.has(userEmail)) {
                 continue;
             }
 
             seenEmails.add(userEmail);
 
-            // Rest of your code...
             const nameAttr = user.Attributes?.find((a: any) => a.Name === 'preferred_username');
             const userName = nameAttr?.Value || '';
 
@@ -80,7 +68,8 @@ export async function getCurrentUserInfo(options?: { force?: boolean }): Promise
                 email: userEmail,
                 name: userName,
                 isAdmin: isAdmin,
-                groups: user.Groups || []
+                groups: user.Groups || [],
+                enabled: user.Enabled !== false,
             };
 
             uniqueUsers.push(userInfo);
@@ -95,7 +84,6 @@ export async function getCurrentUserInfo(options?: { force?: boolean }): Promise
             }
         }
 
-            // Use uniqueUsers instead of allUsers
             return {
                 currentUser: currentUserInfo,
                 allUsers: uniqueUsers
@@ -118,8 +106,6 @@ export async function getCurrentUserInfo(options?: { force?: boolean }): Promise
     }
 }
 
-// Call after actions that change Cognito group membership/user list
-// (e.g. the admin "manage users" screen) so the next read is fresh.
 export function invalidateUserListCache() {
     cachedResponse = null;
     cachedAt = 0;

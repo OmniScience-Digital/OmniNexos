@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { client } from "@/services/schema";
 import { useNavigate } from "react-router-dom";
 import { Plus, LayoutDashboard, Search, MoreVertical } from "lucide-react";
@@ -11,54 +11,45 @@ import { DialogDashboard } from "./dialog";
 import { getInitials } from "@/utils/helper/helper";
 import Loading from "@/components/widgets/loading";
 import type { Dashboard } from "@/types/dashboard.types";
+import { useListDashboardsQuery } from "@/state/api";
 import { ConfirmDialog } from "@/components/widgets/deletedialog";
 import React from "react";
 
 export default function Home() {
     const navigate = useNavigate();
-    const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+    // Sole consumer today, migrated for consistency and because this read
+    // had no pagination before. Note: this endpoint intentionally does NOT
+    // gate on isSynced in the live-sync bridge (src/state/sync.ts), matching
+    // this page's original behaviour of showing data before the full sync
+    // completes.
+    // Sole consumer today, migrated for consistency and because this read
+    // had no pagination before. `loading` below is ALSO used as the
+    // add/delete busy flag (unrelated to this fetch), so it stays its own
+    // state rather than aliasing the query's isLoading directly.
+    const { data: dashboards = [], isLoading: dashboardsLoading } = useListDashboardsQuery();
     const [open, setOpen] = useState(false);
     const [opendelete, setOpendelete] = useState(false);
     const [name, setName] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     // const [dataArray, setData] = useState<Dashboard[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [dashboardToDelete, setDashboardToDelete] = useState<number | null>(null);
 
 
-    // Fetch dashboards
-    useEffect(() => {
-        const subscription = client.models.Landing.observeQuery().subscribe({
-            next: (data) => {
+    // Same filter/sort/cleanup the old subscription callback did, now
+    // derived from the shared query result instead of local state.
+    const cleanedDashboards = useMemo<Dashboard[]>(() => {
+        const sorted = dashboards
+            .filter((item) => item.items) // Only include items with names
+            .sort((a, b) => (a.items || "").trim().localeCompare((b.items || "").trim()));
+        return sorted.filter((d) => !/form$/i.test((d.items ?? "").trim())); // exclude items ending with 'Form'
+    }, [dashboards]);
 
-                const dashboardData = data.items
-                    .filter(item => item.items) // Only include items with names
-                    .sort((a, b) => (a.items || "").trim().localeCompare((b.items || "").trim()));
-
-                const cleanDashboardData: Dashboard[] = dashboardData
-                    .filter(d => !/form$/i.test((d.items ?? "").trim())) // exclude items ending with 'Form'
-                    .map(d => ({
-                        ...d,
-                        key: d.key ?? "",
-                        items: d.items ?? ""
-                    }));
-
-                setDashboards(cleanDashboardData);
-                setLoading(false);
-            },
-            error: () => {
-                setLoading(false);
-            },
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, []);
-
-
+    // `loading` itself now only drives the add/delete busy state below; the
+    // spinner condition above additionally checks `dashboardsLoading`
+    // directly rather than mirroring it into this state via an effect.
     // Filter dashboards based on search query
-    const filteredDashboards = dashboards.filter(dashboard =>
+    const filteredDashboards = cleanedDashboards.filter(dashboard =>
         dashboard.items?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -127,7 +118,7 @@ export default function Home() {
 
     return (
         <div className=" p-3 sm:p-4">
-            {loading ? (
+            {loading || dashboardsLoading ? (
                 <Loading />
             ) : (
                 <div className="max-w-4xl mx-auto">

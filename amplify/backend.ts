@@ -5,6 +5,8 @@ import { storage } from './storage/resource.js';
 import { listUsers } from './function/listUsers/resource.js';
 import { verifyFace } from './function/verifyFace/resource.js';
 import { notifyPhotoApproval } from './function/notifyPhotoApproval/resource.js';
+import { manageUser } from './function/manageUser/resource.js';
+import { inviteUser } from './function/inviteUser/resource.js';
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import { Stack } from "aws-cdk-lib";
@@ -17,9 +19,10 @@ const backend = defineBackend({
   listUsers,
   verifyFace,
   notifyPhotoApproval,
+  manageUser,
+  inviteUser,
 });
 
-// ── listUsers permissions ────────────────────────────────────────────────────
 const listUsersLambda = backend.listUsers.resources.lambda;
 listUsersLambda.role?.attachInlinePolicy(
   new iam.Policy(backend.auth.resources.userPool, "AllowListGroups", {
@@ -35,7 +38,6 @@ listUsersLambda.role?.attachInlinePolicy(
   })
 );
 
-// ── verifyFace — Rekognition + S3 permissions + REST API ─────────────────────
 const verifyFaceLambda = backend.verifyFace.resources.lambda as Function;
 const bucketName = backend.storage.resources.bucket.bucketName;
 
@@ -59,7 +61,6 @@ verifyFaceLambda.role?.attachInlinePolicy(
   })
 );
 
-// REST API — exposes verifyFace Lambda to the mobile app
 const stack = Stack.of(verifyFaceLambda);
 
 const api = new apigateway.LambdaRestApi(stack, "VerifyFaceApi", {
@@ -71,20 +72,11 @@ const api = new apigateway.LambdaRestApi(stack, "VerifyFaceApi", {
   },
 });
 
-// Expose the endpoint URL so Amplify outputs picks it up
 backend.addOutput({
   custom: {
     verifyFaceApiUrl: api.url,
   },
 });
 
-// ── notifyPhotoApproval — called directly when admin approves/denies ────────
-// Instead of watching the PhotoChangeRequest table for changes via a
-// DynamoDB Stream, the admin app calls this directly as a custom GraphQL
-// mutation (see data/resource.ts: notifyPhotoRequestStatus) right when it
-// approves/denies a request. The mutation takes the employee's push
-// token(s) directly as an argument — the admin app looks those up via the
-// normal Data client (pushTokensByUser) BEFORE calling this mutation, so
-// this Lambda never touches DynamoDB or AppSync at all. No environment
-// variables, no IAM grants, no circular dependency: it's just a plain
-// function-backed resolver, same pattern as `usersList` / listUsers.
+// manageUser and inviteUser need no manual IAM here — their permissions
+// come declaratively from the `access` array in auth/resource.ts.
