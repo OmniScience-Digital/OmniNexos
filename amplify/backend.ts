@@ -23,6 +23,14 @@ const backend = defineBackend({
   inviteUser,
 });
 
+const { cfnUserPool } = backend.auth.resources.cfnResources;
+
+cfnUserPool.emailConfiguration = {
+  emailSendingAccount: "DEVELOPER",
+  sourceArn: "arn:aws:ses:us-east-1:346858644516:identity/omninexos.fray.co.za",
+  from: "Omni-Nexos <noreply@omninexos.fray.co.za>",
+};
+
 const listUsersLambda = backend.listUsers.resources.lambda;
 listUsersLambda.role?.attachInlinePolicy(
   new iam.Policy(backend.auth.resources.userPool, "AllowListGroups", {
