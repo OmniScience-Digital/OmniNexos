@@ -1,24 +1,24 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/widgets/loading";
-import { client } from "@/services/schema";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Edit, Plus } from "lucide-react";
 import { DataTable } from "@/components/table/datatable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
+import { useListCustomerSitesQuery } from "@/state/api";
 
 
 export default function CustomerRelationsManagement() {
     const navigate = useNavigate();
-    const { permission } = useAuth();//auth state
-    const [filteredCustomerSites, setFilteredCustomerSites] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [crmPermissions, setCrmPermissions] = useState(false);
+    // Sole consumer today, migrated for consistency with the rest of the
+    // app's data layer (and to fix this read having no pagination before).
+    const { data: filteredCustomerSites = [], isLoading: loading } = useListCustomerSitesQuery();
+    const crmPermissions = usePermission("crm.edit");
 
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
@@ -26,60 +26,6 @@ export default function CustomerRelationsManagement() {
 
 
 
-    useEffect(() => {
-        const subscription = client.models.CustomerSite.observeQuery().subscribe({
-            next: ({ items, isSynced }) => {
-                const mappedCustomerSites = (items || []).map(item => ({
-                    id: item.id,
-                    siteName: item.siteName,
-                    siteLocation: item.siteLocation ?? undefined,
-                    siteDistance: item.siteDistance ?? undefined,
-                    siteTolls: item.siteTolls ?? undefined,
-                    customerName: item.customerName,
-                    registrationNo: item.registrationNo ?? undefined,
-                    vatNo: item.vatNo ?? undefined,
-                    vendorNumber: item.vendorNumber ?? undefined,
-                    postalAddress: item.postalAddress ?? undefined,
-                    physicalAddress: item.physicalAddress ?? undefined,
-                    siteContactName: item.siteContactName ?? undefined,
-                    siteContactMail: item.siteContactMail ?? undefined,
-                    siteContactNumber: item.siteContactNumber ?? undefined,
-                    siteManagerName: item.siteManagerName ?? undefined,
-                    siteManagerMail: item.siteManagerMail ?? undefined,
-                    siteManagerNumber: item.siteManagerNumber ?? undefined,
-                    siteProcurementName: item.siteProcurementName ?? undefined,
-                    siteProcurementMail: item.siteProcurementMail ?? undefined,
-                    siteProcurementNumber: item.siteProcurementNumber ?? undefined,
-                    siteCreditorsName: item.siteCreditorsName ?? undefined,
-                    siteCreditorsMail: item.siteCreditorsMail ?? undefined,
-                    siteCreditorsNumber: item.siteCreditorsNumber ?? undefined,
-                    comment: item.comment ?? undefined,
-                }));
-
-                setFilteredCustomerSites(mappedCustomerSites);
-
-                if (isSynced) {
-                    setLoading(false);
-                }
-            },
-            error: (error) => {
-                console.error("Error subscribing to customer sites:", error);
-                setLoading(false);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
-
-    useEffect(() => {
-        if (permission?.permissions?.includes('crm.edit') || permission?.isAdmin) {
-            setCrmPermissions(true);
-        } else {
-            setCrmPermissions(false);
-        }
-
-    }, [permission]);
 
     const addCustomer = () => {
         if (!crmPermissions) {

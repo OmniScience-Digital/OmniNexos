@@ -524,15 +524,14 @@
 import { client } from "@/services/schema";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Category } from "@/types/form.types";
 import { useEffect, useState, useRef } from "react";
+import { useListCategoriesQuery } from "@/state/api";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/table/datatable";
 import { EditIcon, ArrowUpDown, FileArchive, Download, X } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
-import { mapApiCategoryToCategory } from "../stockcontrolform/Components/map.categories.helper";
 import Loading from "@/components/widgets/loading";
 import PropLoading from "@/components/widgets/prop_loading";
 import { Button } from "@/components/ui/button";
@@ -705,9 +704,11 @@ const generatePDF = (categoryData: CategoryWithRelations) => {
 export default function IMS() {
     const navigate = useNavigate();
 
-    const [loading, setLoading] = useState(true);
+    // Shared with stockcontrolform/page.tsx via one cache entry and one live
+    // subscription (src/state/sync.ts), instead of each page running its own
+    // observeQuery on the whole Category table.
+    const { data: categories = [], isLoading: loading } = useListCategoriesQuery();
     const [prop_loading, propsetLoading] = useState(false);
-    const [categories, setCategories] = useState<Category[]>([]);
     const [printMenu, setPrintMenu] = useState<{
         isOpen: boolean;
         categoryId: string | null;
@@ -717,34 +718,6 @@ export default function IMS() {
         categoryId: null,
         position: { top: 0, left: 0 }
     });
-
-    useEffect(() => {
-        // Subscribe to real-time updates
-        const subscription = client.models.Category.observeQuery().subscribe({
-            next: ({ items, isSynced }) => {
-                // Map API data to our Category type
-                const mappedCategories: Category[] = (items || []).map(mapApiCategoryToCategory);
-                setCategories(mappedCategories);
-
-                if (isSynced) {
-                    setLoading(false);
-                }
-            },
-            error: (error) => {
-                console.error("Error subscribing to categories:", error);
-                setLoading(false);
-            }
-        });
-
-        // Cleanup subscription on unmount
-        return () => {
-            subscription.unsubscribe();
-        };
-        // Intentionally run once on mount only. The subscription's own
-        // `next` callback is what updates `categories` — depending on
-        // `categories` here would tear down and recreate the subscription
-        // (triggering a fresh full-table scan) every time new data arrives.
-    }, []);
 
 
     //table data

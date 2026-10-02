@@ -20,6 +20,7 @@ import { ConfirmDialog } from "@/components/widgets/deletedialog";
 import type { Component } from "@/types/ims.types";
 import { client } from "@/services/schema";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import Loading from "@/components/widgets/loading";
 
 interface ComponentsListProps {
@@ -61,9 +62,8 @@ export function ComponentsList({
   const [successful, setSuccessful] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [writePermissions, setWritePermissions] = useState(false);
+  const writePermissions = usePermission("ims.edit");
   const itemsPerPage = 10;
-  const { permission } = useAuth();
   const [components, setComponents] = useState<Component[]>([]);
   const [showmoreButton, setshowmoreButton] = useState(false);
   const [paginationToken, setPaginationToken] = useState<
@@ -211,14 +211,6 @@ export function ComponentsList({
     console.log("Current Page ", currentPage);
     setCurrentPage((prev) => Math.max(prev - 1, 1));
   };
-
-  useEffect(() => {
-    if (permission?.permissions?.includes("ims.edit") || permission?.isAdmin) {
-      setWritePermissions(true);
-    } else {
-      setWritePermissions(false);
-    }
-  }, [permission]);
 
   useEffect(() => {
     const getHistory = async () => {

@@ -1,28 +1,50 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Plus, Minus } from "lucide-react";
 import ComponentItem from "./Components/form";
 import Navbar from "@/components/layout/navbar";
 import ResponseModal from "@/components/widgets/response";
-import { client } from "@/services/schema";
 import Footer from "@/components/layout/footer";
 import Loading from "@/components/widgets/loading";
-import { mapApiCategoryToCategory } from "./Components/map.categories.helper";
-import type { Category, Component } from "@/types/form.types";
+import type { Component } from "@/types/form.types";
 import { SCF_clickUpService } from "@/services/scf.clickUp.service";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
+import { useListCategoriesQuery } from "@/state/api";
 
+// Module-level (no dependency on component state), so it can be used both as
+// the lazy `useState` initializer below and by `addNewComponent`.
+function makeEmptyComponent(): Component {
+  return {
+    id: Date.now().toString(),
+    componentId: "",
+    componentName: "",
+    subcategoryId: "",
+    subComponents: [
+      {
+        id: `${Date.now()}-1`,
+        key: "",
+        value: "",
+        componentId: Date.now().toString()
+      }
+    ]
+  };
+}
 
 export default function ComponentForm() {
-  const { user, permission } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [displayedComponents, setDisplayedComponents] = useState<Component[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const { user } = useAuth();
+  // Shared with inventorymanagementsystem/page.tsx via one cache entry and one
+  // live subscription (src/state/sync.ts), instead of each page running its
+  // own observeQuery on the whole Category table.
+  const { data: categories = [], isLoading: categoriesLoading } = useListCategoriesQuery();
+  const [displayedComponents, setDisplayedComponents] = useState<Component[]>(
+    () => [makeEmptyComponent()],
+  );
+  const [submitting, setSubmitting] = useState(false);
   const [transactionType, setTransactionType] = useState<boolean>(false);
 
-  const [writePermissions, setWritePermissions] = useState(false);
+  const writePermissions = usePermission("scf.edit");
   const [show, setShow] = useState(false);
   const [successful, setSuccessful] = useState(false);
   const [message, setMessage] = useState("");
@@ -34,62 +56,8 @@ export default function ComponentForm() {
 
 
   const addNewComponent = () => {
-
-    const newComponent: Component = {
-      id: Date.now().toString(),
-      componentId: "",
-      componentName: "",
-      subcategoryId: "",
-      subComponents: [
-        {
-          id: `${Date.now()}-1`,
-          key: "",
-          value: "",
-          componentId: Date.now().toString()
-        }
-      ]
-    };
-
-    setDisplayedComponents([newComponent, ...displayedComponents]);
+    setDisplayedComponents([makeEmptyComponent(), ...displayedComponents]);
   };
-
-  // Fetch only categories
-  useEffect(() => {
-    const subscription = client.models.Category.observeQuery().subscribe({
-      next: ({ items: categoriesData, isSynced }) => {
-        if (isSynced) {
-
-          // Map API data to our Category type
-          const mappedCategories: Category[] = (categoriesData || []).map(mapApiCategoryToCategory);
-          setCategories(mappedCategories);
-
-          // Start with one empty component automatically AFTER data is loaded
-          if (displayedComponents.length === 0) {
-            addNewComponent();
-          }
-
-          setCategoriesLoading(false);
-          setLoading(false);
-        }
-      },
-      error: (error) => {
-        console.error("Error subscribing to categories:", error);
-        setCategoriesLoading(false);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [addNewComponent, displayedComponents.length]);
-
-  useEffect(() => {
-    if (permission?.permissions?.includes('scf.edit') || permission?.isAdmin) {
-      setWritePermissions(true);
-    } else {
-      setWritePermissions(false);
-    }
-
-  }, [permission]);
 
   const updateComponent = (id: string, updatedComponent: Component) => {
     setDisplayedComponents(
@@ -119,7 +87,7 @@ export default function ComponentForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     try {
-      setLoading(true);
+      setSubmitting(true);
       e.preventDefault();
       if (!writePermissions) {
         setShow(true);
@@ -202,7 +170,7 @@ export default function ComponentForm() {
       setMessage("Failed to publish to ClickUp");
       setShow(true);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -229,7 +197,7 @@ export default function ComponentForm() {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Navbar />
 
-      {loading || categoriesLoading ? (
+      {categoriesLoading ? (
         <Loading />
       ) : (
         <main className="flex-1 p-6 mt-25 pb-20">
@@ -304,9 +272,9 @@ export default function ComponentForm() {
                     {/* Submit Button */}
                     {displayedComponents.length > 0 && (
                       <div className="flex justify-end pt-4">
-                        <Button type="submit" className="cursor-pointer" disabled={loading}>
+                        <Button type="submit" className="cursor-pointer" disabled={submitting}>
                           Submit
-                          {loading && (
+                          {submitting && (
                             <Loader2 className="ml-2 h-4 w-4 animate-spin" />
                           )}
                         </Button>

@@ -13,7 +13,7 @@ import Loading from "./component_loading";
 import { mapApiComponentToComponent, mapApiSubCategoryToSubCategory } from "./map.categories.helper";
 import { client } from "@/services/schema";
 import type { Category, ComponentItemProps, SubCategory } from "@/types/form.types";
-import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
 
 // Add loading props to the interface
@@ -34,7 +34,6 @@ export default function ComponentItem({
   usedSubcategoryIds,
   categoriesLoading = false,
 }: ExtendedComponentItemProps) {
-  const { permission } = useAuth();//auth state
   const [isAddingNewKey, setIsAddingNewKey] = useState<string | null>(null);
   const [newKeyInput, setNewKeyInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,9 +41,9 @@ export default function ComponentItem({
   const [isAddingNewComponent, setIsAddingNewComponent] = useState(false);
   const [newComponentInput, setNewComponentInput] = useState("");
 
-  const [catPermissions, setCatPermissions] = useState(false);
-  const [SubcatPermissions, setsubCatPermissions] = useState(false);
-  const [CompPermissions, setCompPermissions] = useState(false);
+  const catPermissions = usePermission("scf.category.edit");
+  const SubcatPermissions = usePermission("scf.subcategory.edit");
+  const CompPermissions = usePermission("scf.component.edit");
   //subcategories state
   const [allSubcategories, setAllSubcategories] = useState<any[]>([]);
   const [SubcategoriesLoading, setSubcategoriesLoading] = useState(false);
@@ -136,24 +135,6 @@ export default function ComponentItem({
     ),
     [allAvailableOptions, componentSearchTerm]
   );
-
-  useEffect(() => {
-    if (permission?.permissions?.includes('scf.category.edit') || permission?.isAdmin) {
-      setCatPermissions(true);
-    } else {
-      setCatPermissions(false);
-    }
-    if (permission?.permissions?.includes('scf.subcategory.edit') || permission?.isAdmin) {
-      setsubCatPermissions(true);
-    } else {
-      setsubCatPermissions(false);
-    }
-    if (permission?.permissions?.includes('scf.component.edit') || permission?.isAdmin) {
-      setCompPermissions(true);
-    } else {
-      setCompPermissions(false);
-    }
-  }, [permission]);
 
 
   useEffect(() => {

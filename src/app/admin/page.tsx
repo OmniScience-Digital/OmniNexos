@@ -7,6 +7,7 @@ import { Search, Save, Trash2, Plus, Users, AlertCircle, Loader2, ChevronRight, 
 import { Switch } from '@/components/ui/switch'
 import ResponseModal from '@/components/widgets/response'
 import { client } from '@/services/schema'
+import { useListPermissionRecordsQuery } from '@/state/api'
 import { useAuth } from "@/contexts/auth-context";
 import { allPermissions, type Access, type Permission, type User } from '@/types/user.permissions'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -65,47 +66,60 @@ export default function UserPermissionsAssign() {
 
   const usersPerPage = 15
 
+  // Read moved to the shared cache (useListPermissionRecordsQuery) for
+  // consistency and because this read had no pagination before. NOT wired
+  // into the live-sync bridge (src/state/sync.ts) on purpose: `users` below
+  // is locally-editable draft state (an admin toggles checkboxes before
+  // clicking Save), and this effect only seeds it once per `allUsers` change,
+  // exactly as it did before — a live subscription pushing fresh data in
+  // here mid-edit would silently discard whatever the admin was changing.
+  const {
+    data: permissionRecords,
+    isLoading: permissionsLoading,
+    isError: permissionsFetchFailed,
+  } = useListPermissionRecordsQuery()
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
+    if (!allUsers || permissionsLoading) return
 
-        if (!allUsers) return
-
-        const initialUsers = allUsers.map(user => ({
-          id: user.email,
-          email: user.email,
-          name: user.name,
-          permissions: []
-        }))
-
-        const { data: permissionsData } = await client.models.Permission.list()
-
-        const usersWithPermissions = initialUsers.map(user => {
-          const userPermission = permissionsData.find(p => p.userId === user.id)
-          const permissionStrings = userPermission?.permissions?.filter((p): p is string => p !== null) || []
-          return {
-            ...user,
-            permissions: permissionStrings.map(stringToPermission)
-          }
-        })
-
-        setUsers(usersWithPermissions)
-
-        if (usersWithPermissions.length > 0 && !selectedUser) {
-          setSelectedUser(usersWithPermissions[0])
-        }
-
-      } catch (error) {
-        console.error('Error loading data:', error)
-        showResponseMessage('Failed to load users and permissions', false)
-      } finally {
-        setLoading(false)
-      }
+    if (permissionsFetchFailed) {
+      showResponseMessage('Failed to load users and permissions', false)
+      setLoading(false)
+      return
     }
 
-    loadData()
-  }, [allUsers])
+    setLoading(true)
+    try {
+      const initialUsers = allUsers.map(user => ({
+        id: user.email,
+        email: user.email,
+        name: user.name,
+        permissions: []
+      }))
+
+      const permissionsData = permissionRecords ?? []
+      const usersWithPermissions = initialUsers.map(user => {
+        const userPermission = permissionsData.find(p => p.userId === user.id)
+        const permissionStrings = userPermission?.permissions?.filter((p): p is string => p !== null) || []
+        return {
+          ...user,
+          permissions: permissionStrings.map(stringToPermission)
+        }
+      })
+
+      setUsers(usersWithPermissions)
+
+      if (usersWithPermissions.length > 0 && !selectedUser) {
+        setSelectedUser(usersWithPermissions[0])
+      }
+    } catch (error) {
+      console.error('Error loading data:', error)
+      showResponseMessage('Failed to load users and permissions', false)
+    } finally {
+      setLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allUsers, permissionRecords, permissionsLoading, permissionsFetchFailed])
 
   // Load permission history when selected user changes
   useEffect(() => {

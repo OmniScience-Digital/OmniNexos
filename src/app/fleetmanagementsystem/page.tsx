@@ -17,16 +17,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { Fleet } from "@/types/vifForm.types";
 import { formatDateForAmplify } from "@/utils/helper/time";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
+import { useListFleetsQuery } from "@/state/api";
 import ResponseModal from "@/components/widgets/response";
 
 
 export default function FleetPage() {
     const navigate = useNavigate();
-    const { user ,permission} = useAuth();
+    const { user } = useAuth();
 
-    const [loading, setLoading] = useState(true);
+    // Shared with vehicleinspectionform/page.tsx via one cache entry and one
+    // live subscription (src/state/sync.ts), instead of each page running its
+    // own observeQuery on the whole Fleet table.
+    const { data: fleets = [], isLoading: loading } = useListFleetsQuery();
     const [saving, setSaving] = useState(false);
-    const [fleets, setFleets] = useState<Fleet[]>([]);
     const [filteredFleets, setFilteredFleets] = useState<Fleet[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [searchType, setSearchType] = useState<"reg" | "driver">("reg");
@@ -36,73 +40,12 @@ export default function FleetPage() {
     const [opendelete, setOpendelete] = useState(false);
     const [fleetToDelete, setFleetToDelete] = useState<{ id: string, name: string } | null>(null);
 
-    const [writePermissions, setWritePermissions] = useState(false);
+    const writePermissions = usePermission("fms.edit");
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
 
-    useEffect(() => {
-        if (permission?.permissions?.includes('fms.edit') || permission?.isAdmin) {
-            setWritePermissions(true);
-        } else {
-            setWritePermissions(false);
-        }
-    }, [permission]);
 
-
-
-    useEffect(() => {
-
-        // Subscribe to real-time updates
-        const subscription = client.models.Fleet.observeQuery().subscribe({
-            next: ({ items, isSynced }) => {
-
-                const mappedFleets: Fleet[] = (items || []).map(item => ({
-                    id: item.id,
-                    vehicleVin: item.vehicleVin ?? null,
-                    vehicleReg: item.vehicleReg ?? null,
-                    vehicleMake: item.vehicleMake ?? null,
-                    vehicleModel: item.vehicleModel ?? null,
-                    transmitionType: item.transmitionType ?? null,
-                    ownershipStatus: item.ownershipStatus ?? null,
-                    fleetIndex: item.fleetIndex ?? null,
-                    fleetNumber: item.fleetNumber ?? null,
-                    lastServicedate: item.lastServicedate ?? null,
-                    lastServicekm: item.lastServicekm ?? null,
-                    lastRotationdate: item.lastRotationdate ?? null,
-                    lastRotationkm: item.lastRotationkm ?? null,
-                    servicePlanStatus: item.servicePlanStatus ?? false,
-                    servicePlan: item.servicePlan ?? null,
-                    currentDriver: item.currentDriver ?? null,
-                    currentkm: item.currentkm ?? null,
-                    codeRequirement: item.codeRequirement ?? null,
-                    pdpRequirement: item.pdpRequirement ?? false,
-                    breakandLuxTest: item.breakandLuxTest ?? null,
-                    serviceplankm: item.serviceplankm ?? null,
-                    breakandLuxExpirey: item.breakandLuxExpirey ?? null,
-                    liscenseDiscExpirey: item.liscenseDiscExpirey ?? null,
-                }));
-
-
-                setFleets(mappedFleets);
-                setFilteredFleets(mappedFleets);
-
-                if (isSynced) {
-                    setLoading(false);
-
-                }
-            },
-            error: (error) => {
-                console.error("Error subscribing to fleets:", error);
-                setLoading(false);
-            }
-        });
-
-        return () => {
-
-            subscription.unsubscribe();
-        };
-    }, []);
 
     // Filter fleets based on search
     useEffect(() => {

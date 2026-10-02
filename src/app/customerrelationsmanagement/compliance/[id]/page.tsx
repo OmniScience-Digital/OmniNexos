@@ -23,11 +23,12 @@ import type { ComplianceAdditionals } from "@/types/crm.types";
 import { Textarea } from "@/components/ui/textarea";
 import ResponseModal from "@/components/widgets/response";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 
 export default function Compliance() {
     const navigate = useNavigate();
     const params = useParams();
-    const { user, permission } = useAuth();
+    const { user } = useAuth();
 
     const customerSiteId = decodeURIComponent(params.id as string);
     const [siteName, setSiteName] = useState("");
@@ -49,7 +50,7 @@ export default function Compliance() {
     const [loading, setLoading] = useState(true);
     const [notes, setNotes] = useState<string>("");
 
-    const [CrmPermissions, setCrmPermissions] = useState(false);
+    const CrmPermissions = usePermission("crm.compliance.edit");
 
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
@@ -62,15 +63,6 @@ export default function Compliance() {
     //site additional documents 
     const [existingdocs, setAdditionalDocs] = useState<ComplianceAdditionals[]>([]);
     const [editingNotes, setEditingNotes] = useState(false);
-
-    useEffect(() => {
-        if (permission?.permissions?.includes('crm.compliance.edit') || permission?.isAdmin) {
-            setCrmPermissions(true);
-        } else {
-            setCrmPermissions(false);
-        }
-
-    }, [permission]);
 
 
     // Fetch employees from your Employee model with relations

@@ -16,11 +16,12 @@ import { PDFUpload } from "@/app/vehicleinspectionform/components/pdfupload";
 import { getUrl } from "aws-amplify/storage";
 import { formatDateForAmplify } from "@/utils/helper/time";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
 
 export default function FleetEditPage() {
     const navigate = useNavigate();
-    const { user, permission } = useAuth();
+    const { user } = useAuth();
     const params = useParams();
     const fleetId = decodeURIComponent(params.id as string);
     const editFormRef = useRef<HTMLDivElement>(null);
@@ -33,18 +34,10 @@ export default function FleetEditPage() {
 
     const [history, setHistory] = useState("");
 
-    const [writePermissions, setWritePermissions] = useState(false);
+    const writePermissions = usePermission("fms.edit");
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
-
-    useEffect(() => {
-        if (permission?.permissions?.includes('fms.edit') || permission?.isAdmin) {
-            setWritePermissions(true);
-        } else {
-            setWritePermissions(false);
-        }
-    }, [permission]);
 
     // function to convert S3 keys to URLs for PDFs
     const getS3DocumentUrls = async (s3Keys: string[]): Promise<string[]> => {

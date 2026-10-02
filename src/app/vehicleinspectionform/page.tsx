@@ -1,5 +1,5 @@
 // parent component
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Navbar from "@/components/layout/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,6 @@ import Loading from "@/components/widgets/loading";
 import { client } from "@/services/schema";
 import VifForm from "./components/vifForm";
 import Footer from "@/components/layout/footer";
-import type { vifForm } from "@/types/vifForm.types";
 import { mapApiCategoryToVehicle } from "../stockcontrolform/Components/map.categories.helper";
 import { booleanQuestions as initialQuestions, type PhotoState } from "./components/questions";
 import ResponseModal from "@/components/widgets/response";
@@ -17,13 +16,17 @@ import ImageUploadLoader from "./components/imageLoader";
 import { calculateCustomFields } from "./components/customfield";
 import { uploadPhoto, Vif_clickUpService } from "@/services/vif.clickUp.service";
 import { useAuth } from "@/contexts/auth-context";
+import { useListFleetsQuery } from "@/state/api";
 
 
 export default function Vehicle_Inspection_Form() {
     const { user } = useAuth();
-    const [loading, setLoading] = useState(false);
+    // Same shared Fleet cache/subscription as fleetmanagementsystem/page.tsx
+    // (src/state/api.ts, src/state/sync.ts) instead of a second, independent
+    // observeQuery on the whole Fleet table.
+    const { data: fleets = [], isLoading: loading } = useListFleetsQuery();
+    const vehicles = useMemo(() => fleets.map(mapApiCategoryToVehicle), [fleets]);
     const [loadingbtn, setLoadingbtn] = useState(false);
-    const [vehicles, setvehicles] = useState<vifForm[]>([]);
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
@@ -279,24 +282,6 @@ export default function Vehicle_Inspection_Form() {
             });
         }
     };
-
-    useEffect(() => {
-        const subscription = client.models.Fleet.observeQuery().subscribe({
-            next: ({ items: allVehicles, isSynced }) => {
-                if (isSynced) {
-                    const mappedCategories: vifForm[] = (allVehicles || []).map(mapApiCategoryToVehicle);
-                    setvehicles(mappedCategories);
-                    setLoading(false);
-                }
-            },
-            error: (error) => {
-                console.log(`Error subscribing to fleets: ${error}`);
-                setLoading(false);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
 
     return (
 

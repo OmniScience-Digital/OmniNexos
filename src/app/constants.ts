@@ -2,7 +2,20 @@ export const baseUrl = "http://localhost:5001/api/v1";
 // export const securebaseUrlprod = "https://unb298qh1g.execute-api.us-east-2.amazonaws.com/api/v1";
 export const securebaseUrltest ="https://wq3qo9l3de.execute-api.us-east-1.amazonaws.com/api/v1";
 export const securebaseUrlProd ="https://apqirzaiib.execute-api.us-east-1.amazonaws.com/api/v1";
-export const API_TOKEN = 'pk_230674953_NCM5RWFNCTW278728K0DP79NHZNII0HN';
+// Read from the build environment (set in Amplify Hosting's Environment
+// variables, and in a local .env.local for dev) instead of being committed to
+// source. This does not stop the token from being visible in the built JS
+// bundle — a token used directly from the browser is always extractable by
+// anyone who opens devtools — but it keeps it out of git history going
+// forward, lets it be rotated without a code change, and lets each
+// environment (test/prod) use its own token if you choose to split them.
+// See VITE_CLICKUP_API_TOKEN in Amplify Hosting's build settings.
+export const API_TOKEN = import.meta.env.VITE_CLICKUP_API_TOKEN ?? '';
+if (!API_TOKEN && import.meta.env.DEV) {
+  console.warn(
+    "VITE_CLICKUP_API_TOKEN is not set. Add it to a .env.local file for local development.",
+  );
+}
 //main
 //export const VIF_LIST_ID = '901213458480';
 //test

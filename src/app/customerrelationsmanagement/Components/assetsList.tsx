@@ -15,6 +15,8 @@ import {
     Loader2,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
+import { mapAsset, useListAssetsByCustomerSiteQuery } from "@/state/api";
+import { useLiveQuerySync } from "@/state/useLiveQuerySync";
 import { ConfirmDialog } from "@/components/widgets/deletedialog";
 import { client } from "@/services/schema";
 import Loading from "@/components/widgets/loading";
@@ -23,6 +25,7 @@ import { remove } from 'aws-amplify/storage';
 import { FileUploadUpdate } from "@/components/widgets/fileupdate";
 import type { Asset } from "@/types/assets.type";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
 
 interface AssetsListProps {
@@ -30,17 +33,32 @@ interface AssetsListProps {
     refreshTrigger?: number;
 }
 
-export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: AssetsListProps) {
-    const { user, permission } = useAuth();//auth context
-    const [assetPermissions, setassetPermissions] = useState(false);
+export default function AssetsList({ customerSiteId }: AssetsListProps) {
+    // `refreshTrigger` (see AssetsListProps) is accepted but intentionally not
+    // destructured — kept only for backward compatibility with existing
+    // callers; it no longer drives a refetch, see the comment below.
+    const { user } = useAuth();//auth context
+    const assetPermissions = usePermission("crm.assets.edit");
 
-    const [assets, setAssets] = useState<Asset[]>([]);
+    // Single consumer today (this component), migrated for consistency and
+    // because this read had no pagination before. `refreshTrigger` is kept as
+    // an accepted prop so callers don't need changes, but no longer drives a
+    // manual refetch: the live subscription below already reflects any create
+    // /update/delete for this site as it happens, which covers what
+    // `refreshTrigger` was working around.
+    const { data: assets = [], isLoading: assetsLoading } = useListAssetsByCustomerSiteQuery(customerSiteId);
+    useLiveQuerySync(
+      "listAssetsByCustomerSite",
+      customerSiteId,
+      (siteId) => client.models.Asset.observeQuery({ filter: { customerSiteId: { eq: siteId } } }),
+      mapAsset,
+    );
+
     const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
     const [editedAsset, setEditedAsset] = useState<Partial<Asset>>({});
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [statusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-    const [loading, setLoading] = useState(true);
     const itemsPerPage = 10;
 
     const [opendelete, setOpendelete] = useState(false);
@@ -57,69 +75,6 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
-
-    // Fetch assets based on customerSiteId
-    useEffect(() => {
-        const fetchAssets = async () => {
-            try {
-                setLoading(true); // Set loading to true when starting fetch
-
-                const { data: assetsData } = await client.models.Asset.listAssetByCustomerSiteId({
-                    customerSiteId: customerSiteId,
-                });
-
-                // Convert schema assets to our Asset type
-                const convertedAssets: Asset[] = (assetsData || []).map(item => ({
-                    id: item.id,
-                    assetName: item.assetName,
-                    assetPlant: item.assetPlant || undefined,
-                    scaleTag: item.scaleTag || undefined,
-                    scaleOEM: item.scaleOEM || undefined,
-                    beltwidth: item.beltwidth || undefined,
-                    troughAngle: item.troughAngle || undefined,
-                    scaleModel: item.scaleModel || undefined,
-                    weighIdlerQTY: item.weighIdlerQTY || undefined,
-                    approachIdlerQTY: item.approachIdlerQTY || undefined,
-                    retreatIdlerQTY: item.retreatIdlerQTY || undefined,
-                    centerRollSize: item.centerRollSize || undefined,
-                    wingRollSize: item.wingRollSize || undefined,
-                    loadcellType: item.loadcellType || undefined,
-                    loadcellQTY: item.loadcellQTY || undefined,
-                    loadcellSize: item.loadcellSize || undefined,
-                    integratorOEM: item.integratorOEM || undefined,
-                    integratorModel: item.integratorModel || undefined,
-                    ssrOEM: item.ssrOEM || undefined,
-                    ssrModel: item.ssrModel || undefined,
-                    scaledatasheetAttach: item.scaledatasheetAttach || undefined,
-                    submittedmaintplanAttach: item.submittedmaintplanAttach || undefined,
-                    notes: item.notes || undefined,
-                    createdAt: item.createdAt,
-                    updatedAt: item.updatedAt,
-                })).sort((a, b) =>
-                    a.assetName.localeCompare(b.assetName),
-                );
-
-                setAssets(convertedAssets);
-            } catch (error) {
-                console.error("Error fetching assets:", error);
-                setAssets([]);
-            } finally {
-                setLoading(false); // Set loading to false when done (success or error)
-            }
-        };
-
-        fetchAssets();
-    }, [customerSiteId, refreshTrigger]);
-
-    useEffect(() => {
-
-        if (permission?.permissions?.includes('crm.assets.edit') || permission?.isAdmin) {
-            setassetPermissions(true);
-        } else {
-            setassetPermissions(false);
-        }
-
-    }, [permission]);
 
 
     useEffect(() => {
@@ -172,12 +127,10 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                 customerSiteId: customerSiteId,
             };
 
-            const result = await client.models.Asset.update(updateData);
-            if (result.data) {
-                setAssets(prev => prev.map(asset =>
-                    asset.id === updatedAsset.id ? updatedAsset : asset
-                ));
-            }
+            // No manual cache update here: the live subscription above
+            // (useLiveQuerySync) reflects this edit within moments, the same
+            // way Fleet/Category edits elsewhere in the app already do.
+            await client.models.Asset.update(updateData);
         } catch (error) {
             console.error("Error updating asset:", error);
         }
@@ -185,15 +138,17 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
 
     const handleAssetDelete = async (assetId: string) => {
         try {
+            // Same as above: the live subscription removes it from the list.
             await client.models.Asset.delete({ id: assetId });
-            setAssets(prev => prev.filter(asset => asset.id !== assetId));
         } catch (error) {
             console.error("Error deleting asset:", error);
         }
     };
 
     const filteredAssets = useMemo(() => {
-        return assets.filter(asset => {
+        return [...assets]
+          .sort((a, b) => a.assetName.localeCompare(b.assetName))
+          .filter(asset => {
             const matchesSearch =
                 asset.assetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 asset.scaleTag?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -201,7 +156,7 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
                 asset.scaleOEM?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 asset.assetPlant?.toLowerCase().includes(searchTerm.toLowerCase());
             return matchesSearch;
-        });
+          });
     }, [assets, searchTerm, statusFilter]);
 
     const totalPages = Math.ceil(filteredAssets.length / itemsPerPage);
@@ -366,7 +321,7 @@ export default function AssetsList({ customerSiteId, refreshTrigger = 0 }: Asset
 
 
 
-    if (loading) {
+    if (assetsLoading) {
         return (
             <div className="flex flex-col min-h-screen bg-background from-slate-50 to-blue-50/30">
                 <Loading />

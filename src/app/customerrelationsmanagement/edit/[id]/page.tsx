@@ -24,16 +24,17 @@ import AssetCreate from "../../Components/asset";
 import AssetsList from "../../Components/assetsList";
 import type { CustomerSiteState } from "@/types/crm.types";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermission } from "@/hooks/usePermission";
 
 
 export default function EditCustomerPage() {
   const navigate = useNavigate();
-  const { user, permission } = useAuth();
+  const { user } = useAuth();
   const params = useParams();
   const customerSiteId = decodeURIComponent(params.id as string);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const [sitePermissions, setsitePermissions] = useState(false);
+  const sitePermissions = usePermission("crm.site.edit");
 
 
   const [loading, setLoading] = useState(true);
@@ -133,15 +134,6 @@ export default function EditCustomerPage() {
 
     fetchCustomerSite();
   }, [customerSiteId]);
-
-  useEffect(() => {
-    if (permission?.permissions?.includes('crm.site.edit') || permission?.isAdmin) {
-      setsitePermissions(true);
-    } else {
-      setsitePermissions(false);
-    }
-
-  }, [permission]);
 
   const handleAssetCreated = () => {
     setRefreshTrigger(prev => prev + 1);

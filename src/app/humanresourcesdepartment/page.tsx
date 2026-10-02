@@ -1,4 +1,4 @@
-import { client } from "@/services/schema";
+import { useListEmployeesQuery, useListEmployeeTasksQuery } from "@/state/api";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/table/datatable";
@@ -38,78 +38,19 @@ import { type Employee } from "@/types/hrd.types";
 export default function HumanResourcesPage() {
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  // Sole consumer of Employee today, migrated for consistency and because
+  // this read had no pagination before. EmployeeTaskTable here is the
+  // dashboard task list/count — NOT the per-employee/per-document existence
+  // checks used elsewhere before writes, which stay as direct Amplify calls.
+  const { data: employees = [], isLoading: loading } = useListEmployeesQuery();
   const [filteredEmployees, setFilteredEmployees] = useState<
     (Employee | any)[]
   >([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
-  const [taskCount, setTaskCount] = useState(0);
-  const [tasks, setTasks] = useState<
-    {
-      employeeId: string;
-      employeeName: string;
-      taskType: string;
-      documentType: string;
-      documentIdentifier: string;
-      clickupTaskId: string | null;
-      readonly id: string;
-      readonly createdAt: string;
-      readonly updatedAt: string;
-    }[]
-  >([]);
-
-  useEffect(() => {
-    const fetchTaskCount = async () => {
-      try {
-        const { data: tasks } = await client.models.EmployeeTaskTable.list();
-        setTasks(tasks);
-        setTaskCount(tasks.length);
-      } catch (error) {
-        console.error("Error fetching task count:", error);
-      }
-    };
-
-    fetchTaskCount();
-    const subscription = client.models.Employee.observeQuery().subscribe({
-      next: ({ items, isSynced }) => {
-        const mappedEmployees: Employee[] = (items || []).map((item) => ({
-          id: item.id,
-          employeeId: item.employeeId,
-          employeeNumber: item.employeeNumber ?? undefined,
-          firstName: item.firstName,
-          surname: item.surname,
-          knownAs: item.knownAs ?? undefined,
-          passportNumber: item.passportNumber ?? undefined,
-          passportExpiry: item.passportExpiry ?? undefined,
-          passportAttachment: item.passportAttachment ?? undefined,
-          driversLicenseCode: item.driversLicenseCode ?? undefined,
-          driversLicenseExpiry: item.driversLicenseExpiry ?? undefined,
-          driversLicenseAttachment: item.driversLicenseAttachment ?? undefined,
-          authorizedDriver: item.authorizedDriver ?? false,
-          pdpExpiry: item.pdpExpiry ?? undefined,
-          pdpAttachment: item.pdpAttachment ?? undefined,
-          cvAttachment: item.cvAttachment ?? undefined,
-          ppeListAttachment: item.ppeListAttachment ?? undefined,
-          ppeExpiry: item.ppeExpiry ?? undefined,
-        }));
-        setEmployees(mappedEmployees);
-        setFilteredEmployees(mappedEmployees);
-
-        if (isSynced) {
-          setLoading(false);
-        }
-      },
-      error: (error) => {
-        console.error("Error subscribing to employees:", error);
-        setLoading(false);
-      },
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const { data: tasks = [] } = useListEmployeeTasksQuery();
+  const taskCount = tasks.length;
 
   // Filter employees based on search and active tab
   useEffect(() => {
