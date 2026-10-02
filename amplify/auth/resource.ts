@@ -8,8 +8,8 @@ import { inviteUser } from "../function/inviteUser/resource";
 export const auth = defineAuth({
   loginWith: {
     email: {
-      verificationEmailStyle: 'CODE',
-      verificationEmailSubject: 'Omni-Nexos | Verify Your Email',
+      verificationEmailStyle: "CODE",
+      verificationEmailSubject: "Omni-Nexos | Verify Your Email",
       verificationEmailBody: (createCode) => `
         <!DOCTYPE html>
         <html lang="en">
@@ -86,9 +86,16 @@ export const auth = defineAuth({
 
           <div class="container">
 
-            <div class="header">
-              Welcome to Omni-Nexos
-            </div>
+       <div class="header">
+  <img
+    src="https://omninexos.fray.co.za/assets/logo.png"
+    alt="Omni-Nexos"
+    width="48"
+    height="48"
+    style="display:block; margin:0 auto 12px; border:0; height:auto;"
+  />
+  Welcome to Omni-Nexos
+</div>
 
             <div class="content">
               <p>
@@ -124,18 +131,18 @@ export const auth = defineAuth({
         scopes: ["profile", "email"],
         attributeMapping: {
           email: "email",
-          preferredUsername: "name"
+          preferredUsername: "name",
         },
-
       },
       callbackUrls: [
         "http://localhost:5173/landing",
         "https://vite.d2ib10qin54ac6.amplifyapp.com/landing",
         "https://test.d2ib10qin54ac6.amplifyapp.com/landing",
         "https://main.d2ib10qin54ac6.amplifyapp.com/landing",
-        "reactnativeomninexos://","https://omninexos.fray.co.za/landing",
+        "reactnativeomninexos://",
+        "https://omninexos.fray.co.za/landing",
         "https://test.omninexos.fray.co.za/landing",
-        "https://test.d2ib10qin54ac6.amplifyapp.com/landing"
+        "https://test.d2ib10qin54ac6.amplifyapp.com/landing",
       ],
       logoutUrls: [
         "http://localhost:5173/",
@@ -145,14 +152,15 @@ export const auth = defineAuth({
         "reactnativeomninexos://",
         "https://omninexos.fray.co.za/",
         "https://test.omninexos.fray.co.za/",
-        "https://test.d2ib10qin54ac6.amplifyapp.com/"
+        "https://test.d2ib10qin54ac6.amplifyapp.com/",
       ],
     },
-  }, userAttributes: {
+  },
+  userAttributes: {
     preferredUsername: {
       mutable: true,
-      required: true
-    }
+      required: true,
+    },
   },
 
   senders: {
@@ -163,20 +171,13 @@ export const auth = defineAuth({
   },
   triggers: {
     preSignUp: preSignup,
-    postConfirmation: postConfirmation
+    postConfirmation: postConfirmation,
   },
   access: (allow) => [
-    allow.resource(postConfirmation).to(['addUserToGroup']),
+    allow.resource(postConfirmation).to(["addUserToGroup"]),
     allow.resource(listUsers).to(["listUsers"]),
-    allow.resource(manageUser).to([
-      'enableUser',
-      'disableUser',
-      'deleteUser',
-    ]),
-    allow.resource(inviteUser).to([
-      'createUser',
-      'addUserToGroup',
-    ]),
+    allow.resource(manageUser).to(["enableUser", "disableUser", "deleteUser"]),
+    allow.resource(inviteUser).to(["createUser", "addUserToGroup"]),
   ],
-  groups: ['ADMINS', 'USERS']
+  groups: ["ADMINS", "USERS"],
 });

@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 // import { defineBackend } from '@aws-amplify/backend';
 // import { auth } from './auth/resource.js';
 // import { data } from './data/resource.js';
@@ -91,21 +89,19 @@
 // // manageUser and inviteUser need no manual IAM here — their permissions
 // // come declaratively from the `access` array in auth/resource.ts.
 
-
->>>>>>> test
-import { defineBackend } from '@aws-amplify/backend';
-import { auth } from './auth/resource.js';
-import { data } from './data/resource.js';
-import { storage } from './storage/resource.js';
-import { listUsers } from './function/listUsers/resource.js';
-import { verifyFace } from './function/verifyFace/resource.js';
-import { notifyPhotoApproval } from './function/notifyPhotoApproval/resource.js';
-import { manageUser } from './function/manageUser/resource.js';
-import { inviteUser } from './function/inviteUser/resource.js';
+import { defineBackend } from "@aws-amplify/backend";
+import { auth } from "./auth/resource.js";
+import { data } from "./data/resource.js";
+import { storage } from "./storage/resource.js";
+import { listUsers } from "./function/listUsers/resource.js";
+import { verifyFace } from "./function/verifyFace/resource.js";
+import { notifyPhotoApproval } from "./function/notifyPhotoApproval/resource.js";
+import { manageUser } from "./function/manageUser/resource.js";
+import { inviteUser } from "./function/inviteUser/resource.js";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import { Stack } from "aws-cdk-lib";
-import { Function } from 'aws-cdk-lib/aws-lambda';
+import { Function } from "aws-cdk-lib/aws-lambda";
 
 const backend = defineBackend({
   auth,
@@ -118,8 +114,6 @@ const backend = defineBackend({
   inviteUser,
 });
 
-<<<<<<< HEAD
-=======
 const { cfnUserPool } = backend.auth.resources.cfnResources;
 
 cfnUserPool.emailConfiguration = {
@@ -234,9 +228,16 @@ cfnUserPool.adminCreateUserConfig = {
 
         <div class="container">
 
-          <div class="header">
-            Welcome to Omni-Nexos
-          </div>
+       <div class="header">
+  <img
+    src="https://omninexos.fray.co.za/assets/logo.png"
+    alt="Omni-Nexos"
+    width="48"
+    height="48"
+    style="display:block; margin:0 auto 12px; border:0; height:auto;"
+  />
+  Welcome to Omni-Nexos
+</div>
 
           <div class="content">
             <p>
@@ -268,7 +269,6 @@ cfnUserPool.adminCreateUserConfig = {
   },
 };
 
->>>>>>> test
 const listUsersLambda = backend.listUsers.resources.lambda;
 listUsersLambda.role?.attachInlinePolicy(
   new iam.Policy(backend.auth.resources.userPool, "AllowListGroups", {
@@ -281,7 +281,7 @@ listUsersLambda.role?.attachInlinePolicy(
         resources: [backend.auth.resources.userPool.userPoolArn],
       }),
     ],
-  })
+  }),
 );
 
 const verifyFaceLambda = backend.verifyFace.resources.lambda as Function;
@@ -304,7 +304,7 @@ verifyFaceLambda.role?.attachInlinePolicy(
         resources: ["*"],
       }),
     ],
-  })
+  }),
 );
 
 const stack = Stack.of(verifyFaceLambda);
@@ -323,9 +323,3 @@ backend.addOutput({
     verifyFaceApiUrl: api.url,
   },
 });
-
-<<<<<<< HEAD
-// manageUser and inviteUser need no manual IAM here — their permissions
-// come declaratively from the `access` array in auth/resource.ts.
-=======
->>>>>>> test
