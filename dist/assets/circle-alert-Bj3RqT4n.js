@@ -1,5 +1,1 @@
-<<<<<<<< HEAD:dist/assets/circle-alert-BEd9CQdJ.js
-import{f as e}from"./index-di88XcBL.js";const c=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["line",{x1:"12",x2:"12",y1:"8",y2:"12",key:"1pkeuh"}],["line",{x1:"12",x2:"12.01",y1:"16",y2:"16",key:"4dfq90"}]],y=e("circle-alert",c);export{y as C};
-========
 import{g as e}from"./index--JxyF6Cb.js";const c=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["line",{x1:"12",x2:"12",y1:"8",y2:"12",key:"1pkeuh"}],["line",{x1:"12",x2:"12.01",y1:"16",y2:"16",key:"4dfq90"}]],y=e("circle-alert",c);export{y as C};
->>>>>>>> test:dist/assets/circle-alert-Bj3RqT4n.js

@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:dist/assets/x-C4adEEdA.js
-import{f as o}from"./index-di88XcBL.js";const e=[["path",{d:"M18 6 6 18",key:"1bl5f8"}],["path",{d:"m6 6 12 12",key:"d8bk6v"}]],c=o("x",e);export{c as X};
-========
-import{g as o}from"./index--JxyF6Cb.js";const e=[["path",{d:"M18 6 6 18",key:"1bl5f8"}],["path",{d:"m6 6 12 12",key:"d8bk6v"}]],c=o("x",e);export{c as X};
->>>>>>>> test:dist/assets/x-DeSUqEDN.js

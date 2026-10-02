@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:dist/assets/helper-CsqhSX2z.js
-import{g as n}from"./getUrl--kAxbzOI.js";function i(t){return t.trim().split(/\s+/).map(r=>r[0].toUpperCase()).join("")}const o=async t=>{if(!t)return;const r=await n({path:t});window.open(r.url.href,"_blank")};export{i as g,o as v};
-========
-import{g as n}from"./getUrl-CzNsqXxG.js";function i(t){return t.trim().split(/\s+/).map(r=>r[0].toUpperCase()).join("")}const o=async t=>{if(!t)return;const r=await n({path:t});window.open(r.url.href,"_blank")};export{i as g,o as v};
->>>>>>>> test:dist/assets/helper-1j9KiuH4.js
