@@ -90,8 +90,8 @@ export const auth = defineAuth({
   <img
     src="https://omninexos.fray.co.za/assets/logo-2.png"
     alt="Omni-Nexos"
-    width="48"
-    height="48"
+    width="80"
+    height="60"
     style="display:block; margin:0 auto 12px; border:0; height:auto;"
   />
   Welcome to Omni-Nexos
