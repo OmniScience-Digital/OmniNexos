@@ -8,22 +8,9 @@ const schema = a.schema({
   usersList: a
     .query()
     .returns(a.json().array())
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.groups(["ADMINS"])])
     .handler(a.handler.function(listUsers)),
 
-  // Called directly by the admin app right after it approves/denies a
-  // PhotoChangeRequest — sends a push notification to the employee via
-  // Expo's Push API. Server-side, so it reaches the device even if the
-  // app is fully closed.
-  //
-  // Takes the push token(s) directly as an argument rather than a userId:
-  // the admin app already looks up the employee's token via the existing
-  // pushTokensByUser query (normal Data client call) right before calling
-  // this. That keeps this function fully standalone — no DynamoDB or
-  // AppSync access from inside the Lambda at all, which avoids the
-  // circular dependency that comes from a function reading
-  // backend.data.resources... while also being registered as a resolver
-  // in this same schema.
   notifyPhotoRequestStatus: a
     .mutation()
     .arguments({
@@ -31,7 +18,7 @@ const schema = a.schema({
       status: a.string().required(), // "APPROVED" | "DENIED"
     })
     .returns(a.json())
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(notifyPhotoApproval)),
 
   // General account control (offboarding, temporarily blocking a user,
@@ -43,7 +30,7 @@ const schema = a.schema({
       action: a.string().required(), // "ENABLE" | "DISABLE" | "DELETE"
     })
     .returns(a.json())
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.groups(["ADMINS"])])
     .handler(a.handler.function(manageUser)),
 
   // Admin-initiated onboarding for non-company people (contractors,
@@ -61,7 +48,7 @@ const schema = a.schema({
         reason: a.string(),
       }),
     )
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.groups(["ADMINS"])])
     .handler(a.handler.function(inviteUser)),
 
   Landing: a
@@ -69,13 +56,13 @@ const schema = a.schema({
       key: a.string(),
       items: a.string(),
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
   Category: a
     .model({
       categoryName: a.string().required(),
       subcategories: a.hasMany("SubCategory", "categoryId"),
     })
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("categoryName")]),
 
   SubCategory: a
@@ -90,7 +77,7 @@ const schema = a.schema({
         .sortKeys(["subcategoryName"])
         .queryField("listSubCategoriesByCategoryIdAndName"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   Component: a
     .model({
@@ -117,7 +104,7 @@ const schema = a.schema({
         .sortKeys(["componentId"])
         .queryField("listComponentsByPrimarySupplier"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   Fleet: a
     .model({
@@ -145,7 +132,7 @@ const schema = a.schema({
       liscenseDiscExpirey: a.date(),
       inspection: a.hasMany("Inspection", "fleetid"),
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   Inspection: a
     .model({
@@ -186,7 +173,7 @@ const schema = a.schema({
         .sortKeys(["inspectionNo"])
         .queryField("inspectionsByFleetAndNumber"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   TaskTable: a
     .model({
@@ -198,7 +185,7 @@ const schema = a.schema({
       index("vehicleReg").sortKeys(["taskType"]), // Check if task exists for vehicle+type
       index("clickupTaskId"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   EmployeeTaskTable: a
     .model({
@@ -218,7 +205,7 @@ const schema = a.schema({
       index("documentIdentifier"),
       index("clickupTaskId"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   Employee: a
     .model({
@@ -264,7 +251,7 @@ const schema = a.schema({
       index("driversLicenseExpiry").queryField("employeesByLicenseExpiry"),
       index("passportExpiry").queryField("employeesByPassportExpiry"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   EmployeeMedicalCertificate: a
     .model({
@@ -289,7 +276,7 @@ const schema = a.schema({
         .queryField("medicalCertsByEmployee"),
       index("expiryDate").queryField("medicalCertsByExpiry"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   EmployeeTrainingCertificate: a
     .model({
@@ -322,7 +309,7 @@ const schema = a.schema({
       index("expiryDate").queryField("trainingCertsByExpiry"),
       index("certificateType").queryField("trainingCertsByType"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   EmployeeAdditionalCertificate: a
     .model({
@@ -338,13 +325,13 @@ const schema = a.schema({
         .queryField("additionalCertsByEmployee"),
       index("expiryDate").queryField("additionalCertsByExpiry"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   EmployeeAdditionalList: a
     .model({
       certificateName: a.string().required(),
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   History: a
     .model({
@@ -373,7 +360,7 @@ const schema = a.schema({
         .sortKeys(["timestamp"])
         .queryField("getHistoryByUpdatedBy"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   CustomerSite: a
     .model({
@@ -421,7 +408,7 @@ const schema = a.schema({
       index("vendorNumber"),
       index("registrationNo"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   Asset: a
     .model({
@@ -451,7 +438,7 @@ const schema = a.schema({
       customerSite: a.belongsTo("CustomerSite", "customerSiteId"),
     })
     .secondaryIndexes((index) => [index("customerSiteId"), index("scaleTag")])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   Compliance: a
     .model({
@@ -507,7 +494,7 @@ const schema = a.schema({
       index("complianceRating"),
       index("employeeLookup"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   ComplianceAdditionals: a
     .model({
@@ -519,14 +506,14 @@ const schema = a.schema({
       Compliance: a.belongsTo("Compliance", "complianceid"),
     })
     .secondaryIndexes((index) => [index("name"), index("complianceid")])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   Permission: a
     .model({
       userId: a.string().required(),
       permissions: a.string().array(), // ["hrd.edit", "crm.assets.view"]
     })
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("userId")]),
 
   XeroContacts: a
@@ -569,7 +556,7 @@ const schema = a.schema({
       discountNote: a.string(),
       notes: a.string(),
     })
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("xeroContactId")]),
   xeroConfig: a
     .model({
@@ -578,7 +565,7 @@ const schema = a.schema({
       purchasesLastSyncUTC: a.datetime(),
       refreshTokenEncrypted: a.string(),
     })
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("tenantId")]),
 
   Quote: a
@@ -613,7 +600,7 @@ const schema = a.schema({
       clickUpTaskidCrm7: a.string(),
       clickUpTaskidCrm9: a.string(),
     })
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("quoteId"), index("quoteNumber")]),
 
   Invoice: a
@@ -656,7 +643,7 @@ const schema = a.schema({
       clickUpTaskidCrm7: a.string(),
       clickUpTaskidCrm9: a.string(),
     })
-    .authorization((allow) => [allow.publicApiKey()])
+    .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [
       index("invoiceId"),
       index("invoiceNumber"),
@@ -688,7 +675,7 @@ const schema = a.schema({
         .sortKeys(["requestedAt"])
         .queryField("photoRequestsByStatus"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   // ── Push token — stores device push tokens for notifications ─────────────
   PushToken: a
@@ -701,7 +688,7 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index("userId").queryField("pushTokensByUser"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   ClockRecordStatus: a.enum([
     "VERIFIED",
@@ -734,7 +721,7 @@ const schema = a.schema({
         .queryField("clockRecordsByUserAndTime"),
       index("date").sortKeys(["clockInTime"]).queryField("clockRecordsByDate"),
     ])
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -742,9 +729,6 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: "apiKey",
-    apiKeyAuthorizationMode: {
-      expiresInDays: 365,
-    },
+    defaultAuthorizationMode: "userPool",
   },
 });

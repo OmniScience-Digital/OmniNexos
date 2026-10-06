@@ -87,15 +87,15 @@ export const auth = defineAuth({
           <div class="container">
 
        <div class="header">
-  <img
-    src="https://omninexos.fray.co.za/assets/logo-2.png"
-    alt="Omni-Nexos"
-    width="80"
-    height="60"
-    style="display:block; margin:0 auto 12px; border:0; height:auto;"
-  />
-  Welcome to Omni-Nexos
-</div>
+          <img
+            src="https://omninexos.fray.co.za/assets/logo-2.png"
+            alt="Omni-Nexos"
+            width="80"
+            height="60"
+            style="display:block; margin:0 auto 12px; border:0; height:auto;"
+          />
+          Welcome to Omni-Nexos
+        </div>
 
             <div class="content">
               <p>

@@ -7,18 +7,15 @@ export const storage = defineStorage({
     "inspections/*": [
       // Explicitly specify the group
       allow.groups(["USERS"]).to(['read', 'write', 'delete']),
-      allow.groups(["ADMINS"]).to(['read', 'write', 'delete']),
-      allow.guest.to(['read'])
+      allow.groups(["ADMINS"]).to(['read', 'write', 'delete'])
     ],
     "documents/*": [
       allow.groups(["USERS"]).to(['read', 'write', 'delete']),
-      allow.groups(["ADMINS"]).to(['read', 'write', 'delete']),
-      allow.guest.to(['read'])
+      allow.groups(["ADMINS"]).to(['read', 'write', 'delete'])
     ],
     "hr/*": [
       allow.groups(["USERS"]).to(['read', 'write', 'delete']),
-      allow.groups(["ADMINS"]).to(['read', 'write', 'delete']),
-      allow.guest.to(['read'])
+      allow.groups(["ADMINS"]).to(['read', 'write', 'delete'])
     ],
   })
 });
