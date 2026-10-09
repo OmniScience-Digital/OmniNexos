@@ -6,8 +6,9 @@ import { useParams } from "react-router-dom";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, ArrowLeft, FolderOpen } from "lucide-react";
+import { Package, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shell/page-header";
 import type {  SubCategory } from "@/types/ims.types";
 import { useListSubcategoriesByCategoryQuery } from "@/state/api";
 import { useLiveQuerySync } from "@/state/useLiveQuerySync";
@@ -53,15 +54,33 @@ export default function SubcategoriesPage() {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Navbar />
 
-      <div className="flex-1 container mx-auto px-4 py-6 mt-20 pb-20">
-        {/* Header */}
-        <div className="mt-4">
-          <div className="flex items-center gap-3 mb-2">
-            <FolderOpen className="h-5 w-5 text-primary" />
-            <h1 className="text-l font-bold">{categoryName} Dashboard</h1>
-          </div>
-
-        </div>
+      <div className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 mt-25 pb-20">
+        <PageHeader
+          title={selectedSubCategory ? selectedSubCategory.subcategoryName : (categoryName || "Subcategories")}
+          description={
+            selectedSubCategory
+              ? `${componentsLength} ${componentsLength === 1 ? "component" : "components"}`
+              : "Choose a subcategory to see its components."
+          }
+          leading={
+            selectedSubCategory ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBackToSubcategories}
+                aria-label="Back to subcategories"
+                className="h-9 w-9 cursor-pointer"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            ) : undefined
+          }
+          actions={
+            selectedSubCategory && componentsLoading ? (
+              <Badge variant="secondary" className="text-xs">Loading...</Badge>
+            ) : undefined
+          }
+        />
 
         {loading ? (
           <Loading />
@@ -79,32 +98,6 @@ export default function SubcategoriesPage() {
             {/* Components Section */}
             {selectedSubCategory && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleBackToSubcategories}
-                    className="h-9 w-9 p-0 relative hover:scale-105 active:scale-95 transition-transform duration-150">
-                    <ArrowLeft className="h-5 w-5" />
-                  </Button>
-                  <Package className="h-5 w-5 text-primary" />
-                  <div>
-                    <h2 className="text-xl font-semibold">
-                      {selectedSubCategory.subcategoryName}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {componentsLength} {componentsLength === 1 ? "component" : "components"}
-                    </p>
-
-                  </div>
-                  {componentsLoading && (
-                    <Badge variant="secondary" className="text-xs">
-                      Loading...
-                    </Badge>
-                  )}
-     
-                </div>
                    <ComponentsList
                    setComponentIconLoading={setComponentIconLoading}
                    setComponentsLength={setComponentsLength}

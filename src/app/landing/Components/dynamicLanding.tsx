@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { client } from "@/services/schema";
 import { useNavigate } from "react-router-dom";
-import { Plus, LayoutDashboard, Search, MoreVertical } from "lucide-react";
+import { Plus, LayoutDashboard, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/shell/page-header";
+import { Toolbar, SearchField } from "@/components/shell/toolbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DialogDashboard } from "./dialog";
@@ -17,15 +18,6 @@ import React from "react";
 
 export default function Home() {
     const navigate = useNavigate();
-    // Sole consumer today, migrated for consistency and because this read
-    // had no pagination before. Note: this endpoint intentionally does NOT
-    // gate on isSynced in the live-sync bridge (src/state/sync.ts), matching
-    // this page's original behaviour of showing data before the full sync
-    // completes.
-    // Sole consumer today, migrated for consistency and because this read
-    // had no pagination before. `loading` below is ALSO used as the
-    // add/delete busy flag (unrelated to this fetch), so it stays its own
-    // state rather than aliasing the query's isLoading directly.
     const { data: dashboards = [], isLoading: dashboardsLoading } = useListDashboardsQuery();
     const [open, setOpen] = useState(false);
     const [opendelete, setOpendelete] = useState(false);
@@ -121,32 +113,19 @@ export default function Home() {
             {loading || dashboardsLoading ? (
                 <Loading />
             ) : (
-                <div className="max-w-4xl mx-auto">
-                    {/* Header */}
-                    <div className="mb-4 sm:mb-6 text-center sm:text-left">
-                        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                            Dashboards
-                        </h1>
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                            Manage your data visualization workspaces
-                        </p>
-                    </div>
-
-                    {/* Search */}
-                    <div className="mb-3 sm:mb-4">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search dashboards..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 sm:pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
-                            />
-                        </div>
-                    </div>
+                <div className="mx-auto w-full max-w-6xl px-1 sm:px-4">
+                    <PageHeader title="Dashboards" description="Manage your data visualization workspaces." />
+                    <Toolbar>
+                        <SearchField
+                            aria-label="Search dashboards"
+                            placeholder="Search dashboards..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </Toolbar>
 
                     {/* Dashboards List */}
-                    <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <Card className="bg-card border border-border shadow-none">
                         <CardContent className="p-1 sm:p-2">
                             <div className="space-y-1">
 
@@ -245,12 +224,12 @@ export default function Home() {
 
                     </Card>
 
-                    <Button
+                    {/* <Button
                         className="fixed bottom-5 right-3 sm:bottom-4 sm:right-4 rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 bg-blue-600 hover:bg-blue-700 border-0 cursor-pointer"
                         onClick={() => setOpen(true)}
                     >
                         <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    </Button> 
+                    </Button>  */}
 
                     <DialogDashboard
                         open={open}

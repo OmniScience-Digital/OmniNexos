@@ -1,15 +1,18 @@
 import { client } from "@/services/schema";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DataTable } from "@/components/table/datatable";
-import { EditIcon, ArrowUpDown, X, Car, Search, Plus, Save, Trash2, MoreVertical, Loader2 } from "lucide-react";
+import { DataGrid } from "@/components/shell/data-grid";
+import { PageHeader } from "@/components/shell/page-header";
+import { Toolbar, SearchField } from "@/components/shell/toolbar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { EditIcon, ArrowUpDown, X, Car, Plus, Save, Trash2, MoreVertical, Loader2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
 import Loading from "@/components/widgets/loading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/widgets/deletedialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,6 +25,8 @@ import { useListFleetsQuery } from "@/state/api";
 import ResponseModal from "@/components/widgets/response";
 
 
+const EMPTY_FLEETS: Fleet[] = [];
+
 export default function FleetPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -29,9 +34,10 @@ export default function FleetPage() {
     // Shared with vehicleinspectionform/page.tsx via one cache entry and one
     // live subscription (src/state/sync.ts), instead of each page running its
     // own observeQuery on the whole Fleet table.
-    const { data: fleets = [], isLoading: loading } = useListFleetsQuery();
+    const { data, isLoading: loading } = useListFleetsQuery();
+    const fleets = data ?? EMPTY_FLEETS;
+
     const [saving, setSaving] = useState(false);
-    const [filteredFleets, setFilteredFleets] = useState<Fleet[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [searchType, setSearchType] = useState<"reg" | "driver">("reg");
     const [editingFleet, setEditingFleet] = useState<Fleet | null>(null);
@@ -45,81 +51,80 @@ export default function FleetPage() {
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
 
-
-
-    // Filter fleets based on search
-    useEffect(() => {
-        if (!searchTerm) {
-            setFilteredFleets(fleets);
-            return;
-        }
-
-        const filtered = fleets.filter(fleet => {
-            if (searchType === "reg") {
-                return fleet.vehicleReg?.toLowerCase().includes(searchTerm.toLowerCase());
-            } else {
-                return fleet.currentDriver?.toLowerCase().includes(searchTerm.toLowerCase());
-            }
-        });
-
-        setFilteredFleets(filtered);
-    }, [searchTerm, searchType, fleets]);
+    // Derived, not stored in state — recomputes during render.
+    const filteredFleets = useMemo(() => {
+        if (!searchTerm) return fleets;
+        const term = searchTerm.toLowerCase();
+        return fleets.filter((fleet) =>
+            searchType === "reg"
+                ? fleet.vehicleReg?.toLowerCase().includes(term)
+                : fleet.currentDriver?.toLowerCase().includes(term)
+        );
+    }, [fleets, searchTerm, searchType]);
 
     // Mobile-friendly columns
-    const columns: ColumnDef<object, any>[] = [
+    const columns: ColumnDef<any, any>[] = [
         {
             accessorKey: "fleetNumber",
             header: ({ column }: { column: any }) => (
-                <Button
-                    variant="ghost"
+                <button
+                    type="button"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-                    className="p-0 h-auto font-medium"
+                    className="inline-flex cursor-pointer items-center gap-1 uppercase tracking-wide"
                 >
                     Fleet No
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                </Button>
+                    <ArrowUpDown className="h-3 w-3" />
+                </button>
             ),
             cell: ({ row }: { row: any }) => (
-                <div className="font-medium text-sm">
-                    {row.original.fleetNumber}
-                </div>
+                <span className="font-medium">{row.original.fleetNumber}</span>
             ),
         },
         {
             accessorKey: "vehicleReg",
-            header: "Reg",
-            cell: ({ row }: { row: any }) => (
-                <div className="text-sm">{row.original.vehicleReg}</div>
-            ),
+            header: "Registration",
+            cell: ({ row }: { row: any }) => <span>{row.original.vehicleReg}</span>,
         },
         {
-            accessorKey: "vehicleMake",
-            header: "Make",
+            id: "vehicle",
+            accessorFn: (r: any) => `${r.vehicleMake} ${r.vehicleModel}`,
+            header: "Vehicle",
             cell: ({ row }: { row: any }) => (
-                <div className="text-sm hidden sm:block">{row.original.vehicleMake}</div>
-            ),
-        },
-        {
-            accessorKey: "vehicleModel",
-            header: "Model",
-            cell: ({ row }: { row: any }) => (
-                <div className="text-sm hidden md:block">{row.original.vehicleModel}</div>
+                <div className="leading-tight">
+                    <div className="font-medium">{row.original.vehicleMake}</div>
+                    <div className="text-xs text-muted-foreground">{row.original.vehicleModel}</div>
+                </div>
             ),
         },
         {
             accessorKey: "currentDriver",
             header: "Driver",
-            cell: ({ row }: { row: any }) => (
-                <div className="text-sm hidden lg:block">{row.original.currentDriver}</div>
-            ),
+            cell: ({ row }: { row: any }) => {
+                const name: string = row.original.currentDriver || "";
+                const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+                return name ? (
+                    <div className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium">
+                            {initials}
+                        </span>
+                        <span>{name}</span>
+                    </div>
+                ) : (
+                    <span className="text-muted-foreground">—</span>
+                );
+            },
         },
         {
             accessorKey: "servicePlanStatus",
             header: "Service",
             cell: ({ row }: { row: any }) => (
                 <Badge
-                    variant={row.original.servicePlanStatus ? "default" : "destructive"}
-                    className="text-xs"
+                    variant="outline"
+                    className={
+                        row.original.servicePlanStatus
+                            ? "border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+                            : "border-transparent bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                    }
                 >
                     {row.original.servicePlanStatus ? "Active" : "Inactive"}
                 </Badge>
@@ -127,27 +132,21 @@ export default function FleetPage() {
         },
         {
             id: "actions",
-            header: "Actions",
+            header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }: { row: any }) => (
-                <div className="flex justify-start cursor-pointer">
+                <div className="flex justify-end">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button variant="ghost" className="h-8 w-8 cursor-pointer p-0" aria-label="Row actions">
                                 <MoreVertical className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                                onClick={() => handleEdit(row.original)}
-                                className="cursor-pointer"
-                            >
+                            <DropdownMenuItem onClick={() => handleEdit(row.original)} className="cursor-pointer">
                                 <EditIcon className="h-4 w-4 mr-2" />
                                 Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => redirectToInspections(row.original.id)}
-                                className="cursor-pointer"
-                            >
+                            <DropdownMenuItem onClick={() => redirectToInspections(row.original.id)} className="cursor-pointer">
                                 <Car className="h-4 w-4 mr-2" />
                                 Inspections
                             </DropdownMenuItem>
@@ -158,7 +157,7 @@ export default function FleetPage() {
         },
     ];
 
-    const data = Array.isArray(filteredFleets)
+    const rows = Array.isArray(filteredFleets)
         ? filteredFleets.map((fleet) => {
             return {
                 id: fleet.id || "",
@@ -363,60 +362,49 @@ export default function FleetPage() {
             ) : (
                 <main className="flex-1 px-2 sm:px-4 mt-25 pb-20">
                     <div className="container mx-auto max-w-7xl mt-5">
-                        {/* Search Card */}
-                        <Card className="mb-4">
-                            <CardHeader className="pb-3">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Car className="h-4 w-4" />
-                                        Fleet
-                                        <Badge variant="secondary" className="text-xs">{filteredFleets.length}</Badge>
-                                    </CardTitle>
-                                    <Button onClick={handleCreateNew} className="h-9 cursor-pointer bg-green-600 hover:bg-green-700 text-xs">
-                                        <Plus className="h-4 w-4 mr-1" />
-                                        Add Vehicle
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="pt-0 space-y-3">
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant={searchType === "reg" ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setSearchType("reg")}
-                                        className="h-8 text-xs cursor-pointer flex-1"
+                        <PageHeader
+                            title="Fleet Management"
+                            description={
+                                searchTerm
+                                    ? `${filteredFleets.length} of ${fleets.length} vehicles`
+                                    : "Manage your vehicles and assigned drivers."
+                            }
+                            actions={
+                                <Button onClick={handleCreateNew} className="cursor-pointer bg-green-600 hover:bg-green-700">
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Add Vehicle
+                                </Button>
+                            }
+                        />
+
+                        <Toolbar>
+                            <SearchField
+                                aria-label="Search vehicles"
+                                placeholder={searchType === "reg" ? "Search by registration..." : "Search by driver..."}
+                                value={searchTerm}
+                                onChange={handleSearch}
+                            />
+                            <div role="group" aria-label="Search by" className="flex overflow-hidden rounded-lg border border-border">
+                                {(["reg", "driver"] as const).map((t) => (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        aria-pressed={searchType === t}
+                                        onClick={() => setSearchType(t)}
+                                        className={`cursor-pointer px-3 py-2 text-sm transition-colors ${
+                                            searchType === t ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                                        }`}
                                     >
-                                        Registration
-                                    </Button>
-                                    <Button
-                                        variant={searchType === "driver" ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setSearchType("driver")}
-                                        className="h-8 text-xs cursor-pointer flex-1"
-                                    >
-                                        Driver
-                                    </Button>
-                                </div>
-                                <div className="relative">
-                                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder={searchType === "reg" ? "Search registration..." : "Search driver..."}
-                                        value={searchTerm}
-                                        onChange={handleSearch}
-                                        className="pl-8 h-9 text-sm"
-                                    />
-                                </div>
-                                {searchTerm && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {filteredFleets.length} of {fleets.length} vehicles
-                                    </p>
-                                )}
-                            </CardContent>
-                        </Card>
+                                        {t === "reg" ? "Registration" : "Driver"}
+                                    </button>
+                                ))}
+                            </div>
+                        </Toolbar>
 
                         {/* Edit/Create Form */}
                         {editingFleet && (
-                            <Card className="mb-4 sm:mb-6">
+                            <Sheet open onOpenChange={(open) => { if (!open) handleCancel(); }}>
+                              <SheetContent className="sm:max-w-2xl">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                         <span className="text-base sm:text-lg">
@@ -464,7 +452,7 @@ export default function FleetPage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="pt-0">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                         {/* Basic Information */}
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Fleet Index</label>
@@ -675,19 +663,18 @@ export default function FleetPage() {
                                     </div>
 
                                 </CardContent>
-                            </Card>
+                              </SheetContent>
+                            </Sheet>
                         )}
 
-                        <div className="bg-white rounded-lg border">
-                            <DataTable
-                                title={"Fleet Vehicles"}
-                                data={data}
-                                columns={columns}
-                                pageSize={10}
-                                storageKey="fleetTablePagination"
-                                searchColumn="vehicleReg"
-                            />
-                        </div>
+                        <DataGrid
+                            data={rows}
+                            columns={columns}
+                            pageSize={10}
+                            storageKey="fleetTablePagination"
+                            noun="vehicles"
+                            emptyMessage="No vehicles found."
+                        />
                     </div>
 
                     <ConfirmDialog

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/shell/page-header";
+import { Toolbar, SearchField } from "@/components/shell/toolbar";
 import Loading from "@/components/widgets/loading";
 import { client } from "@/services/schema";
 import type { Dashboard } from "@/types/dashboard.types";
 import { Badge } from "@/components/ui/badge";
-import { FolderOpen, LayoutDashboard, MoreVertical, Search } from "lucide-react";
+import { LayoutDashboard, MoreVertical } from "lucide-react";
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -121,29 +122,19 @@ export default function FormsLanding() {
                 <Loading />
             ) : (
                 <main className="flex-1 p-1 mt-25 pb-20">
-                    <div className="max-w-4xl mx-auto">
-                        <div className="mt-4">
-                            <div className="flex items-center gap-3 mb-2">
-                                <FolderOpen className="h-5 w-5 text-primary" />
-                                <h1 className="text-l font-bold">Forms Dashboard</h1>
-                            </div>
-                        </div>
-
-                        {/* Search */}
-                        <div className="mb-3 sm:mb-4">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search forms..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-9 sm:pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
-                                />
-                            </div>
-                        </div>
+                    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4">
+                        <PageHeader title="Forms" description="Capture stock movements and vehicle inspections." />
+                        <Toolbar>
+                            <SearchField
+                                aria-label="Search forms"
+                                placeholder="Search forms..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </Toolbar>
 
                         {/* Forms List */}
-                        <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <Card className="bg-card border border-border shadow-none">
                             <CardContent className="p-1 sm:p-2">
                                 <div className="space-y-1">
                                     {filteredDashboards.map((dashboard, index) => (

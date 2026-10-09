@@ -1,9 +1,7 @@
 // components/subcategories-list.tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { Toolbar, SearchField, TableSurface, TableFooter } from "@/components/shell/toolbar";
 import { useState, useMemo } from "react";
 import type { SubCategory } from "@/types/ims.types";
 
@@ -41,91 +39,77 @@ export function SubCategoriesList({
   };
 
   if (subcategories.length === 0) {
-    return (
-      <Card className="h-48">
-        <CardContent className="p-6 h-full flex items-center justify-center">
-          <p className="text-muted-foreground text-center">No subcategories found</p>
-        </CardContent>
-      </Card>
-    );
+    // The page shows the empty state for this case.
+    return null;
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            Subcategories
-            <Badge variant="secondary" className="text-xs">
-              {filteredSubcategories.length}
-            </Badge>
-          </CardTitle>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search subcategories..."
-              value={searchTerm}
-              onChange={handleSearch}
-              className="pl-8 h-9 text-sm"
-            />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {/* Subcategories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-4">
-          {paginatedSubcategories.map((subcategory) => (
-            <div
-              key={subcategory.id}
-              className={`p-3 rounded-lg border cursor-pointer transition-all text-sm ${
-                selectedSubCategory?.id === subcategory.id
-                  ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                  : "border-border hover:border-primary/50 hover:bg-accent/50"
-              }`}
-              onClick={() => onSubCategorySelect(subcategory)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium truncate">{subcategory.subcategoryName}</h3>
-                  <p className="text-xs text-muted-foreground truncate mt-1">
-                    ID: {subcategory.id.slice(0, 8)}...
-                  </p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" />
-              </div>
-            </div>
-          ))}
-        </div>
+    <div>
+      <Toolbar>
+        <SearchField
+          aria-label="Search subcategories"
+          placeholder="Search subcategories..."
+          value={searchTerm}
+          onChange={handleSearch}
+        />
+      </Toolbar>
 
-        {/* Pagination */}
+      <TableSurface>
+        <ul className="divide-y divide-border">
+          {paginatedSubcategories.map((subcategory) => (
+            <li key={subcategory.id}>
+              <button
+                type="button"
+                onClick={() => onSubCategorySelect(subcategory)}
+                className={`flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 ${
+                  selectedSubCategory?.id === subcategory.id ? "bg-accent" : ""
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{subcategory.subcategoryName}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    ID: {subcategory.id.slice(0, 8)}...
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            </li>
+          ))}
+          {paginatedSubcategories.length === 0 && (
+            <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+              No subcategories match your search.
+            </li>
+          )}
+        </ul>
+      </TableSurface>
+
+      <TableFooter
+        summary={`Showing ${paginatedSubcategories.length} of ${filteredSubcategories.length} subcategories`}
+      >
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t pt-3">
-            <p className="text-xs text-muted-foreground">
-              Showing {paginatedSubcategories.length} of {filteredSubcategories.length}
-            </p>
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="h-7 text-xs"
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="h-7 text-xs"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-xs">Page {currentPage} of {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </>
         )}
-      </CardContent>
-    </Card>
+      </TableFooter>
+    </div>
   );
 }

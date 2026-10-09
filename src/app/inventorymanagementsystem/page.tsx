@@ -527,8 +527,10 @@ import autoTable from 'jspdf-autotable';
 import { useEffect, useState, useRef } from "react";
 import { useListCategoriesQuery } from "@/state/api";
 import { useNavigate } from "react-router-dom";
-import { DataTable } from "@/components/table/datatable";
-import { EditIcon, ArrowUpDown, FileArchive, Download, X } from "lucide-react";
+import { DataGrid } from "@/components/shell/data-grid";
+import { PageHeader } from "@/components/shell/page-header";
+import { Toolbar, SearchField } from "@/components/shell/toolbar";
+import { EditIcon, ArrowUpDown, FileArchive, Download, X, ChevronRight } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
@@ -709,6 +711,7 @@ export default function IMS() {
     // observeQuery on the whole Category table.
     const { data: categories = [], isLoading: loading } = useListCategoriesQuery();
     const [prop_loading, propsetLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
     const [printMenu, setPrintMenu] = useState<{
         isOpen: boolean;
         categoryId: string | null;
@@ -721,41 +724,52 @@ export default function IMS() {
 
 
     //table data
-    const columns: ColumnDef<object, any>[] = [
+    const columns: ColumnDef<any, any>[] = [
         {
             accessorKey: "catname",
             header: ({ column }: { column: any }) => (
-                <Button
-                    variant="ghost"
+                <button
+                    type="button"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="inline-flex cursor-pointer items-center gap-1 uppercase tracking-wide"
                 >
                     Category
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
+                    <ArrowUpDown className="h-3 w-3" />
+                </button>
             ),
-        },
-        {
-            accessorKey: "edit",
-            header: "Edit",
             cell: ({ row }: { row: any }) => (
-                <Button
-                    className="ml-auto cursor-pointer"
+                <button
+                    type="button"
                     onClick={() => redirectToDashboard(row.original.catname, row.original.id)}
+                    className="cursor-pointer text-left font-medium hover:underline"
                 >
-                    <EditIcon />
-                </Button>
+                    {row.original.catname}
+                </button>
             ),
         },
         {
-            accessorKey: "print",
-            header: "Print",
+            id: "actions",
+            header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }: { row: any }) => (
-                <div className="relative">
+                <div className="flex justify-end gap-1">
                     <Button
-                        className="bg-gray-500 ml-auto cursor-pointer"
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer"
+                        aria-label={`Open ${row.original.catname}`}
+                        onClick={() => redirectToDashboard(row.original.catname, row.original.id)}
+                    >
+                        Open
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 cursor-pointer"
+                        aria-label={`Print ${row.original.catname}`}
                         onClick={(e) => handlePrintClick(e, row.original.id)}
                     >
-                        <FileArchive />
+                        <FileArchive className="h-4 w-4" />
                     </Button>
                 </div>
             ),
@@ -763,7 +777,9 @@ export default function IMS() {
     ];
 
     const data = Array.isArray(categories)
-        ? categories.map((cat) => {
+        ? categories
+            .filter((cat) => (cat.categoryName || "").toLowerCase().includes(searchTerm.trim().toLowerCase()))
+            .map((cat) => {
             return {
                 id: cat.id || "",
                 catname: cat.categoryName || "",
@@ -885,13 +901,25 @@ export default function IMS() {
             ) : (
 
                 <main className="flex-1 p-1 mt-25 pb-20">
-                    <DataTable
-                        title={"Category Selection"}
-                        data={data}
-                        columns={columns}
-                        pageSize={10}
-                        storageKey="categoriesTablePagination"
-                    />
+                    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4">
+                        <PageHeader title="Categories" description="Choose a category to manage its stock." />
+                        <Toolbar>
+                            <SearchField
+                                aria-label="Search categories"
+                                placeholder="Search categories..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </Toolbar>
+                        <DataGrid
+                            data={data}
+                            columns={columns}
+                            pageSize={10}
+                            storageKey="categoriesTablePagination"
+                            noun="categories"
+                            emptyMessage="No categories found."
+                        />
+                    </div>
                     {prop_loading && <PropLoading name="Downloading file" />}
 
                     {/* Print Menu */}
@@ -978,19 +1006,19 @@ const PrintMenu: React.FC<PrintMenuProps> = ({
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-2 w-48"
+            className="fixed z-50 bg-popover text-popover-foreground border border-border rounded-lg shadow-lg py-2 w-48"
             style={{
                 top: position.top,
                 left: position.left,
             }}
         >
-            <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100">
-                <span className="text-sm font-medium text-gray-700">Download As</span>
+            <div className="flex justify-between items-center px-4 py-2 border-b border-border">
+                <span className="text-sm font-medium text-foreground">Download As</span>
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={onClose}
-                    className="h-6 w-6 p-0 hover:bg-gray-100 cursor-pointer"
+                    className="h-6 w-6 p-0 hover:bg-accent cursor-pointer"
                 >
                     <X className="h-4 w-4" />
                 </Button>
@@ -1001,7 +1029,7 @@ const PrintMenu: React.FC<PrintMenuProps> = ({
                     onDownloadCSV();
                     onClose();
                 }}
-                className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                className="w-full flex items-center px-4 py-3 text-sm text-foreground hover:bg-accent transition-colors cursor-pointer"
             >
                 <Download className="h-4 w-4 mr-3 text-green-600" />
                 <span>Download CSV</span>
@@ -1012,7 +1040,7 @@ const PrintMenu: React.FC<PrintMenuProps> = ({
                     onDownloadPDF();
                     onClose();
                 }}
-                className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                className="w-full flex items-center px-4 py-3 text-sm text-foreground hover:bg-accent transition-colors cursor-pointer"
             >
                 <FileArchive className="h-4 w-4 mr-3 text-red-600" />
                 <span>Download PDF</span>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/shell/page-header";
 import { Loader2, Plus, Minus } from "lucide-react";
 import ComponentItem from "./Components/form";
 import Navbar from "@/components/layout/navbar";
@@ -200,15 +201,11 @@ export default function ComponentForm() {
       {categoriesLoading ? (
         <Loading />
       ) : (
-        <main className="flex-1 p-6 mt-25 pb-20">
-          <div className="max-w-4xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl font-bold">
-                  Stock Control Form
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+        <main className="flex-1 py-4 mt-25 pb-20">
+          <div className="mx-auto w-full max-w-4xl px-4 sm:px-6">
+            <PageHeader title="Stock Control" description="Record stock coming in or going out." />
+            <Card className="shadow-none">
+              <CardContent className="pt-6">
                 <div className="overflow-x-auto">
                   <form onSubmit={handleSubmit} className="space-y-6 min-w-[600px]">
                     {/* Transaction Type */}

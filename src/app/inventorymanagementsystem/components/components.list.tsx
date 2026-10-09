@@ -1,5 +1,8 @@
 // components/components-list.tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Toolbar, SearchField, TableSurface, TableFooter } from "@/components/shell/toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import ResponseModal from "@/components/widgets/response";
 import {
   Edit2,
+  MoreVertical,
   Save,
   X,
-  Search,
-  Package,
-  Warehouse,
   Trash2,
   Loader2,
 } from "lucide-react";
@@ -615,72 +616,155 @@ const handleSave = async () => {
   };
 
   return (
-    <Card className={componentsLoading ? "p-6 min-h-100" : ""}>
-      <CardHeader className="pb-3">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Components
-            <Badge variant="secondary" className="text-xs">
-              {filteredComponents.length}
-            </Badge>
-          </CardTitle>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search components (3+ letters)"
-                value={searchTerm}
-                onChange={handleSearch}
-                className="pl-8 h-9 text-sm"
-              />
-            </div>
-
-            <div className="flex gap-1">
-              <Button
-                variant={stockFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStockFilter("all")}
-                className="h-9 text-xs  cursor-pointer"
-              >
-                All
-              </Button>
-              <Button
-                variant={stockFilter === "in-stock" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStockFilter("in-stock")}
-                className="h-9 text-xs  cursor-pointer"
-              >
-                In Stock
-              </Button>
-              <Button
-                variant={stockFilter === "out-of-stock" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStockFilter("out-of-stock")}
-                className="h-9 text-xs  cursor-pointer"
-              >
-                Out of Stock
-              </Button>
-            </div>
-          </div>
+    <div>
+      <Toolbar>
+        <SearchField
+          aria-label="Search components"
+          placeholder="Search components (3+ letters)"
+          value={searchTerm}
+          onChange={handleSearch}
+        />
+        <div role="group" aria-label="Stock filter" className="flex gap-1">
+          {([
+            ["all", "All"],
+            ["in-stock", "In Stock"],
+            ["out-of-stock", "Out of Stock"],
+          ] as const).map(([key, label]) => (
+            <Button
+              key={key}
+              variant={stockFilter === key ? "default" : "outline"}
+              onClick={() => setStockFilter(key)}
+              className="cursor-pointer"
+            >
+              {label}
+            </Button>
+          ))}
         </div>
-      </CardHeader>
+      </Toolbar>
 
-      <CardContent className={componentsLoading ? "p-6 min-h-[500]" : "pt-0"}>
-        {componentsLoading ? (
-          <Loading />
-        ) : (
-          <>
-            {/* Components Table */}
-            <div className="space-y-2">
-              {paginatedComponents.map((component) => (
-                <div
-                  key={component.id}
-                  className="border rounded-lg p-4 text-sm"
-                >
-                  {editingComponent?.id === component.id ? (
-                    // Edit Mode - Enhanced Form with Textareas
+      {componentsLoading ? (
+        <Loading />
+      ) : (
+        <>
+          <TableSurface>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  {["Component", "Primary Supplier", "Secondary Supplier", "Min Stock", "Current", "Status"].map((h) => (
+                    <TableHead key={h} className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {h}
+                    </TableHead>
+                  ))}
+                  <TableHead className="w-12 px-4 py-3">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedComponents.map((component) => {
+                  const out = !(component.currentStock > 0);
+                  const low = !out && component.currentStock <= component.minimumStock;
+                  return (
+                    <TableRow key={component.id} className="hover:bg-muted/40">
+                      <TableCell className="px-4 py-3">
+                        <div className="max-w-xs leading-tight">
+                          <div className="truncate font-medium">
+                            {component.componentName || component.componentId}
+                          </div>
+                          {component.componentName && (
+                            <div className="truncate text-xs text-muted-foreground">{component.componentId}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="leading-tight">
+                          <div>{component.primarySupplier || "N/A"}</div>
+                          {component.primarySupplierItemCode && (
+                            <div className="text-xs text-muted-foreground">{component.primarySupplierItemCode}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="leading-tight">
+                          <div>{component.secondarySupplier || "N/A"}</div>
+                          {component.secondarySupplierItemCode && (
+                            <div className="text-xs text-muted-foreground">{component.secondarySupplierItemCode}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">{component.minimumStock}</TableCell>
+                      <TableCell className="px-4 py-3 font-medium">{component.currentStock}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Badge
+                          variant="outline"
+                          className={
+                            out
+                              ? "border-transparent bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                              : low
+                                ? "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                : "border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+                          }
+                        >
+                          {out ? "Out of stock" : low ? "Low" : "In stock"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 cursor-pointer p-0" aria-label="Row actions">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(component)} className="cursor-pointer">
+                              <Edit2 className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleDeleteClick(component.id, component.componentName || component.componentId)
+                              }
+                              className="cursor-pointer text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {paginatedComponents.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      No components found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableSurface>
+
+          <TableFooter
+            summary={`Showing ${!searchTerm ? currentPage * 10 : filteredComponents.length} of ${filteredComponents.length} components`}
+          >
+            <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={currentPage === 1} className="cursor-pointer">
+              Previous
+            </Button>
+            <span className="text-xs">Page {currentPage} of {totalPages}</span>
+            <Button variant="outline" size="sm" onClick={getMoreData} disabled={!showmoreButton} className="cursor-pointer">
+              {nextfetching ? "Loading..." : "Next"}
+            </Button>
+          </TableFooter>
+        </>
+      )}
+
+      <Sheet open={!!editingComponent} onOpenChange={(open) => { if (!open) handleCancel(); }}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="sr-only">Edit component</SheetTitle>
+          </SheetHeader>
                     <div className="space-y-4">
                       <div className="flex justify-between items-start">
                         <h4 className="font-semibold text-base">
@@ -711,7 +795,7 @@ const handleSave = async () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="text-sm font-medium">
                             Component ID *
@@ -867,181 +951,8 @@ const handleSave = async () => {
                         />
                       </div>
                     </div>
-                  ) : (
-                    // View Mode - Enhanced Display
-                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                      <div className="flex-1 min-w-0 space-y-3">
-                        {/* Header with component info */}
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-semibold text-base truncate">
-                                {component.componentName || "Unnamed Component"}
-                              </h4>
-                              <Badge variant="outline" className="text-xs">
-                                {component.componentId}
-                              </Badge>
-                            </div>
-                            {component.description && (
-                              <div className="mb-2">
-                                <p className="text-sm text-muted-foreground mb-1 font-medium">
-                                  Description:
-                                </p>
-                                <p className="text-sm bg-muted/50 p-2 rounded-md whitespace-nowrap overflow-hidden text-ellipsis">
-                                  {component.description}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Supplier Information */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <div className="space-y-2">
-                            <div>
-                              <span className="text-muted-foreground text-sm">
-                                Primary Supplier:{" "}
-                              </span>
-                              <span className="font-medium">
-                                {component.primarySupplier || "N/A"}
-                              </span>
-                              {component.primarySupplierItemCode && (
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({component.primarySupplierItemCode})
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground text-sm">
-                                Secondary Supplier:{" "}
-                              </span>
-                              <span className="font-medium">
-                                {component.secondarySupplier || "N/A"}
-                              </span>
-                              {component.secondarySupplierItemCode && (
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({component.secondarySupplierItemCode})
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Stock Information */}
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <Warehouse className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-muted-foreground text-sm">
-                                  Min Stock:{" "}
-                                </span>
-                                <span
-                                  className={
-                                    component.minimumStock > 0
-                                      ? "text-green-600 font-medium"
-                                      : "text-red-600"
-                                  }
-                                >
-                                  {component.minimumStock}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground text-sm">
-                                  Current:{" "}
-                                </span>
-                                <span
-                                  className={
-                                    component.currentStock > 0
-                                      ? "text-green-600 font-medium"
-                                      : "text-red-600"
-                                  }
-                                >
-                                  {component.currentStock}
-                                </span>
-                              </div>
-                            </div>
-                            {component.notes && (
-                              <div>
-                                <p className="text-muted-foreground text-sm mb-1">
-                                  Notes:
-                                </p>
-                                <p className="text-sm bg-muted/50 p-2 rounded-md whitespace-nowrap overflow-hidden text-ellipsis">
-                                  {component.notes}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 lg:flex-col lg:self-start">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(component)}
-                          className="h-8 text-xs flex-1 lg:flex-none  cursor-pointer"
-                        >
-                          <Edit2 className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() =>
-                            handleDeleteClick(
-                              component.id,
-                              component.componentName || component.componentId,
-                            )
-                          }
-                          className="h-8 text-xs flex-1 lg:flex-none cursor-pointer"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1 cursor-pointer" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            {/* Pagination */}
-            <div className="flex items-center justify-between border-t pt-4 mt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing{" "}
-                {!searchTerm ? currentPage * 10 : filteredComponents.length} of{" "}
-                {filteredComponents.length} components
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToPreviousPage}
-                  disabled={currentPage === 1}
-                  className="h-8 text-sm cursor-pointer"
-                >
-                  Previous
-                </Button>
-
-                {/* Add this line to see what page you're on */}
-                <span className="text-sm font-medium mx-2">
-                  Page {currentPage} of {totalPages}
-                </span>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={getMoreData}
-                  disabled={!showmoreButton}
-                  className="h-8 text-sm cursor-pointer"
-                >
-                  {nextfetching ? "Loading..." : "Next"}
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </CardContent>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDialog
         open={opendelete}
@@ -1056,6 +967,6 @@ const handleSave = async () => {
           setShow={setShow}
         />
       )}
-    </Card>
+    </div>
   );
 }

@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { allPermissions, type Access, type Permission, type User } from '@/types/user.permissions'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Loading from '@/components/widgets/loading'
+import { PageHeader } from '@/components/shell/page-header'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { invalidateUserListCache } from '@/utils/helper/usergroups'
@@ -537,7 +538,7 @@ const handleManageUser = async (
   }
 
   return (
-    <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
+    <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 py-4 mt-25 pb-20">
       {showResponse && (
         <ResponseModal
           successful={responseSuccessful}
@@ -576,30 +577,30 @@ const handleManageUser = async (
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-1xl md:text-2xl font-bold mt-3">User Permissions</h1>
-          <p className="text-gray-600">Manage access for {filteredUsers.length} users</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setInviteOpen(true)} className="gap-2">
-            <UserPlus className="h-4 w-4" />
-            Invite User
-          </Button>
-          <Button
-            onClick={saveChanges}
-            className="gap-2"
-            disabled={saving || !selectedUser}
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="User Permissions"
+        description={`Manage access for ${filteredUsers.length} users`}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setInviteOpen(true)} className="gap-2 cursor-pointer">
+              <UserPlus className="h-4 w-4" />
+              Invite User
+            </Button>
+            <Button
+              onClick={saveChanges}
+              className="gap-2 cursor-pointer"
+              disabled={saving || !selectedUser}
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-1">

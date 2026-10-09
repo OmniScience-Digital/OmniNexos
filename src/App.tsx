@@ -7,60 +7,61 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/auth-context";
-import StoreProvider from "./state/redux";
-import Navbar from "./components/layout/navbar";
-import { AuthScreen } from "./components/auth/auth_screen";
-import Footer from "./components/layout/footer";
+import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import StoreProvider from "@/state/redux";
+import Navbar from "@/components/layout/navbar";
+import { AuthScreen } from "@/components/auth/auth_screen";
+import Footer from "@/components/layout/footer";
+import ModuleShell from "@/components/shell/module-shell";
 
 // Route-level code splitting: none of these pages need to be in the initial
 // bundle the sign-in screen loads. Each becomes its own chunk, fetched only
 // when the user actually navigates to that route.
-const FormsLanding = lazy(() => import("./app/forms"));
-const Landing = lazy(() => import("./app/landing"));
-const ComponentForm = lazy(() => import("./app/stockcontrolform/page"));
-const AdminPermissionsPage = lazy(() => import("./app/admin/page"));
-const FleetPage = lazy(() => import("./app/fleetmanagementsystem/page"));
-const IMS = lazy(() => import("./app/inventorymanagementsystem/page"));
+const FormsLanding = lazy(() => import("@/app/forms"));
+const Landing = lazy(() => import("@/app/landing"));
+const ComponentForm = lazy(() => import("@/app/stockcontrolform/page"));
+const AdminPermissionsPage = lazy(() => import("@/app/admin/page"));
+const FleetPage = lazy(() => import("@/app/fleetmanagementsystem/page"));
+const IMS = lazy(() => import("@/app/inventorymanagementsystem/page"));
 const CustomerRelationsManagement = lazy(
-  () => import("./app/customerrelationsmanagement/page"),
+  () => import("@/app/customerrelationsmanagement/page"),
 );
 const HumanResourcesPage = lazy(
-  () => import("./app/humanresourcesdepartment/page"),
+  () => import("@/app/humanresourcesdepartment/page"),
 );
 const Vehicle_Inspection_Form = lazy(
-  () => import("./app/vehicleinspectionform/page"),
+  () => import("@/app/vehicleinspectionform/page"),
 );
-const SubcategoriesPage = lazy(() => import("./app/subcategories/[id]/page"));
+const SubcategoriesPage = lazy(() => import("@/app/subcategories/[id]/page"));
 const FleetEditPage = lazy(
-  () => import("./app/fleetmanagementsystem/edit/[id]/page"),
+  () => import("@/app/fleetmanagementsystem/edit/[id]/page"),
 );
 const InspectionsPage = lazy(
-  () => import("./app/fleetmanagementsystem/[id]/page"),
+  () => import("@/app/fleetmanagementsystem/[id]/page"),
 );
 const InspectionEditPage = lazy(
-  () => import("./app/fleetmanagementsystem/[id]/edit/[inspectionId]/page"),
+  () => import("@/app/fleetmanagementsystem/[id]/edit/[inspectionId]/page"),
 );
 const CreateEmployeePage = lazy(
-  () => import("./app/humanresourcesdepartment/create/page"),
+  () => import("@/app/humanresourcesdepartment/create/page"),
 );
 const EditEmployeePage = lazy(
-  () => import("./app/humanresourcesdepartment/edit/[id]/page"),
+  () => import("@/app/humanresourcesdepartment/edit/[id]/page"),
 );
 const CreateCustomer = lazy(
-  () => import("./app/customerrelationsmanagement/create/page"),
+  () => import("@/app/customerrelationsmanagement/create/page"),
 );
-const AttendancePage = lazy(() => import("./app/attendancetrackingsystem/page"));
+
 const EditCustomerPage = lazy(
-  () => import("./app/customerrelationsmanagement/edit/[id]/page"),
+  () => import("@/app/customerrelationsmanagement/edit/[id]/page"),
 );
 const Compliance = lazy(
-  () => import("./app/customerrelationsmanagement/compliance/[id]/page"),
+  () => import("@/app/customerrelationsmanagement/compliance/[id]/page"),
 );
 const AdminAttendancePage = lazy(
-  () => import("./app/humanresourcesdepartment/attendance/page"),
+  () => import("@/app/humanresourcesdepartment/attendance/page"),
 );
-const JobCardChecklistPage = lazy(() => import("./app/jobcards/page"));
+const JobCardChecklistPage = lazy(() => import("@/app/jobcards/page"));
 
 function RouteFallback() {
   return (
@@ -193,6 +194,8 @@ function Layout() {
       <Routes>
         <Route path="/" element={<AuthScreen />} />
         <Route path="/landing" element={requireAuth(<Landing />)} />
+        {/* Redesigned modules share the sidebar shell (layout route) */}
+        <Route element={<ModuleShell />}>
         <Route path="/forms" element={requireAuth(<FormsLanding />)} />
         <Route
           path="/stockcontrolform"
@@ -234,6 +237,7 @@ function Layout() {
           path="/inventorymanagementsystem"
           element={requireAuth(<IMS />, false, "ims.")}
         />
+        </Route>
 
         {/* CUSTOMER RELATIONS ROUTES */}
         <Route
@@ -252,11 +256,7 @@ function Layout() {
           path="/customerrelationsmanagement"
           element={requireAuth(<CustomerRelationsManagement />, false, "crm.")}
         />
-        {/* ATTENDANCE */}
-        <Route
-          path="/attendancetrackingsystem"
-          element={requireAuth(<AttendancePage />, false, "ats.")}
-        />
+  
 
         {/* HUMAN RESOURCES ROUTES */}
         <Route
