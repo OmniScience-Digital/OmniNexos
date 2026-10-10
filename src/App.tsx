@@ -237,7 +237,6 @@ function Layout() {
           path="/inventorymanagementsystem"
           element={requireAuth(<IMS />, false, "ims.")}
         />
-        </Route>
 
         {/* CUSTOMER RELATIONS ROUTES */}
         <Route
@@ -256,7 +255,6 @@ function Layout() {
           path="/customerrelationsmanagement"
           element={requireAuth(<CustomerRelationsManagement />, false, "crm.")}
         />
-  
 
         {/* HUMAN RESOURCES ROUTES */}
         <Route
@@ -278,6 +276,7 @@ function Layout() {
           path="/installationjobcard"
           element={requireAuth(<JobCardChecklistPage />)}
         />
+        </Route>
       </Routes>
       </Suspense>
       {!isAuthPage && <Footer />}

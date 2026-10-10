@@ -1,10 +1,12 @@
 import { client } from "@/services/schema";
+import { pageContainer } from "@/components/shell/page-container";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Save, Trash2, ArrowLeft, Car } from "lucide-react";
+import { Save, Trash2, ArrowLeft } from "lucide-react";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
 import Loading from "@/components/widgets/loading";
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -301,33 +303,26 @@ export default function InspectionEditPage() {
         <div className="flex flex-col min-h-screen bg-background text-foreground">
             <Navbar />
 
-            <main className="flex-1 px-2 sm:px-4 mt-30 pb-20">
-                <div className="container mx-auto max-w-7xl">
-                    {/* Header */}
-                    <div className="mb-4 sm:mb-6">
-                        <div className="flex items-center gap-3 mb-2">
-
+            <main className="flex-1 mt-25 pb-20">
+                <div className={pageContainer()}>
+                    <PageHeader
+                        title={`Inspection #${inspection.inspectionNo}`}
+                        description={`${fleetInfo?.fleetNumber} • ${fleetInfo?.vehicleMake} ${fleetInfo?.vehicleModel}`}
+                        leading={
                             <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => navigate(`/fleetmanagementsystem/${fleetId}`)}
-                                className="h-9 w-9 p-0 relative hover:scale-105 active:scale-95 transition-transform duration-150">
+                                aria-label="Back"
+                                className="h-9 w-9 cursor-pointer"
+                            >
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <Car className="h-5 w-5 text-primary" />
-                            <div>
-                                <h2 className="text-xl sm:text-2xl font-bold">
-                                    Inspection #{inspection.inspectionNo}
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    {fleetInfo?.fleetNumber} • {fleetInfo?.vehicleMake} {fleetInfo?.vehicleModel}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    />
 
                     {/* Edit Form */}
-                    <Card ref={editFormRef} className="mb-4 sm:mb-6">
+                    <Card ref={editFormRef} className="mb-4 sm:mb-6 shadow-none">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                 <span className="text-base sm:text-lg">
@@ -471,7 +466,7 @@ export default function InspectionEditPage() {
                                 <Textarea
                                     value={editedInspection.history || inspection.history || ''}
                                     onChange={(e) => handleChange("history", e.target.value)}
-                                    className="min-h-[80px] text-sm resize-vertical"
+                                    className="min-h-20 text-sm resize-vertical"
                                     placeholder="Inspection history and notes..."
                                     readOnly
                                 />
@@ -505,4 +500,3 @@ export default function InspectionEditPage() {
         </div>
     );
 }
-

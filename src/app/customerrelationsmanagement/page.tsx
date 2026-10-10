@@ -1,13 +1,16 @@
 import { useNavigate } from "react-router-dom";
+import { pageContainer } from "@/components/shell/page-container";
 import { useState } from "react";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/widgets/loading";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Edit, Plus } from "lucide-react";
-import { DataTable } from "@/components/table/datatable";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Edit, Plus, MoreVertical, ShieldCheck } from "lucide-react";
+import { DataGrid } from "@/components/shell/data-grid";
+import { PageHeader } from "@/components/shell/page-header";
+import { Toolbar, SearchField } from "@/components/shell/toolbar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { usePermission } from "@/hooks/usePermission";
 import ResponseModal from "@/components/widgets/response";
 import { useListCustomerSitesQuery } from "@/state/api";
@@ -20,6 +23,7 @@ export default function CustomerRelationsManagement() {
     const { data: filteredCustomerSites = [], isLoading: loading } = useListCustomerSitesQuery();
     const crmPermissions = usePermission("crm.edit");
 
+    const [searchTerm, setSearchTerm] = useState("");
     const [show, setShow] = useState(false);
     const [successful, setSuccessful] = useState(false);
     const [message, setMessage] = useState("");
@@ -39,88 +43,60 @@ export default function CustomerRelationsManagement() {
 
     }
 
-    // Mobile-friendly columns
-    const customerColumns: ColumnDef<object, any>[] = [
+    const customerColumns: ColumnDef<any, any>[] = [
         {
             accessorKey: "siteName",
             header: "Site Name",
-            cell: ({ row }: { row: any }) => (
-                <div className="text-sm font-medium text-slate-700">
-                    {row.original.siteName || "-"}
-                </div>
-            ),
+            cell: ({ row }: { row: any }) => <span className="font-medium">{row.original.siteName || "-"}</span>,
         },
         {
             accessorKey: "customerName",
-            header: "Customer Name",
-            cell: ({ row }: { row: any }) => (
-                <div className="text-sm font-medium text-slate-700">
-                    {row.original.customerName || "-"}
-                </div>
-            ),
+            header: "Customer",
+            cell: ({ row }: { row: any }) => <span>{row.original.customerName || "-"}</span>,
         },
         {
             accessorKey: "siteLocation",
-            header: () => <div className="hidden lg:block">Site Location</div>,
+            header: () => <span className="hidden lg:inline">Location</span>,
             cell: ({ row }: { row: any }) => (
-                <div className="text-sm font-medium text-slate-700 hidden lg:block">
-                    {row.original.siteLocation || "-"}
-                </div>
+                <span className="hidden lg:inline">{row.original.siteLocation || "-"}</span>
             ),
         },
         {
             accessorKey: "vendorNumber",
-            header: () => <div className="hidden lg:block">Vendor Number</div>,
+            header: () => <span className="hidden lg:inline">Vendor No.</span>,
             cell: ({ row }: { row: any }) => (
-                <div className="text-sm font-medium text-slate-700 hidden lg:block">
-                    {row.original.vendorNumber || "-"}
-                </div>
+                <span className="hidden lg:inline">{row.original.vendorNumber || "-"}</span>
             ),
         },
         {
-            id: "edit",
-            header: "Edit",
+            id: "actions",
+            header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }: { row: any }) => (
-                <div
-                    onClick={() => navigate(`/customerrelationsmanagement/edit/${row.original.id}`)}
-
-                >
-                    <Edit className="
-                    h-4 w-4 mr-2
-                    cursor-pointer
-                    hover:bg-slate-100
-                    active:bg-slate-200
-                    active:scale-95
-                    rounded
-                    transition
-                    inline-block
-                "/>
+                <div className="flex justify-end">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 cursor-pointer p-0" aria-label="Row actions">
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => navigate(`/customerrelationsmanagement/edit/${row.original.id}`)}
+                            >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => navigate(`/customerrelationsmanagement/compliance/${row.original.id}`)}
+                            >
+                                <ShieldCheck className="h-4 w-4 mr-2" />
+                                Compliance
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
-            ),
-        },
-        {
-            id: "compliance",
-            header: "Compliance",
-            cell: ({ row }: { row: any }) => (
-                <div>
-                    <Edit
-                        onClick={() =>
-                            navigate(`/customerrelationsmanagement/compliance/${row.original.id}`)
-                        }
-                        className="
-                        h-4 w-4 mr-2
-                        cursor-pointer
-                        hover:bg-slate-100
-                        active:bg-slate-200
-                        active:scale-95
-                        rounded
-                        transition
-                        inline-block
-                    "
-                    />
-                </div>
-
-
             ),
         },
     ];
@@ -139,6 +115,10 @@ export default function CustomerRelationsManagement() {
         }))
         : [];
 
+    const shown = data.filter((row) =>
+        (row.siteName ?? "").toLowerCase().includes(searchTerm.trim().toLowerCase()),
+    );
+
     if (loading) {
         return (
             <div className="flex flex-col min-h-screen bg-background from-slate-50 to-blue-50/30">
@@ -152,47 +132,34 @@ export default function CustomerRelationsManagement() {
     return (
         <div className="flex flex-col min-h-screen bg-background from-slate-50 to-blue-50/30">
             <Navbar />
-            <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
-                <div className="container mx-auto max-w-7xl mt-8">
-                    {/* Header Section */}
-
-                    <Card className="border-slate-200 shadow-sm bg-background">
-                        <CardHeader className="pb-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-background">
-                                <div>
-                                    <CardTitle className="text-xl text-shadow-slate-400 bg-background">Customer Management</CardTitle>
-                                    <CardDescription>
-                                        Manage all customers in your organization
-                                    </CardDescription>
-                                </div>
-                                <div className="flex gap-3">
-                                    <Button
-                                        onClick={() => addCustomer()}
-                                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25"
-                                    >
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Add customer
-                                    </Button>
-                                </div>
-
-
-                            </div>
-                        </CardHeader>
-
-                        <CardContent className="p-0">
-                            {/* Data Table */}
-                            <div className="border-t border-slate-200">
-                                <DataTable
-                                    title={"Customer"}
-                                    data={data}
-                                    columns={customerColumns}
-                                    pageSize={10}
-                                    storageKey={"customerTablePagination"}
-                                    searchColumn={"siteName"}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
+            <main className="flex-1 mt-25 pb-20">
+                <div className={pageContainer()}>
+                    <PageHeader
+                        title="Customers"
+                        description="Manage all customers in your organization."
+                        actions={
+                            <Button onClick={() => addCustomer()} className="cursor-pointer bg-green-600 hover:bg-green-700">
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add Customer
+                            </Button>
+                        }
+                    />
+                    <Toolbar>
+                        <SearchField
+                            aria-label="Search customers"
+                            placeholder="Search by site name..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </Toolbar>
+                    <DataGrid
+                        data={shown}
+                        columns={customerColumns}
+                        pageSize={10}
+                        storageKey="customerTablePagination"
+                        noun="sites"
+                        emptyMessage="No customers found."
+                    />
                 </div>
                 {show && (
                     <ResponseModal

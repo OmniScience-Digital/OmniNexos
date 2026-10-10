@@ -1,6 +1,8 @@
 "use client";
 
 import { client } from "@/services/schema";
+import { pageContainer } from "@/components/shell/page-container";
+import { PageHeader } from "@/components/shell/page-header";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Save, ArrowLeft, User, Loader2, FileText, BriefcaseMedical } from "lucide-react";
@@ -357,29 +359,23 @@ export default function CreateEmployeePage() {
         <div className="flex flex-col min-h-screen bg-background">
             <Navbar />
 
-            <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
-                <div className="container mx-auto max-w-6xl mt-8">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-4 mb-6">
-
+            <main className="flex-1 mt-25 pb-20">
+                <div className={pageContainer()}>
+                    <PageHeader
+                        title={<>Add New Employee</>}
+                        description={<>Create a new employee profile</>}
+                        leading={
                             <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => navigate('/humanresourcesdepartment')}
-                                className="h-9 w-9 p-0 relative hover:scale-105 active:scale-95 transition-transform duration-150">
+                                aria-label="Back"
+                                className="h-9 w-9 cursor-pointer"
+                            >
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <div>
-                                <h1 className="text-2xl font-bold">
-                                    Add New Employee
-                                </h1>
-                                <p className="text-muted-foreground mt-2 text-base">
-                                    Create a new employee profile
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    />
 
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         {/* Sidebar */}
@@ -876,8 +872,3 @@ export default function CreateEmployeePage() {
         </div>
     );
 }
-
-
-
-
-

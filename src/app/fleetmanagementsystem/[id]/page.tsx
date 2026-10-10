@@ -1,8 +1,11 @@
 import { client } from "@/services/schema";
+import { pageContainer } from "@/components/shell/page-container";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { DataTable } from "@/components/table/datatable";
-import { EditIcon, ArrowUpDown, MoreVertical, Car, ArrowLeft } from "lucide-react";
+import { DataGrid } from "@/components/shell/data-grid";
+import { PageHeader } from "@/components/shell/page-header";
+import { Toolbar, SearchField } from "@/components/shell/toolbar";
+import { EditIcon, ArrowUpDown, MoreVertical, ArrowLeft } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
@@ -21,6 +24,7 @@ export default function InspectionsPage() {
     const [loading, setLoading] = useState(true);
     const [inspections, setInspections] = useState<Inspection[]>([]);
     const [fleetInfo, setFleetInfo] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Function to convert S3 keys to actual URLs
     const getS3ImageUrls = async (s3Keys: string[]): Promise<string[]> => {
@@ -231,50 +235,53 @@ export default function InspectionsPage() {
         })
         : [];
 
+    const shown = data.filter((row: any) =>
+        String(row.inspectionDate ?? "").toLowerCase().includes(searchTerm.trim().toLowerCase()),
+    );
+
     return (
         <div className="flex flex-col min-h-screen bg-background text-foreground">
             <Navbar />
 
             {loading ? (
+                <main className="flex-1 mt-25 pb-20">
                 <Loading />
+                </main>
             ) : (
-                <main className="flex-1 px-2 sm:px-4 mt-30 pb-20">
-                    <div className="container mx-auto max-w-7xl">
-                        {/* Header */}
-                        <div className="mb-4 sm:mb-6">
-                            <div className="flex items-center gap-3 mb-2">
+                <main className="flex-1 mt-25 pb-20">
+                    <div className={pageContainer()}>
+                        <PageHeader
+                            title={`${fleetInfo?.vehicleReg || 'Vehicle'} Inspections`}
+                            description={`${fleetInfo?.fleetNumber} • ${fleetInfo?.vehicleMake} ${fleetInfo?.vehicleModel}`}
+                            leading={
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate('/fleetmanagementsystem')}
+                                aria-label="Back"
+                                className="h-9 w-9 cursor-pointer"
+                            >
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        }
+                        />
 
-
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => navigate('/fleetmanagementsystem')}
-                                    className="h-9 w-9 p-0 relative hover:scale-105 active:scale-95 transition-transform duration-150">
-                                    <ArrowLeft className="h-5 w-5" />
-                                </Button>
-                                <Car className="h-5 w-5 text-primary" />
-                                <div>
-                                    <h1 className="text-xl sm:text-2xl font-bold">
-                                        {fleetInfo?.vehicleReg || 'Vehicle'} Inspections
-                                    </h1>
-                                    <p className="text-sm text-muted-foreground">
-                                        {fleetInfo?.fleetNumber} • {fleetInfo?.vehicleMake} {fleetInfo?.vehicleModel}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Inspections List */}
-                        <div className="bg-white rounded-lg border">
-                            <DataTable
-                                title={"Vehicle Inspections"}
-                                data={data}
-                                columns={columns}
-                                pageSize={10}
-                                storageKey="inspectionsTablePagination"
-                                searchColumn="inspectionDate"
+                        <Toolbar>
+                            <SearchField
+                                aria-label="Search inspections by date"
+                                placeholder="Search by inspection date..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                             />
-                        </div>
+                        </Toolbar>
+                        <DataGrid
+                            data={shown}
+                            columns={columns as any}
+                            pageSize={10}
+                            storageKey="inspectionsTablePagination"
+                            noun="inspections"
+                            emptyMessage="No inspections found."
+                        />
                     </div>
                 </main>
             )}
@@ -282,4 +289,3 @@ export default function InspectionsPage() {
         </div>
     )
 }
-

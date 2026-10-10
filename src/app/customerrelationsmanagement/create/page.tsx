@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { pageContainer } from "@/components/shell/page-container";
+import { PageHeader } from "@/components/shell/page-header";
 import { useNavigate } from "react-router-dom";
 import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
@@ -158,29 +160,23 @@ export default function CreateCustomer() {
     return (
         <div className="flex flex-col min-h-screen bg-background from-slate-50 to-blue-50/30">
             <Navbar />
-            <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
-                <div className="container mx-auto max-w-6xl mt-8">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-4 mb-6">
+            <main className="flex-1 mt-25 pb-20">
+                <div className={pageContainer()}>
+                    <PageHeader
+                        title={<>Add New Customer Site</>}
+                        description={<>Create a new customer site profile</>}
+                        leading={
                             <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => navigate('/customerrelationsmanagement')}
-                                className="h-9 w-9 p-0"
+                                aria-label="Back"
+                                className="h-9 w-9 cursor-pointer"
                             >
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <div>
-                                <h2 className="text-2xl font-bold">
-                                    Add New Customer Site
-                                </h2>
-                                <p className="text-muted-foreground mt-1 text-base">
-                                    Create a new customer site profile
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    />
 
                     <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
                         {/* Site Information */}
@@ -480,7 +476,7 @@ export default function CreateCustomer() {
                                         value={formData.comment}
                                         onChange={(e) => handleInputChange('comment', e.target.value)}
                                         placeholder="Any additional notes or comments..."
-                                        className="min-h-[100px] text-sm resize-vertical"
+                                        className="min-h-25 text-sm resize-vertical"
 
                                     />
                                 </div>

@@ -1,11 +1,13 @@
 import { useListEmployeesQuery, useListEmployeeTasksQuery } from "@/state/api";
+import { pageContainer } from "@/components/shell/page-container";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DataTable } from "@/components/table/datatable";
+import { DataGrid } from "@/components/shell/data-grid";
+import { PageHeader } from "@/components/shell/page-header";
+import { Toolbar, SearchField } from "@/components/shell/toolbar";
 import {
   Edit,
   User,
-  Search,
   Plus,
   Calendar,
   Shield,
@@ -16,14 +18,6 @@ import Footer from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
 import Loading from "@/components/widgets/loading";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -31,7 +25,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { type Employee } from "@/types/hrd.types";
 
@@ -337,221 +330,115 @@ export default function HumanResourcesPage() {
     <div className="flex flex-col min-h-screen bg-background from-slate-50 to-blue-50/30">
       <Navbar />
 
-      <main className="flex-1 px-4 sm:px-6 mt-20 pb-20">
-        <div className="container mx-auto max-w-7xl mt-8">
-          {/* Header Section */}
-          <div className="mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground mb-1">
-                  Employee Management
-                </h1>
-                <p className="text-slate-600 max-w-2xl text-sm">
-                  Manage your workforce, track certifications, and ensure
-                  compliance across your organization.
-                </p>
-              </div>
-              <div className="flex gap-3">
+      <main className="flex-1 mt-25 pb-20">
+        <div className={pageContainer()}>
+          <PageHeader
+            title="Employees"
+            description="Manage your workforce, track certifications and ensure compliance."
+            actions={
+              <>
+                <Button
+                  variant="outline"
+                  className="cursor-pointer"
+                  onClick={() => navigate("/humanresourcesdepartment/attendance")}
+                >
+                  View Attendance
+                </Button>
                 <Button
                   onClick={() => navigate("/humanresourcesdepartment/create")}
-                  className="bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25"
+                  className="cursor-pointer bg-green-600 hover:bg-green-700"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="h-4 w-4 mr-1" />
                   Add Employee
                 </Button>
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-5">
-            <Card className="bg-background border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      Total Employees
-                    </p>
-                    <p className="text-3xl font-bold text-shadow-slate-400 mt-2">
-                      {stats.total}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-background border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      Authorized Drivers
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {stats.drivers}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <Shield className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className=" border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-background cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      Expiring Soon
-                    </p>
-                    <p className="text-3xl font-bold text-shadow-slate-400 mt-2">
-                      {stats.tasks}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-amber-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Content */}
-          <Card className="border-slate-200 shadow-sm bg-background">
-            <CardHeader className="pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-background">
-                <div>
-                  <CardTitle className="text-xl text-shadow-slate-400 bg-background">
-                    Employees
-                  </CardTitle>
-                  <CardDescription>
-                    Manage all employees in your organization
-                  </CardDescription>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3 bg-background">
-                  <Button
-                    onClick={() =>
-                      navigate("/humanresourcesdepartment/attendance")
-                    }
-                  >
-                    View Attendance
-                  </Button>
-                  {/* Search */}
-                  <div className="relative bg-background">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      placeholder={
-                        activeTab === "expiring"
-                          ? "Search tasks..."
-                          : "Search employees..."
-                      }
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 h-10 w-full sm:w-64 border-slate-300 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="border-slate-300 hover:bg-white"
-                      >
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filter
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => setActiveTab("all")}>
-                        All Employees
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setActiveTab("drivers")}>
-                        Authorized Drivers
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setActiveTab("expiring")}
-                      >
-                        Documents Expiring
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              {/* Tabs */}
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="px-6"
+          {/* Summary */}
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {[
+              { label: "Total Employees", value: stats.total, icon: User },
+              { label: "Authorized Drivers", value: stats.drivers, icon: Shield },
+              { label: "Expiring Soon", value: stats.tasks, icon: Calendar },
+            ].map(({ label, value, icon: StatIcon }) => (
+              <div
+                key={label}
+                className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
               >
-                <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger
-                    value="all"
-                    className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 cursor-pointer"
-                  >
-                    All Employees
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 bg-slate-200 text-slate-700"
-                    >
-                      {employees.length}
-                    </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="drivers"
-                    className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 cursor-pointer"
-                  >
-                    Drivers
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 bg-slate-200 text-slate-700"
-                    >
-                      {stats.drivers}
-                    </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="expiring"
-                    className="data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 cursor-pointer"
-                  >
-                    Expiring
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 bg-slate-200 text-slate-700"
-                    >
-                      {taskCount}
-                    </Badge>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              {/* Data Table */}
-              <div className="border-t border-slate-200">
-                <DataTable
-                  title={activeTab === "expiring" ? "Tasks" : "Employees"}
-                  data={data}
-                  columns={
-                    activeTab === "expiring" ? taskColumns : employeeColumns
-                  }
-                  pageSize={10}
-                  storageKey={
-                    activeTab === "expiring"
-                      ? "taskTablePagination"
-                      : "employeeTablePagination"
-                  }
-                  searchColumn={
-                    activeTab === "expiring" ? "taskType" : "firstName"
-                  }
-                />
+                <div>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-2xl font-semibold leading-tight">{value}</p>
+                </div>
+                <StatIcon className="h-5 w-5 text-muted-foreground" />
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
+
+          {/* Tabs */}
+          <div role="tablist" className="mb-4 flex gap-6 border-b border-border">
+            {[
+              { key: "all", label: "All Employees", count: employees.length },
+              { key: "drivers", label: "Drivers", count: stats.drivers },
+              { key: "expiring", label: "Expiring", count: taskCount },
+            ].map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`-mb-px flex cursor-pointer items-center gap-2 border-b-2 px-0.5 py-2.5 text-sm transition-colors ${
+                  activeTab === t.key
+                    ? "border-primary font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+                <Badge variant="secondary" className="px-1.5 py-0 text-xs font-normal">
+                  {t.count}
+                </Badge>
+              </button>
+            ))}
+          </div>
+
+          <Toolbar>
+            <SearchField
+              aria-label="Search"
+              placeholder={activeTab === "expiring" ? "Search tasks..." : "Search employees..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="cursor-pointer">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem className="cursor-pointer" onClick={() => setActiveTab("all")}>
+                  All Employees
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => setActiveTab("drivers")}>
+                  Authorized Drivers
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => setActiveTab("expiring")}>
+                  Documents Expiring
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Toolbar>
+
+          <DataGrid
+            key={activeTab === "expiring" ? "tasks" : "employees"}
+            data={data}
+            columns={(activeTab === "expiring" ? taskColumns : employeeColumns) as any}
+            pageSize={10}
+            storageKey={activeTab === "expiring" ? "taskTablePagination" : "employeeTablePagination"}
+            noun={activeTab === "expiring" ? "tasks" : "employees"}
+            emptyMessage="Nothing found."
+          />
         </div>
       </main>
       <Footer />

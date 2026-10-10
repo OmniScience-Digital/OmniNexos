@@ -1,5 +1,6 @@
 // parent component
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { pageContainer } from "@/components/shell/page-container";
 import Navbar from "@/components/layout/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -292,7 +293,7 @@ export default function Vehicle_Inspection_Form() {
             {loading ? (
                 <Loading />
             ) : (
-                <main className="flex-1 py-4 mt-25 pb-20">
+                <main className="flex-1 mt-25 pb-20">
 
                     {/* Image Upload Loader */}
                     {uploadProgress.isUploading && (
@@ -309,7 +310,7 @@ export default function Vehicle_Inspection_Form() {
                             setShow={setShow}
                         />
                     )}
-                    <div className="mx-auto w-full max-w-4xl px-4 sm:px-6">
+                    <div className={pageContainer({ width: "narrow" })}>
                         <PageHeader title="Vehicle Inspection" description="Select a vehicle to start an inspection." />
                         <Card className="shadow-none">
                             <CardContent className="pt-6">

@@ -1,5 +1,6 @@
 // app/subcategories/[id]/page.tsx
 import Footer from "@/components/layout/footer";
+import { pageContainer } from "@/components/shell/page-container";
 import Navbar from "@/components/layout/navbar";
 import Loading from "@/components/widgets/loading";
 import { useParams } from "react-router-dom";
@@ -54,7 +55,7 @@ export default function SubcategoriesPage() {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Navbar />
 
-      <div className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-4 mt-25 pb-20">
+      <div className={pageContainer({ className: "flex-1 mt-25 pb-20" })}>
         <PageHeader
           title={selectedSubCategory ? selectedSubCategory.subcategoryName : (categoryName || "Subcategories")}
           description={

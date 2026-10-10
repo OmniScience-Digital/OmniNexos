@@ -35,12 +35,18 @@ export default function ModuleShell() {
   const Icon = current.icon;
   const items = current.items.filter((i) => can.item(i.permission));
   const switchable = SHELL_MODULES.filter((m) => can.module(m));
+  // Active item = the item whose path is the longest prefix of the current URL,
+  // so /humanresourcesdepartment/edit/1 highlights Employees but
+  // /humanresourcesdepartment/attendance highlights Attendance.
+  const activeTo = items
+    .filter((i) => pathname === i.to || pathname.startsWith(i.to + "/"))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to;
 
   return (
     <>
       <aside
         aria-label={`${current.label} navigation`}
-        className="hidden md:flex fixed left-0 top-28 bottom-9 z-40 w-60 flex-col gap-1 border-r border-border bg-sidebar p-3 text-sidebar-foreground"
+        className="hidden md:flex fixed left-3 top-30 bottom-12 z-40 w-60 flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-sidebar p-3 text-sidebar-foreground shadow-sm"
       >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -79,11 +85,11 @@ export default function ModuleShell() {
             <NavLink
               key={to}
               to={to}
-              end={false}
-              className={({ isActive }) =>
+              end
+              className={() =>
                 cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                  isActive
+                  to === activeTo
                     ? "bg-accent font-medium text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                 )
@@ -96,7 +102,7 @@ export default function ModuleShell() {
         </nav>
       </aside>
 
-      <div className="md:pl-60 flex flex-1 flex-col min-w-0">
+      <div className="md:pl-67 pt-5 flex flex-1 flex-col min-w-0">
         <Outlet />
       </div>
     </>

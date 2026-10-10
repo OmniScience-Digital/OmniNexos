@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { pageContainer } from "@/components/shell/page-container";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -538,7 +539,7 @@ const handleManageUser = async (
   }
 
   return (
-    <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 py-4 mt-25 pb-20">
+    <main className={pageContainer({ className: "flex-1 mt-25 pb-20" })}>
       {showResponse && (
         <ResponseModal
           successful={responseSuccessful}
@@ -605,7 +606,7 @@ const handleManageUser = async (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-1">
           <Card className="h-[calc(100vh-200px)] flex flex-col">
-            <CardHeader className="pb-3 flex-shrink-0">
+            <CardHeader className="pb-3 shrink-0">
               <CardTitle>Users</CardTitle>
               <div className="space-y-3">
                 <div className="relative">
@@ -690,7 +691,7 @@ const handleManageUser = async (
           {selectedUser ? (
             <Tabs defaultValue="permissions" className=" flex flex-col">
               <Card className="flex-1 flex flex-col dark:bg-gray-900">
-                <CardHeader className="pb-3 flex-shrink-0">
+                <CardHeader className="pb-3 shrink-0">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3">
@@ -986,7 +987,7 @@ const handleManageUser = async (
                           All permission changes for {selectedUser.name}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="max-h-[400px] overflow-y-auto">
+                      <CardContent className="max-h-100 overflow-y-auto">
                         {historyLoading ? (
                           <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin text-gray-400" />

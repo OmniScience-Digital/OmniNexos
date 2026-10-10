@@ -1,4 +1,6 @@
 import { client } from "@/services/schema";
+import { pageContainer } from "@/components/shell/page-container";
+import { PageHeader } from "@/components/shell/page-header";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -288,36 +290,24 @@ export default function EditCustomerPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background from-slate-50 to-blue-50/30">
       <Navbar />
-      <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
+      <main className={pageContainer({ className: "flex-1 mt-25 pb-20" })}>
 
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/customerrelationsmanagement')}
-              className="h-9 w-9 p-0  hover:scale-105 active:scale-95 transition-transform duration-150"
-            >
-              <ArrowLeft className="
-                h-5 w-5 mr-2
-                cursor-pointer
-          
-              " />
-            </Button>
-
-
-            <div>
-              <h4 className="text-xl font-bold mt-4">
-                Edit {customerSite.siteName}
-              </h4>
-              <p className="text-muted-foreground text-sm">
-                Update customer site information
-              </p>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+                        title={<>Edit {customerSite.siteName}</>}
+                        description={<>Update customer site information</>}
+                        leading={
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate('/customerrelationsmanagement')}
+                                aria-label="Back"
+                                className="h-9 w-9 cursor-pointer"
+                            >
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        }
+                    />
 
         <div className="flex flex-col py-3 px-2">
           <Tabs defaultValue="personal" className="space-y-4">
@@ -626,7 +616,7 @@ export default function EditCustomerPage() {
                         value={formData.comment}
                         onChange={(e) => handleInputChange('comment', e.target.value)}
                         placeholder="Any additional notes or comments..."
-                        className="min-h-[100px] text-sm resize-vertical"
+                        className="min-h-25 text-sm resize-vertical"
 
                       />
                     </div>

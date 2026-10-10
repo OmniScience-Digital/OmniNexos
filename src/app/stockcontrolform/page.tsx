@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pageContainer } from "@/components/shell/page-container";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/page-header";
@@ -201,13 +202,13 @@ export default function ComponentForm() {
       {categoriesLoading ? (
         <Loading />
       ) : (
-        <main className="flex-1 py-4 mt-25 pb-20">
-          <div className="mx-auto w-full max-w-4xl px-4 sm:px-6">
+        <main className="flex-1 mt-25 pb-20">
+          <div className={pageContainer({ width: "narrow" })}>
             <PageHeader title="Stock Control" description="Record stock coming in or going out." />
             <Card className="shadow-none">
               <CardContent className="pt-6">
                 <div className="overflow-x-auto">
-                  <form onSubmit={handleSubmit} className="space-y-6 min-w-[600px]">
+                  <form onSubmit={handleSubmit} className="space-y-6 min-w-150">
                     {/* Transaction Type */}
 
                     <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { pageContainer } from "@/components/shell/page-container";
+import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -631,26 +633,24 @@ export default function Compliance() {
     return (
         <div className="flex flex-col min-h-screen bg-background">
             <Navbar />
-            <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
-                <div className="container mx-auto max-w-7xl mt-4">
+            <main className="flex-1 mt-25 pb-20">
+                <div className={pageContainer()}>
 
-                    <div className="mb-8">
-                        <div className="flex items-center gap-4 mb-6">
+                    <PageHeader
+                        title={<>{siteName} Compliance Management</>}
+                        description={<>Link employees to required documents and certificates</>}
+                        leading={
                             <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => navigate('/customerrelationsmanagement')}
-                                className="h-9 w-9 p-0 relative hover:scale-105 active:scale-95 transition-transform duration-150">
+                                aria-label="Back"
+                                className="h-9 w-9 cursor-pointer"
+                            >
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <div>
-                                <h1 className="text-2xl font-bold text-foreground">
-                                    {siteName} Compliance Management
-                                </h1>
-                                <p className="text-muted-foreground text-base">Link employees to required documents and certificates</p>
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    />
 
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* Sidebar */}
@@ -659,7 +659,7 @@ export default function Compliance() {
                                 <CardContent className="p-6">
                                     <div className="text-center mb-6">
                                         <Avatar className="h-24 w-24 border-4 border-white shadow-lg mx-auto mb-4">
-                                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xl font-bold">
+                                            <AvatarFallback className="bg-linear-to-br from-blue-500 to-purple-600 text-white text-xl font-bold">
                                                 {getInitials(siteName || 'Site')}
                                             </AvatarFallback>
                                         </Avatar>
@@ -713,7 +713,7 @@ export default function Compliance() {
 
                         {/* Main Form */}
                         <div className="lg:col-span-3">
-                            <Tabs defaultValue="basic" className="w-[100%]">
+                            <Tabs defaultValue="basic" className="w-full">
                                 <TabsList className="grid w-full grid-cols-4">
                                     <TabsTrigger value="basic" className="cursor-pointer">Config</TabsTrigger>
                                     <TabsTrigger value="viewdocs" className="cursor-pointer">Employees Docs</TabsTrigger>
@@ -946,7 +946,7 @@ export default function Compliance() {
                                                     value={notes}
                                                     onChange={handleNotesChange}
                                                     disabled={!editingNotes}
-                                                    className={`min-h-[80px] text-sm resize-vertical ${!editingNotes ? "bg-muted cursor-not-allowed" : ""
+                                                    className={`min-h-20 text-sm resize-vertical ${!editingNotes ? "bg-muted cursor-not-allowed" : ""
                                                         }`}
                                                     placeholder="Additional notes about site compliance..."
                                                 />
@@ -986,5 +986,3 @@ export default function Compliance() {
         </div>
     );
 }
-
-

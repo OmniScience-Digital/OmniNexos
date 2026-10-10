@@ -1,6 +1,8 @@
 "use client";
 
 import { client } from "@/services/schema";
+import { pageContainer } from "@/components/shell/page-container";
+import { PageHeader } from "@/components/shell/page-header";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Eye, Calendar, FileText, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
@@ -188,29 +190,23 @@ const handlePreview = async (pdf: any) => {
         <div className="flex flex-col min-h-screen bg-background">
             <Navbar />
 
-            <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
-                <div className="container mx-auto max-w-6xl mt-8">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-4 mb-6">
+            <main className="flex-1 mt-25 pb-20">
+                <div className={pageContainer()}>
+                    <PageHeader
+                        title={<>Certificates for {employee.firstName} {employee.surname}</>}
+                        description={<>Employee ID: {employee.employeeId}</>}
+                        leading={
                             <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => navigate('/humanresourcesdepartment')}
-                                className="h-9 w-9 p-0"
+                                aria-label="Back"
+                                className="h-9 w-9 cursor-pointer"
                             >
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <div>
-                                <h1 className="text-3xl font-bold">
-                                    Certificates for {employee.firstName} {employee.surname}
-                                </h1>
-                                <p className="text-muted-foreground mt-2">
-                                    Employee ID: {employee.employeeId}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    />
 
                     <Tabs defaultValue="medical" className="space-y-6">
                         <TabsList className="grid w-full grid-cols-3">

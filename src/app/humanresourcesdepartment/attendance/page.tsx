@@ -1,5 +1,7 @@
 // src/app/humanresourcesdepartment/attendance/page.tsx — Manager view
 import { client } from "@/services/schema";
+import { pageContainer } from "@/components/shell/page-container";
+import { PageHeader } from "@/components/shell/page-header";
 import { api, useListClockRecordsQuery } from "@/state/api";
 import { useAppDispatch } from "@/state/store";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -344,28 +346,27 @@ export default function AdminAttendancePage() {
     <div className="flex flex-col min-h-screen bg-background">
       <Navbar />
 
-      <main className="flex-1 px-4 sm:px-6 mt-25 pb-20">
-        <div className="container mx-auto max-w-7xl mt-8">
+      <main className="flex-1 mt-25 pb-20">
+        <div className={pageContainer()}>
 
-          {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground mb-1">Attendance Management</h1>
-              <p className="text-slate-600 text-sm">Monitor all employee clock records and verify attendance.</p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => fetchAll()} disabled={refreshing} className="border-slate-300">
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-              <Button
-                onClick={() => exportCSV(filtered, `attendance_${activeTab}_${today()}.csv`)}
-                className="bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-500/25 shadow-lg"
-              >
-                <Download className="h-4 w-4 mr-2" />Export CSV
-              </Button>
-            </div>
-          </div>
+          <PageHeader
+            title="Attendance"
+            description="Monitor all employee clock records and verify attendance."
+            actions={
+              <>
+                <Button variant="outline" onClick={() => fetchAll()} disabled={refreshing} className="cursor-pointer">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+                <Button
+                  onClick={() => exportCSV(filtered, `attendance_${activeTab}_${today()}.csv`)}
+                  className="cursor-pointer"
+                >
+                  <Download className="h-4 w-4 mr-2" />Export CSV
+                </Button>
+              </>
+            }
+          />
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

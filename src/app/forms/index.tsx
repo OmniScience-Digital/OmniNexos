@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { pageContainer } from "@/components/shell/page-container";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shell/page-header";
@@ -121,8 +122,8 @@ export default function FormsLanding() {
             {loading ? (
                 <Loading />
             ) : (
-                <main className="flex-1 p-1 mt-25 pb-20">
-                    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-4">
+                <main className="flex-1 mt-25 pb-20">
+                    <div className={pageContainer()}>
                         <PageHeader title="Forms" description="Capture stock movements and vehicle inspections." />
                         <Toolbar>
                             <SearchField
@@ -198,7 +199,7 @@ export default function FormsLanding() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="my-2 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent dark:via-gray-600" />
+                                            <div className="my-2 h-px bg-linear-to-r from-transparent via-gray-300 to-transparent dark:via-gray-600" />
                                         </React.Fragment>
                                     ))}
                                 </div>

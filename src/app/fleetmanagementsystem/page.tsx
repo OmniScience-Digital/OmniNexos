@@ -5,6 +5,7 @@ import { DataGrid } from "@/components/shell/data-grid";
 import { PageHeader } from "@/components/shell/page-header";
 import { Toolbar, SearchField } from "@/components/shell/toolbar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { pageContainer } from "@/components/shell/page-container";
 import { EditIcon, ArrowUpDown, X, Car, Plus, Save, Trash2, MoreVertical, Loader2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Footer from "@/components/layout/footer";
@@ -360,8 +361,8 @@ export default function FleetPage() {
             {loading ? (
                 <Loading />
             ) : (
-                <main className="flex-1 px-2 sm:px-4 mt-25 pb-20">
-                    <div className="container mx-auto max-w-7xl mt-5">
+                <main className="flex-1 mt-25 pb-20">
+                    <div className={pageContainer()}>
                         <PageHeader
                             title="Fleet Management"
                             description={

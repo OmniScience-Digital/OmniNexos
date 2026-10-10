@@ -8,6 +8,11 @@ import {
   ClipboardCheck,
   Boxes,
   ShieldCheck,
+  Building2,
+  UsersRound,
+  Wrench,
+  Clock,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -65,6 +70,35 @@ export const SHELL_MODULES: ShellModule[] = [
       { label: "Stock Control", to: "/stockcontrolform", icon: Boxes, permission: "scf." },
       { label: "Vehicle Inspection", to: "/vehicleinspectionform", icon: ClipboardCheck, permission: "vif." },
     ],
+  },
+  {
+    id: "crm",
+    label: "Customer Relations",
+    icon: Building2,
+    home: "/customerrelationsmanagement",
+    prefixes: ["/customerrelationsmanagement"],
+    permission: "crm.",
+    items: [{ label: "Customers", to: "/customerrelationsmanagement", icon: Building2 }],
+  },
+  {
+    id: "hrd",
+    label: "Human Resources",
+    icon: UsersRound,
+    home: "/humanresourcesdepartment",
+    prefixes: ["/humanresourcesdepartment"],
+    permission: "hrd.",
+    items: [
+      { label: "Employees", to: "/humanresourcesdepartment", icon: Users },
+      { label: "Attendance", to: "/humanresourcesdepartment/attendance", icon: Clock },
+    ],
+  },
+  {
+    id: "jobcard",
+    label: "Installation Jobcard",
+    icon: Wrench,
+    home: "/installationjobcard",
+    prefixes: ["/installationjobcard"],
+    items: [{ label: "Job Cards", to: "/installationjobcard", icon: Wrench }],
   },
   {
     id: "admin",
