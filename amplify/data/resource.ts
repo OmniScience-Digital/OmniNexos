@@ -3,8 +3,10 @@ import { listUsers } from "../function/listUsers/resource";
 import { notifyPhotoApproval } from "../function/notifyPhotoApproval/resource";
 import { manageUser } from "../function/manageUser/resource";
 import { inviteUser } from "../function/inviteUser/resource";
+import { jobCardModels } from "./jobcards.models";
 
 const schema = a.schema({
+   ...jobCardModels, 
   usersList: a
     .query()
     .returns(a.json().array())

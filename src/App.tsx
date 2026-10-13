@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/auth-context";
 import StoreProvider from "./state/redux";
+import DataSyncGate from "./state/DataSyncGate";
 import Navbar from "./components/layout/navbar";
 import { AuthScreen } from "./components/auth/auth_screen";
 import Footer from "./components/layout/footer";
@@ -61,6 +62,9 @@ const AdminAttendancePage = lazy(
   () => import("./app/humanresourcesdepartment/attendance/page"),
 );
 const JobCardChecklistPage = lazy(() => import("./app/jobcards/page"));
+// JOBCARD: new pages
+const JobCardsListPage = lazy(() => import("./app/jobcards/lists/page"));
+const JobCardDetailPage = lazy(() => import("./app/jobcards/[id]/page"));
 
 function RouteFallback() {
   return (
@@ -273,6 +277,10 @@ function Layout() {
         />
          <Route path="/humanresourcesdepartment/attendance" element={requireAuth(<AdminAttendancePage />, false, 'hrd.')} />
 
+         {/* JOBCARD: calibration job cards (created automatically from accepted Xero quotes) */}
+        <Route path="/jobcards/:id" element={requireAuth(<JobCardDetailPage />, false, "crm.")} />
+        <Route path="/jobcards" element={requireAuth(<JobCardsListPage />, false, "crm.")} />
+
          {/* Job card */}
           <Route
           path="/installationjobcard"
@@ -289,6 +297,7 @@ function App() {
   return (
     <StoreProvider>
       <AuthProvider>
+        <DataSyncGate />
         <Router>
           <Layout />
         </Router>

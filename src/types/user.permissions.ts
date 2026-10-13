@@ -1,3 +1,4 @@
+// src/types/user.permissions.ts  (MODIFIED - search "JOBCARD" for the addition)
 
 // Types
 export type Access = 'view' | 'edit' | 'none'
@@ -20,6 +21,8 @@ export const allPermissions = [
     { module: 'crm', subModule: 'assets', label: 'CRM - Assets', description: 'Customer assets' },
     { module: 'crm', subModule: 'compliance', label: 'CRM - Compliance', description: 'Compliance tracking' },
     { module: 'crm', subModule: 'site', label: 'CRM - Site', description: 'Customer sites' },
+    // JOBCARD: new permission (crm.jobcards.view / crm.jobcards.edit)
+    { module: 'crm', subModule: 'jobcards', label: 'CRM - Job Cards', description: 'Calibration job cards and time tracking' },
     { module: 'fms', label: 'Fleet Management', description: 'Vehicle fleet module' },
     { module: 'fms', subModule: 'Inspections', label: 'FMS Inspections', description: 'Vehicle fleet module' },
     { module: 'hrd', label: 'HR Department', description: 'Human Resources module' },

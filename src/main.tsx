@@ -1,3 +1,4 @@
+import "./amplify-config"; // first import: Amplify is configured before anything else loads
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
