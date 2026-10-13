@@ -26,6 +26,8 @@ export interface JobCard {
   clickupTaskId?: string | null;
   /** Person-time: sum of all CLOSED time entries, in minutes. */
   totalMinutes?: number | null;
+  /** The Telegram group results are posted to (one group per job card). */
+  telegramGroupId?: string | null;
 }
 
 export interface JobCardScale {
@@ -64,4 +66,38 @@ export interface TimeEntry {
 export interface TimeUser {
   id: string;
   name: string;
+}
+
+export type DeliveryStatus = "PENDING" | "SENT" | "FAILED";
+
+/** An immutable result saved when a work item is completed. `payload` is the module's readings, answers and photo keys. */
+export interface Submission {
+  id: string;
+  moduleId: string;
+  scaleId: string;
+  jobCardId: string;
+  moduleType: WorkItemType;
+  submittedBy: string;
+  submittedAt: string;
+  payload: Record<string, unknown>;
+  clickupStatus?: DeliveryStatus | null;
+  telegramStatus?: DeliveryStatus | null;
+}
+
+export interface Certificate {
+  id: string;
+  certificateNumber: string;
+  jobCardId: string;
+  scaleId: string;
+  status: "ISSUED" | "SUPERSEDED";
+  version: number;
+  issuedAt: string;
+  pdfKey: string;
+}
+
+export interface TelegramGroupRow {
+  id: string;
+  chatId: string;
+  groupName?: string | null;
+  active?: boolean | null;
 }

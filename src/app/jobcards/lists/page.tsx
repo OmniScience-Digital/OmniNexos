@@ -1,111 +1,236 @@
 // src/app/jobcards/list/page.tsx 
 // Job cards are created and opened automatically when a Xero quote is marked as accepted,
 // so this page deliberately has no "create" or "open" action.
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import type { ColumnDef } from "@tanstack/react-table";
-import { ClipboardList } from "lucide-react";
+//
+// Paging: one page at a time, read from the status index. Open is the default and Closed job cards are
+// only requested when the Closed or All filter is chosen.
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, ClipboardList, Loader2, RefreshCw, Search, X } from "lucide-react";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
-import Loading from "@/components/widgets/loading";
-import { DataTable } from "@/components/table/datatable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { client } from "@/services/schema";
-import { mapJobCard } from "@/services/jobCardTime.service";
+import { findJobCards, jobCardBackendReady, loadJobCardsPage } from "@/services/jobCardTime.service";
 import type { JobCard } from "@/types/jobcards.types";
 import { formatMinutes } from "@/utils/helper/jobCardTime";
+import {
+  DEFAULT_PAGE_SIZE, PAGE_SIZES, type PageCursor, type StatusFilter,
+} from "@/utils/helper/jobCardPaging";
+import BackendNotReady from "../components/BackendNotReady";
 
-type Filter = "OPEN" | "CLOSED" | "ALL";
-const FILTERS: { value: Filter; label: string }[] = [
+const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "OPEN", label: "Open" },
   { value: "CLOSED", label: "Closed" },
   { value: "ALL", label: "All" },
 ];
 
+const EMPTY_TEXT: Record<StatusFilter, string> = {
+  OPEN: "No open job cards. They are created automatically when a Xero quote is accepted.",
+  CLOSED: "No closed job cards.",
+  ALL: "No job cards yet.",
+};
+
+interface PageData { key: string; items: JobCard[]; next: PageCursor | null; error?: string }
+
 export default function JobCardsListPage() {
   const navigate = useNavigate();
-  const [cards, setCards] = useState<JobCard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("OPEN");
+  const ready = jobCardBackendReady();
+
+  const [filter, setFilter] = useState<StatusFilter>("OPEN"); // always start on Open
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [cursors, setCursors] = useState<(PageCursor | null)[]>([null]); // cursors[i] is where page i starts
+  const [pageIndex, setPageIndex] = useState(0);
+  const [nonce, setNonce] = useState(0); // bumped to force a re-read
+  const [data, setData] = useState<PageData | null>(null);
+
+  const [term, setTerm] = useState("");
+  const [found, setFound] = useState<{ term: string; items: JobCard[] } | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const cursor = cursors[pageIndex] ?? null;
+  const requestKey = `${filter}|${pageSize}|${pageIndex}|${nonce}|${cursor?.status ?? ""}:${cursor?.token ?? ""}`;
+  const loading = ready && data?.key !== requestKey;
 
   useEffect(() => {
-    const sub = client.models.JobCard.observeQuery().subscribe({
-      next: ({ items, isSynced }) => {
-        setCards(items.map((r) => mapJobCard(r as Record<string, unknown>)));
-        if (isSynced) setLoading(false);
-      },
-      error: (e) => { console.error("[jobcards] subscription error", e); setLoading(false); },
+    if (!ready) return;
+    let cancelled = false;
+    loadJobCardsPage(filter, cursor, pageSize)
+      .then((res:any) => { if (!cancelled) setData({ key: requestKey, ...res }); })
+      .catch((e:any) => {
+        console.error("[jobcards] load failed", e);
+        if (!cancelled) setData({ key: requestKey, items: [], next: null, error: e instanceof Error ? e.message : "Could not load job cards." });
+      });
+    return () => { cancelled = true; };
+  }, [ready, filter, cursor, pageSize, requestKey]);
+
+  // A new job card appears the moment a quote is accepted: re-read the current page.
+  useEffect(() => {
+    if (!ready) return;
+    const sub = client.models.JobCard.onCreate().subscribe({
+      next: () => setNonce((n) => n + 1),
+      error: (e) => console.error("[jobcards] live updates unavailable", e),
     });
     return () => sub.unsubscribe();
-  }, []);
+  }, [ready]);
 
-  const rows = useMemo(
-    () => cards
-      .filter((c) => filter === "ALL" || c.status === filter)
-      .sort((a, b) => Date.parse(b.openedAt ?? "0") - Date.parse(a.openedAt ?? "0")),
-    [cards, filter],
-  );
+  const resetPaging = () => { setCursors([null]); setPageIndex(0); };
+  const changeFilter = (f: StatusFilter) => { setFilter(f); resetPaging(); };
+  const changePageSize = (n: number) => { setPageSize(n); resetPaging(); };
+  const goNext = () => {
+    if (!data?.next) return;
+    const next = data.next;
+    setCursors((c) => { const copy = c.slice(0, pageIndex + 1); copy[pageIndex + 1] = next; return copy; });
+    setPageIndex((i) => i + 1);
+  };
+  const goPrev = () => setPageIndex((i) => Math.max(0, i - 1));
 
-  const columns = useMemo<ColumnDef<JobCard>[]>(() => [
-    { accessorKey: "jcNumber", header: "Job card", cell: ({ row }) => <span className="font-medium">{row.original.jcNumber}</span> },
-    { accessorKey: "customerName", header: "Customer", cell: ({ row }) => row.original.customerName ?? "-" },
-    {
-      accessorKey: "status", header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={row.original.status === "OPEN" ? "default" : "secondary"}>
-          {row.original.status === "OPEN" ? "Open" : "Closed"}
-        </Badge>
-      ),
-    },
-    { accessorKey: "totalMinutes", header: "Time spent", cell: ({ row }) => <span className="tabular-nums">{formatMinutes(row.original.totalMinutes)}</span> },
-    {
-      accessorKey: "openedAt", header: "Opened",
-      cell: ({ row }) => row.original.openedAt
-        ? new Date(row.original.openedAt).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" })
-        : "-",
-    },
-    {
-      id: "view", header: "",
-      cell: ({ row }) => (
-        <Button size="sm" variant="outline" className="cursor-pointer" onClick={() => navigate(`/jobcards/${row.original.id}`)}>View</Button>
-      ),
-    },
-  ], [navigate]);
+  const runSearch = async () => {
+    const t = term.trim();
+    if (!t) return;
+    setSearching(true);
+    setSearchError(null);
+    try { setFound({ term: t, items: await findJobCards(t) }); }
+    catch (e) { setSearchError(e instanceof Error ? e.message : "Search failed."); }
+    finally { setSearching(false); }
+  };
+  const clearSearch = () => { setFound(null); setTerm(""); setSearchError(null); };
+
+  const rows = found ? found.items : data?.items ?? [];
+  const from = pageIndex * pageSize + 1;
+  const to = pageIndex * pageSize + rows.length;
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Navbar />
-      {loading ? (
-        <Loading />
-      ) : (
-        <main className="flex-1 px-2 sm:px-4 mt-25 pb-20">
-          <div className="container mx-auto max-w-7xl mt-5">
-            <Card className="mb-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
+      <main className="flex-1 px-2 sm:px-4 mt-25 pb-20">
+        <div className="container mx-auto max-w-7xl mt-3 space-y-3">
+          {!ready ? (
+            <BackendNotReady />
+          ) : (
+            <>
+              {/* One compact toolbar: title, filters, search, refresh */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h1 className="flex items-center gap-2 text-lg font-semibold">
                   <ClipboardList className="h-4 w-4" /> Job Cards
-                  <Badge variant="secondary" className="text-xs">{rows.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex gap-2">
-                  {FILTERS.map((f) => (
-                    <Button
-                      key={f.value} size="sm" className="h-8 text-xs cursor-pointer"
-                      variant={filter === f.value ? "default" : "outline"} onClick={() => setFilter(f.value)}
-                    >
-                      {f.label}
-                    </Button>
-                  ))}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex gap-1" role="group" aria-label="Status filter">
+                    {FILTERS.map((f) => (
+                      <Button
+                        key={f.value} size="sm" className="h-8 cursor-pointer px-3 text-xs"
+                        variant={filter === f.value && !found ? "default" : "outline"}
+                        onClick={() => { clearSearch(); changeFilter(f.value); }}
+                      >
+                        {f.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <form className="relative" onSubmit={(e) => { e.preventDefault(); void runSearch(); }}>
+                    <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      className="h-8 w-56 pl-8 text-xs" placeholder="Find JC or quote no. (Enter)"
+                      value={term} onChange={(e) => setTerm(e.target.value)}
+                    />
+                  </form>
+                  <Button size="icon-sm" variant="outline" className="cursor-pointer" aria-label="Refresh" onClick={() => setNonce((n) => n + 1)}>
+                    <RefreshCw className={loading ? "animate-spin" : ""} />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-            <DataTable title="" data={rows} columns={columns} searchColumn="jcNumber" storageKey="jobcards-list" />
-          </div>
-        </main>
-      )}
+              </div>
+
+              {found && (
+                <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm">
+                  <span>{found.items.length} result{found.items.length === 1 ? "" : "s"} for <strong>{found.term}</strong></span>
+                  <Button size="sm" variant="ghost" className="h-7 cursor-pointer" onClick={clearSearch}><X className="mr-1 h-3.5 w-3.5" /> Clear</Button>
+                </div>
+              )}
+              {searching && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...</p>}
+              {(searchError || data?.error) && (
+                <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{searchError ?? data?.error}</p>
+              )}
+
+              <Card className="shadow-none overflow-hidden">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Job card</TableHead>
+                        <TableHead className="hidden md:table-cell">Customer</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Time spent</TableHead>
+                        <TableHead className="hidden sm:table-cell">Opened</TableHead>
+                        <TableHead className="w-8" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading && !found
+                        ? Array.from({ length: Math.min(pageSize, 8) }, (_, i) => (
+                            <TableRow key={i}>
+                              <TableCell colSpan={6}><div className="h-5 w-full animate-pulse rounded bg-muted" /></TableCell>
+                            </TableRow>
+                          ))
+                        : rows.map((c) => (
+                            <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/jobcards/${c.id}`)}>
+                              <TableCell>
+                                <Link to={`/jobcards/${c.id}`} className="font-medium hover:underline" onClick={(e) => e.stopPropagation()}>{c.jcNumber}</Link>
+                                {c.title && <p className="max-w-xs truncate text-xs text-muted-foreground">{c.title}</p>}
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">{c.customerName ?? "-"}</TableCell>
+                              <TableCell>
+                                <Badge variant={c.status === "OPEN" ? "default" : "secondary"}>{c.status === "OPEN" ? "Open" : "Closed"}</Badge>
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{formatMinutes(c.totalMinutes)}</TableCell>
+                              <TableCell className="hidden sm:table-cell text-muted-foreground" title={c.openedAt ?? undefined}>
+                                {c.openedAt ? new Date(c.openedAt).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
+                              </TableCell>
+                              <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
+                            </TableRow>
+                          ))}
+                      {!loading && rows.length === 0 && !data?.error && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                            {found ? `No job card matches "${found.term}".` : EMPTY_TEXT[filter]}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Pager (hidden for search results, which are a short exact lookup) */}
+              {!found && (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <p className="text-xs text-muted-foreground">
+                    {rows.length > 0 ? `Showing ${from}-${to}` : "No rows"}{filter !== "OPEN" ? "" : " (open job cards only)"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Rows per page</span>
+                    <Select value={String(pageSize)} onValueChange={(v) => changePageSize(Number(v))}>
+                      <SelectTrigger className="h-8 w-16 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>{PAGE_SIZES.map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Button size="sm" variant="outline" className="h-8 cursor-pointer" disabled={pageIndex === 0 || loading} onClick={goPrev}>
+                      <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                    </Button>
+                    <span className="text-xs tabular-nums text-muted-foreground">Page {pageIndex + 1}</span>
+                    <Button size="sm" variant="outline" className="h-8 cursor-pointer" disabled={!data?.next || loading} onClick={goNext}>
+                      Next <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </main>
       <Footer />
     </div>
   );

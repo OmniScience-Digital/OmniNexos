@@ -1,3 +1,4 @@
+// amplify/storage/resource.ts  (MODIFIED - search "JOBCARD" for the addition)
 // amplify/storage.ts
 import { defineStorage } from '@aws-amplify/backend';
 
@@ -11,6 +12,11 @@ export const storage = defineStorage({
     ],
     "documents/*": [
       allow.groups(["USERS"]).to(['read', 'write', 'delete']),
+      allow.groups(["ADMINS"]).to(['read', 'write', 'delete'])
+    ],
+    // JOBCARD: result photos and calibration certificates, stored as jobcards/{jobCardId}/...
+    "jobcards/*": [
+      allow.groups(["USERS"]).to(['read', 'write']),
       allow.groups(["ADMINS"]).to(['read', 'write', 'delete'])
     ],
     "hr/*": [

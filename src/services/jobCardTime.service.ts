@@ -1,15 +1,28 @@
-// src/services/jobCardTime.service.ts  (NEW FILE)
+// src/services/jobCardTime.service.ts
 // Job cards: data access + passive time tracking side effects.
 // The rules themselves live in src/utils/helper/jobCardTime.ts (pure, tested).
 // Everything here is idempotent, so the web app, the mobile app and a future
 // backend trigger can all call the same operations without double counting.
 import { client } from "@/services/schema";
+import { getUrl } from "aws-amplify/storage";
 import type {
-  JobCard, JobCardScale, TimeEntry, TimeEntryStartReason, TimeUser, WorkItem, WorkItemType,
+  Certificate, DeliveryStatus, JobCard, JobCardScale, JobCardStatus, Submission, TelegramGroupRow, TimeEntry,
+  TimeEntryStartReason, TimeUser, WorkItem, WorkItemType,
 } from "@/types/jobcards.types";
+import type { PageCursor, StatusFilter, StatusQuery } from "@/utils/helper/jobCardPaging";
+import { fetchJobCardsPage } from "@/utils/helper/jobCardPaging";
 import {
   clampEnd, closedMinutesTotal, isOpen, minutesBetween, nextSessionId, planStop,
 } from "@/utils/helper/jobCardTime";
+
+/** False until the backend with the job card models is deployed and amplify_outputs.json is regenerated. */
+export const jobCardBackendReady = (): boolean => {
+  const models = client.models as unknown as Record<string, unknown>;
+  return [
+    "JobCard", "JobCardScale", "JobCardModule", "JobCardTimeEntry",
+    "JobCardSubmission", "CalibrationCertificate", "TelegramGroup",
+  ].every((k) => Boolean(models[k]));
+};
 
 type Row = Record<string, unknown>;
 const s = (v: unknown) => v as string;
@@ -18,7 +31,7 @@ const o = (v: unknown) => (v == null ? undefined : (v as string));
 export const mapJobCard = (r: Row): JobCard => ({
   id: s(r.id), jcNumber: s(r.jcNumber), quoteNumber: o(r.quoteNumber), customerName: o(r.customerName),
   title: o(r.title), status: r.status as JobCard["status"], openedAt: o(r.openedAt), closedAt: o(r.closedAt),
-  closedBy: o(r.closedBy), clickupTaskId: o(r.clickupTaskId),
+  closedBy: o(r.closedBy), clickupTaskId: o(r.clickupTaskId), telegramGroupId: o(r.telegramGroupId),
   totalMinutes: r.totalMinutes == null ? undefined : (r.totalMinutes as number),
 });
 export const mapScale = (r: Row): JobCardScale => ({
@@ -33,6 +46,28 @@ export const mapTimeEntry = (r: Row): TimeEntry => ({
   id: s(r.id), jobCardId: s(r.jobCardId), moduleId: o(r.moduleId), userId: s(r.userId), userName: o(r.userName),
   startedAt: s(r.startedAt), endedAt: o(r.endedAt), minutes: r.minutes == null ? undefined : (r.minutes as number),
   startReason: o(r.startReason) as TimeEntry["startReason"], endReason: o(r.endReason) as TimeEntry["endReason"],
+});
+
+export const mapSubmission = (r: Row): Submission => {
+  // a.json() comes back as a JSON string from AppSync; accept an already-parsed object too.
+  let payload: Record<string, unknown> = {};
+  try {
+    const raw = typeof r.payload === "string" ? JSON.parse(r.payload as string) : r.payload;
+    if (raw && typeof raw === "object") payload = raw as Record<string, unknown>;
+  } catch { /* leave empty: the card will just show no fields */ }
+  return {
+    id: s(r.id), moduleId: s(r.moduleId), scaleId: s(r.scaleId), jobCardId: s(r.jobCardId),
+    moduleType: r.moduleType as Submission["moduleType"], submittedBy: s(r.submittedBy), submittedAt: s(r.submittedAt),
+    payload, clickupStatus: o(r.clickupStatus) as DeliveryStatus | undefined,
+    telegramStatus: o(r.telegramStatus) as DeliveryStatus | undefined,
+  };
+};
+export const mapCertificate = (r: Row): Certificate => ({
+  id: s(r.id), certificateNumber: s(r.certificateNumber), jobCardId: s(r.jobCardId), scaleId: s(r.scaleId),
+  status: r.status as Certificate["status"], version: (r.version as number) ?? 1, issuedAt: s(r.issuedAt), pdfKey: s(r.pdfKey),
+});
+export const mapTelegramGroup = (r: Row): TelegramGroupRow => ({
+  id: s(r.id), chatId: s(r.chatId), groupName: o(r.groupName), active: r.active == null ? undefined : (r.active as boolean),
 });
 
 type Page = { data?: unknown[] | null; nextToken?: string | null; errors?: { message?: string }[] };
@@ -177,4 +212,63 @@ export async function closeJobCard(jobCardId: string, user: TimeUser): Promise<v
     "Could not close job card",
   );
   await recomputeTotalMinutes(jobCardId);
+}
+
+/** Remove a scale together with its work items. Refused if any result has already been submitted. */
+export async function removeScale(scale: Pick<JobCardScale, "id" | "jobCardId">): Promise<void> {
+  // Re-read from the database: the page's copy may be stale (a technician may have just submitted).
+  const mine = (await listWorkItems(scale.jobCardId)).filter((i) => i.scaleId === scale.id);
+  if (mine.some((i) => i.status === "SUBMITTED")) {
+    throw new Error("This scale has submitted results and cannot be removed.");
+  }
+  for (const i of mine) assertOk(await client.models.JobCardModule.delete({ id: i.id }), "Could not remove work item");
+  assertOk(await client.models.JobCardScale.delete({ id: scale.id }), "Could not remove scale");
+  await syncTimeTracking(scale.jobCardId);
+}
+
+/** Link (or unlink, with null) the Telegram group a job card's results are posted to. */
+export async function setTelegramGroup(jobCardId: string, groupId: string | null): Promise<void> {
+  assertOk(await client.models.JobCard.update({ id: jobCardId, telegramGroupId: groupId }), "Could not link Telegram group");
+}
+
+export async function listTelegramGroups(): Promise<TelegramGroupRow[]> {
+  const rows = await allPages((nextToken) => client.models.TelegramGroup.list({ nextToken }) as Promise<Page>);
+  return rows.map(mapTelegramGroup).sort((a, b) => (a.groupName ?? a.chatId).localeCompare(b.groupName ?? b.chatId));
+}
+
+/** One page of one status, newest first, straight from the status index (never a table scan). */
+const queryByStatus: StatusQuery = async (status: JobCardStatus, limit: number, nextToken: string | null) => {
+  const res = await client.models.JobCard.jobCardsByStatus(
+    { status },
+    { sortDirection: "DESC", limit, nextToken: nextToken ?? undefined },
+  );
+  assertOk(res, "Could not load job cards");
+  return { items: (res.data ?? []).map((r) => mapJobCard(r as Row)), nextToken: res.nextToken ?? null };
+};
+
+/** A page of job cards. Closed ones are only read when the filter is CLOSED or ALL. */
+export function loadJobCardsPage(filter: StatusFilter, cursor: PageCursor | null, limit: number) {
+  return fetchJobCardsPage(queryByStatus, filter, cursor, limit);
+}
+
+/** Exact lookup by job card number (JC-QU-0032 or just QU-0032) or by quote number, using indexes. */
+export async function findJobCards(term: string): Promise<JobCard[]> {
+  const t = term.trim();
+  if (!t) return [];
+  const byNumber = [t, ...(t.toUpperCase().startsWith("JC-") ? [] : [`JC-${t}`])];
+  const found = new Map<string, JobCard>();
+  for (const jcNumber of byNumber) {
+    const res = await client.models.JobCard.jobCardsByNumber({ jcNumber });
+    assertOk(res, "Search failed");
+    (res.data ?? []).forEach((r) => found.set(s(r.id), mapJobCard(r as Row)));
+  }
+  const res = await client.models.JobCard.jobCardsByQuoteNumber({ quoteNumber: t });
+  assertOk(res, "Search failed");
+  (res.data ?? []).forEach((r) => found.set(s(r.id), mapJobCard(r as Row)));
+  return [...found.values()];
+}
+
+/** Short-lived signed link to a file in storage (photos, certificate PDFs). */
+export async function getFileUrl(key: string): Promise<string> {
+  return (await getUrl({ path: key })).url.toString();
 }

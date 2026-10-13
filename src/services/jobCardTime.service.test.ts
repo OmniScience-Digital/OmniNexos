@@ -1,4 +1,4 @@
-// src/services/jobCardTime.service.test.ts
+// src/services/jobCardTime.service.test.ts  (NEW FILE - test)
 // Runs the real service functions against an in-memory fake of the Amplify client.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ type Row = Record<string, unknown>;
 const db = vi.hoisted(() => ({
   entries: new Map<string, Row>(),
   items: new Map<string, Row>(),
+  scales: new Map<string, Row>(),
   jc: { id: "jc1", status: "OPEN", totalMinutes: 0 } as Row,
   n: 0,
 }));
@@ -36,12 +37,13 @@ vi.mock("@/services/schema", () => ({
         delete: async (r: Row) => { db.items.delete(r.id as string); return { data: r }; },
       },
       JobCard: { update: async (r: Row) => { Object.assign(db.jc, r); return { data: db.jc }; } },
+      JobCardScale: { delete: async (r: Row) => { db.scales.delete(r.id as string); return { data: r }; } },
     },
   },
 }));
 
 import {
-  addWorkItem, closeJobCard, recordEngagement, removeWorkItem, syncTimeTracking,
+  addWorkItem, closeJobCard, recordEngagement, removeScale, removeWorkItem, setTelegramGroup, syncTimeTracking,
 } from "./jobCardTime.service";
 
 const A = { id: "userA", name: "Ayanda" };
@@ -53,7 +55,7 @@ const submit = (id: string, hhmm: string) =>
 const entries = () => [...db.entries.values()];
 
 beforeEach(() => {
-  db.entries.clear(); db.items.clear(); db.n = 0;
+  db.entries.clear(); db.items.clear(); db.scales.clear(); db.n = 0;
   db.jc = { id: "jc1", status: "OPEN", totalMinutes: 0 };
   vi.useFakeTimers();
   vi.setSystemTime(new Date(at("08:00")));
@@ -124,5 +126,34 @@ describe("passive time tracking, end to end", () => {
     expect(db.jc).toMatchObject({ status: "CLOSED", totalMinutes: 50 });
     await expect(addWorkItem({ jobCard: { id: "jc1", status: "CLOSED" }, scaleId: "s1", type: "INSPECTION", user: A }))
       .rejects.toThrow(/closed/i);
+  });
+
+  it("removing a scale deletes its pending work items and stops time if that completes the job", async () => {
+    db.scales.set("s1", { id: "s1" }); db.scales.set("s2", { id: "s2" });
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A }); // wi1 (s1)
+    await addWorkItem({ jobCard, scaleId: "s2", type: "SPAN_CALIBRATION", user: A }); // wi2 (s2)
+    submit("wi1", "08:20");
+    vi.setSystemTime(new Date(at("08:40")));
+    await removeScale({ id: "s2", jobCardId: "jc1" });
+    expect(db.scales.has("s2")).toBe(false);
+    expect(db.items.has("wi2")).toBe(false);
+    expect(db.entries.get("jc1#userA#1")).toMatchObject({ endedAt: at("08:20"), endReason: "ALL_SUBMITTED" });
+  });
+
+  it("a scale with submitted results cannot be removed", async () => {
+    db.scales.set("s1", { id: "s1" });
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
+    await addWorkItem({ jobCard, scaleId: "s1", type: "SPAN_CALIBRATION", user: A });
+    submit("wi1", "08:20");
+    await expect(removeScale({ id: "s1", jobCardId: "jc1" })).rejects.toThrow(/submitted results/);
+    expect(db.scales.has("s1")).toBe(true);
+    expect(db.items.size).toBe(2);
+  });
+
+  it("links and unlinks the Telegram group", async () => {
+    await setTelegramGroup("jc1", "grp9");
+    expect(db.jc.telegramGroupId).toBe("grp9");
+    await setTelegramGroup("jc1", null);
+    expect(db.jc.telegramGroupId).toBeNull();
   });
 });
