@@ -9,6 +9,8 @@ const client = new CognitoIdentityProviderClient();
 
 export const handler = async () => {
   const userPoolId = process.env.AMPLIFY_AUTH_USERPOOL_ID;
+  // Amplify only injects this for functions listed in the access rules of amplify/auth/resource.ts.
+  if (!userPoolId) throw new Error("AMPLIFY_AUTH_USERPOOL_ID is not set: add listTechnicians to the access rules in amplify/auth/resource.ts");
   const users: UserType[] = [];
   let token: string | undefined;
   do {

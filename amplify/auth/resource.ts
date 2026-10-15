@@ -1,9 +1,11 @@
+// amplify/auth/resource.ts  (MODIFIED - search "JOBCARD" for the 2 additions)
 import { defineAuth, secret } from "@aws-amplify/backend";
 import { preSignup } from "../function/auth/pre-signup/resource";
 import { postConfirmation } from "../function/post-confirmation/resource";
 import { listUsers } from "../function/listUsers/resource";
 import { manageUser } from "../function/manageUser/resource";
 import { inviteUser } from "../function/inviteUser/resource";
+import { listTechnicians } from "../function/listTechnicians/resource"; // JOBCARD
 
 export const auth = defineAuth({
   loginWith: {
@@ -178,6 +180,7 @@ export const auth = defineAuth({
     allow.resource(listUsers).to(["listUsers"]),
     allow.resource(manageUser).to(["enableUser", "disableUser", "deleteUser"]),
     allow.resource(inviteUser).to(["createUser", "addUserToGroup"]),
+    allow.resource(listTechnicians).to(["listUsers"]),
   ],
   groups: ["ADMINS", "USERS"],
 });
