@@ -1,4 +1,4 @@
-// src/app/jobcards/components/CertificatesPanel.tsx  
+// src/app/jobcards/components/CertificatesPanel.tsx  (NEW FILE)
 import { useState } from "react";
 import { Award, Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +55,7 @@ export default function CertificatesPanel({
                 <TableCell>{new Date(c.issuedAt).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
                 <TableCell><Badge variant={c.status === "ISSUED" ? "default" : "secondary"}>{c.status === "ISSUED" ? "Issued" : "Superseded"}</Badge></TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="outline" className="cursor-pointer" disabled={busy === c.id} onClick={() => download(c)}>
+                  <Button size="sm" variant="outline" className="cursor-pointer" disabled={busy === c.id || c.pdfStored === false} title={c.pdfStored === false ? "PDF is still being generated" : undefined} onClick={() => download(c)}>
                     {busy === c.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1 h-3.5 w-3.5" />} PDF
                   </Button>
                 </TableCell>

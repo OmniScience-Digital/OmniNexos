@@ -1,4 +1,4 @@
-// src/services/jobCardTime.service.ts
+// src/services/jobCardTime.service.ts  (NEW FILE)
 // Job cards: data access + passive time tracking side effects.
 // The rules themselves live in src/utils/helper/jobCardTime.ts (pure, tested).
 // Everything here is idempotent, so the web app, the mobile app and a future
