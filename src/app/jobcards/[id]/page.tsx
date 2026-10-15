@@ -1,4 +1,4 @@
-// src/app/jobcards/[id]/page.tsx  (NEW FILE)
+// src/app/jobcards/[id]/page.tsx 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Award, CheckCircle2, ClipboardList, Clock, ExternalLink, Loader2, Lock } from "lucide-react";
@@ -150,10 +150,10 @@ export default function JobCardDetailPage() {
                 {/* Detail */}
                 <Tabs defaultValue="work">
                   <TabsList>
-                    <TabsTrigger value="work">Work items</TabsTrigger>
-                    <TabsTrigger value="results">Results ({results.length})</TabsTrigger>
-                    <TabsTrigger value="time">Time</TabsTrigger>
-                    <TabsTrigger value="certificates">Certificates ({certificates.length})</TabsTrigger>
+                    <TabsTrigger className="cursor-pointer" value="work">Work items</TabsTrigger>
+                    <TabsTrigger className="cursor-pointer" value="results">Results ({results.length})</TabsTrigger>
+                    <TabsTrigger className="cursor-pointer" value="time">Time</TabsTrigger>
+                    <TabsTrigger className="cursor-pointer" value="certificates">Certificates ({certificates.length})</TabsTrigger>
                   </TabsList>
                   <TabsContent value="work" className="pt-3">
                     <WorkItemsCard jobCard={jobCard} scales={scales} items={items} user={user} canEdit={canEdit} onError={showError} />
