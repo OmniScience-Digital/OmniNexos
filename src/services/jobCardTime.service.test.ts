@@ -7,6 +7,9 @@ const db = vi.hoisted(() => ({
   entries: new Map<string, Row>(),
   items: new Map<string, Row>(),
   scales: new Map<string, Row>(),
+  groups: new Map<string, Row>(),
+  techCalls: 0,
+  techFail: false,
   jc: { id: "jc1", status: "OPEN", totalMinutes: 0 } as Row,
   n: 0,
 }));
@@ -35,15 +38,38 @@ vi.mock("@/services/schema", () => ({
           return { data: row };
         },
         delete: async (r: Row) => { db.items.delete(r.id as string); return { data: r }; },
+        update: async (r: Row) => {
+          const row = db.items.get(r.id as string);
+          if (!row) return { errors: [{ message: "not found" }] };
+          Object.assign(row, r);
+          return { data: row };
+        },
+      },
+      TelegramGroup: {
+        get: async ({ id }: Row) => ({ data: db.groups.get(id as string) ?? null }),
+        telegramGroupsByChatId: async ({ chatId }: Row) => ({ data: [...db.groups.values()].filter((g) => g.chatId === chatId) }),
+        create: async (r: Row) => {
+          const row = { ...r, id: (r.id as string) ?? `g${++db.n}` };
+          db.groups.set(row.id as string, row);
+          return { data: row };
+        },
       },
       JobCard: { update: async (r: Row) => { Object.assign(db.jc, r); return { data: db.jc }; } },
       JobCardScale: { delete: async (r: Row) => { db.scales.delete(r.id as string); return { data: r }; } },
+    },
+    queries: {
+      techniciansList: async () => {
+        db.techCalls += 1;
+        if (db.techFail) { db.techFail = false; return { errors: [{ message: "boom" }] }; }
+        return { data: [{ id: "u2", name: "Ben", email: "b@x.co" }, null, { id: "u1", name: "Ayanda" }] };
+      },
     },
   },
 }));
 
 import {
-  addWorkItem, closeJobCard, recordEngagement, removeScale, removeWorkItem, setTelegramGroup, syncTimeTracking,
+  addTelegramGroup, addWorkItem, assignWorkItem, closeJobCard, listTechnicians, recordEngagement, removeScale, removeWorkItem,
+  setTelegramGroup, syncTimeTracking,
 } from "./jobCardTime.service";
 
 const A = { id: "userA", name: "Ayanda" };
@@ -55,7 +81,7 @@ const submit = (id: string, hhmm: string) =>
 const entries = () => [...db.entries.values()];
 
 beforeEach(() => {
-  db.entries.clear(); db.items.clear(); db.scales.clear(); db.n = 0;
+  db.entries.clear(); db.items.clear(); db.scales.clear(); db.groups.clear(); db.techCalls = 0; db.techFail = false; db.n = 0;
   db.jc = { id: "jc1", status: "OPEN", totalMinutes: 0 };
   vi.useFakeTimers();
   vi.setSystemTime(new Date(at("08:00")));
@@ -155,5 +181,49 @@ describe("passive time tracking, end to end", () => {
     expect(db.jc.telegramGroupId).toBe("grp9");
     await setTelegramGroup("jc1", null);
     expect(db.jc.telegramGroupId).toBeNull();
+  });
+
+  it("assigns a technician when adding work, but the time entry stays with the person who added it", async () => {
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A, assignee: { id: "userB", name: "Ben" } });
+    expect(db.items.get("wi1")).toMatchObject({ assignedTo: "userB", assignedToName: "Ben", addedBy: "userA" });
+    expect(entries().map((e) => e.userId)).toEqual(["userA"]);
+  });
+
+  it("assigns, reassigns and unassigns pending work, but never submitted work", async () => {
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
+    expect(db.items.get("wi1")!.assignedTo).toBeUndefined();
+    await assignWorkItem({ id: "wi1", status: "PENDING" }, { id: "userB", name: "Ben" });
+    expect(db.items.get("wi1")).toMatchObject({ assignedTo: "userB", assignedToName: "Ben" });
+    await assignWorkItem({ id: "wi1", status: "PENDING" }, { id: "userC", name: "Cara" });
+    expect(db.items.get("wi1")).toMatchObject({ assignedTo: "userC", assignedToName: "Cara" });
+    await assignWorkItem({ id: "wi1", status: "PENDING" }, null);
+    expect(db.items.get("wi1")).toMatchObject({ assignedTo: null, assignedToName: null });
+    await expect(assignWorkItem({ id: "wi1", status: "SUBMITTED" }, { id: "userB", name: "Ben" })).rejects.toThrow(/submitted/);
+  });
+
+  it("technician list drops empty rows, is cached for 5 minutes, and a failure is not cached", async () => {
+    const first = await listTechnicians(true);
+    expect(first).toEqual([{ id: "u2", name: "Ben", email: "b@x.co" }, { id: "u1", name: "Ayanda", email: undefined }]);
+    await listTechnicians();
+    expect(db.techCalls).toBe(1); // second call served from the cache
+    vi.setSystemTime(new Date(at("08:06")));
+    await listTechnicians();
+    expect(db.techCalls).toBe(2); // cache expired
+    db.techFail = true;
+    await expect(listTechnicians(true)).rejects.toThrow(/boom/);
+    await expect(listTechnicians()).resolves.toHaveLength(2); // retried, not stuck on the failure
+  });
+
+  it("adds a Telegram group by hand once (row id derived from the chat id), and refuses bad input", async () => {
+    const created = await addTelegramGroup({ groupName: "  Klipfontein   JC ", chatId: " -100 1234 567890" });
+    expect(created.existed).toBe(false);
+    expect(created.group).toMatchObject({ chatId: "-1001234567890", groupName: "Klipfontein JC", active: true, id: "tg-1001234567890" });
+    const again = await addTelegramGroup({ groupName: "Other name", chatId: "-1001234567890" });
+    expect(again.existed).toBe(true);
+    expect(again.group.id).toBe(created.group.id);
+    expect(db.groups.size).toBe(1);
+    await expect(addTelegramGroup({ groupName: "X", chatId: "@mygroup" })).rejects.toThrow(/number/);
+    await expect(addTelegramGroup({ groupName: " ", chatId: "-1001234567890" })).rejects.toThrow(/name/);
+    expect(db.groups.size).toBe(1);
   });
 });

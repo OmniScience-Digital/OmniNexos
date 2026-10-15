@@ -1,4 +1,4 @@
-// src/app/jobcards/components/WorkItemsCard.tsx  
+// src/app/jobcards/components/WorkItemsCard.tsx  (NEW FILE)
 import { useState } from "react";
 import { CheckCircle2, Circle, Loader2, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { addScale, addWorkItem, removeScale, removeWorkItem } from "@/services/jobCardTime.service";
+import { useTechnicians } from "@/hooks/useTechnicians";
+import { addScale, addWorkItem, assignWorkItem, removeScale, removeWorkItem } from "@/services/jobCardTime.service";
 import {
-  WORK_ITEM_LABEL, type JobCard, type JobCardScale, type TimeUser, type WorkItem, type WorkItemType,
+  WORK_ITEM_LABEL, type JobCard, type JobCardScale, type Technician, type TimeUser, type WorkItem, type WorkItemType,
 } from "@/types/jobcards.types";
+import TechnicianSelect from "./TechnicianSelect";
 
 interface Props {
   jobCard: JobCard;
@@ -29,6 +31,9 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<JobCardScale | null>(null);
   const editable = canEdit && jobCard.status === "OPEN" && !!user;
+  const { technicians, loading: loadingTechnicians, error: technicianError } = useTechnicians(editable);
+  const [assignTo, setAssignTo] = useState<Technician | null>(null); // who NEW work items are assigned to
+  const assigneeOf = (t: Technician | null) => (t ? { id: t.id, name: t.name } : null);
 
   const run = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
@@ -41,6 +46,7 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
   return (
     <div className="space-y-4">
       {editable && (
+        <div className="flex flex-wrap items-end justify-between gap-3">
         <form
           className="flex flex-wrap items-center gap-2"
           onSubmit={(e) => {
@@ -54,6 +60,17 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
             {busy === "scale" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Plus className="mr-1 h-4 w-4" />} Add scale
           </Button>
         </form>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Assign new work to</p>
+          <TechnicianSelect
+            value={assignTo?.id} technicians={technicians} loading={loadingTechnicians}
+            onChange={setAssignTo} className="h-9 w-56 text-sm"
+          />
+        </div>
+        </div>
+      )}
+      {editable && technicianError && (
+        <p className="text-xs text-destructive">Could not load users ({technicianError}). Work can still be added and assigned later.</p>
       )}
 
       {sorted.length === 0 && (
@@ -102,7 +119,16 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
                           : <Circle className="h-4 w-4 text-muted-foreground" />}
                         {WORK_ITEM_LABEL[i.moduleType]} #{i.sequence}
                       </span>
-                      <span className="flex items-center gap-1">
+                      <span className="flex flex-wrap items-center justify-end gap-1">
+                        {editable && i.status === "PENDING" ? (
+                          <TechnicianSelect
+                            value={i.assignedTo} valueName={i.assignedToName} technicians={technicians} loading={loadingTechnicians}
+                            disabled={busy === `assign-${i.id}`} className="h-7 w-40 text-xs"
+                            onChange={(t) => run(`assign-${i.id}`, () => assignWorkItem(i, assigneeOf(t)))}
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{i.assignedToName ?? (i.status === "PENDING" ? "Unassigned" : "")}</span>
+                        )}
                         <Badge variant={i.status === "SUBMITTED" ? "secondary" : "outline"} className="text-[10px]">
                           {i.status === "SUBMITTED" ? "Submitted" : "Pending"}
                         </Badge>
@@ -125,7 +151,7 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
                       <Button
                         key={t} size="sm" variant="outline" className="h-7 cursor-pointer px-2 text-xs"
                         disabled={busy === `add-${sc.id}-${t}`}
-                        onClick={() => run(`add-${sc.id}-${t}`, () => addWorkItem({ jobCard, scaleId: sc.id, type: t, user: user! }))}
+                        onClick={() => run(`add-${sc.id}-${t}`, () => addWorkItem({ jobCard, scaleId: sc.id, type: t, user: user!, assignee: assigneeOf(assignTo) }))}
                       >
                         {busy === `add-${sc.id}-${t}` ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
                         {WORK_ITEM_LABEL[t]}

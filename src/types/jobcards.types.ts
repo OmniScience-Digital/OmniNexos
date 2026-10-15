@@ -1,4 +1,4 @@
-// src/types/jobcards.types.ts  
+// src/types/jobcards.types.ts  (NEW FILE)
 // Job card types used by the web app. Mirrors amplify/data/jobcards.models.ts.
 
 export type JobCardStatus = "OPEN" | "CLOSED";
@@ -47,6 +47,9 @@ export interface WorkItem {
   addedAt?: string | null;
   submittedBy?: string | null;
   submittedAt?: string | null;
+  /** The technician (system login user, Cognito sub) this work item is assigned to. */
+  assignedTo?: string | null;
+  assignedToName?: string | null;
 }
 
 export interface TimeEntry {
@@ -93,6 +96,8 @@ export interface Certificate {
   version: number;
   issuedAt: string;
   pdfKey: string;
+  /** false while the number is reserved but the PDF has not been uploaded yet. */
+  pdfStored?: boolean;
 }
 
 export interface TelegramGroupRow {
@@ -100,4 +105,17 @@ export interface TelegramGroupRow {
   chatId: string;
   groupName?: string | null;
   active?: boolean | null;
+}
+
+/** A system login user who can be assigned work. */
+export interface Technician {
+  id: string; // Cognito sub
+  name: string;
+  email?: string;
+}
+
+/** Who a work item is assigned to. */
+export interface Assignee {
+  id: string;
+  name: string;
 }

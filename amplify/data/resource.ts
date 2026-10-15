@@ -4,6 +4,7 @@ import { notifyPhotoApproval } from "../function/notifyPhotoApproval/resource";
 import { manageUser } from "../function/manageUser/resource";
 import { inviteUser } from "../function/inviteUser/resource";
 import { jobCardModels } from "./jobcards.models";
+import { listTechnicians } from "../function/listTechnicians/resource"; // JOBCARD: technician picker
 
 const schema = a.schema({
    ...jobCardModels, 
@@ -12,6 +13,16 @@ const schema = a.schema({
     .returns(a.json().array())
     .authorization((allow) => [allow.groups(["ADMINS"])])
     .handler(a.handler.function(listUsers)),
+      TechnicianUser: a.customType({
+    id: a.string().required(),
+    name: a.string().required(),
+    email: a.string(),
+  }),
+  techniciansList: a
+    .query()
+    .returns(a.ref("TechnicianUser").array())
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(listTechnicians)),
 
   notifyPhotoRequestStatus: a
     .mutation()

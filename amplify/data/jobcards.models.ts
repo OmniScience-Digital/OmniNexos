@@ -88,11 +88,14 @@ export const jobCardModels = {
       addedAt: a.datetime(),
       submittedBy: a.string(),
       submittedAt: a.datetime(), // set when status becomes SUBMITTED; ends the time entries
+      assignedTo: a.string(), // Cognito sub of the technician (a system login user) the work is assigned to
+      assignedToName: a.string(), // their display name, kept here so lists need no user lookup
       submissions: a.hasMany("JobCardSubmission", "moduleId"),
     })
     .secondaryIndexes((index) => [
       index("scaleId").sortKeys(["sequence"]).queryField("modulesByScale"),
       index("jobCardId").queryField("modulesByJobCard"),
+      index("assignedTo").queryField("modulesByAssignee"), // a technician's own work
     ])
     .authorization((allow) => [allow.authenticated()]),
 
@@ -110,9 +113,16 @@ export const jobCardModels = {
       submittedAt: a.datetime().required(),
       schemaVersion: a.integer().required(),
       payload: a.json().required(), // see payload types below
+      // Delivery bookkeeping, written by the backend worker. Whoever CREATES a submission (the mobile app)
+      // must set deliveryState: "PENDING": the worker finds work through that field (a sparse index), and
+      // removes it once the result has been fully handled.
+      deliveryState: a.string(),
       clickupStatus: a.ref("DeliveryStatus"),
       telegramStatus: a.ref("DeliveryStatus"),
       deliveryError: a.string(),
+      deliveryAttempts: a.integer(),
+      nextAttemptAt: a.datetime(),
+      deliveredAt: a.datetime(),
     })
     .secondaryIndexes((index) => [
       index("moduleId").sortKeys(["submittedAt"]).queryField("submissionsByModule"),
@@ -120,6 +130,7 @@ export const jobCardModels = {
         .sortKeys(["submittedAt"])
         .queryField("submissionsByScaleType"), // "latest zero/span" lookup
       index("jobCardId").sortKeys(["submittedAt"]).queryField("submissionsByJobCard"),
+      index("deliveryState").sortKeys(["submittedAt"]).queryField("submissionsByDeliveryState"),
     ])
     .authorization((allow) => [allow.authenticated()]),
   // Passive time tracking: one row per user per "session" on a JobCard.
@@ -166,6 +177,7 @@ export const jobCardModels = {
       sourceSubmissionIds: a.string().array(), // results the PDF was built from
       dataSnapshot: a.json(), // values printed on the certificate
       pdfKey: a.string().required(), // S3 key of the stored PDF
+      pdfStored: a.boolean(), // false while the number is reserved but the PDF is not uploaded yet
     })
     .secondaryIndexes((index) => [
       index("certificateNumber").queryField("certificatesByNumber"),

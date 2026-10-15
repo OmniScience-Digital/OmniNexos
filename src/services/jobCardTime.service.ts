@@ -6,9 +6,10 @@
 import { client } from "@/services/schema";
 import { getUrl } from "aws-amplify/storage";
 import type {
-  Certificate, DeliveryStatus, JobCard, JobCardScale, JobCardStatus, Submission, TelegramGroupRow, TimeEntry,
-  TimeEntryStartReason, TimeUser, WorkItem, WorkItemType,
+  Assignee, Certificate, DeliveryStatus, JobCard, JobCardScale, JobCardStatus, Submission, TelegramGroupRow,
+  Technician, TimeEntry, TimeEntryStartReason, TimeUser, WorkItem, WorkItemType,
 } from "@/types/jobcards.types";
+import { telegramGroupId, validateGroupInput, type GroupInput } from "@/utils/helper/telegramGroup";
 import type { PageCursor, StatusFilter, StatusQuery } from "@/utils/helper/jobCardPaging";
 import { fetchJobCardsPage } from "@/utils/helper/jobCardPaging";
 import {
@@ -41,6 +42,7 @@ export const mapWorkItem = (r: Row): WorkItem => ({
   id: s(r.id), scaleId: s(r.scaleId), jobCardId: s(r.jobCardId), moduleType: r.moduleType as WorkItem["moduleType"],
   status: r.status as WorkItem["status"], sequence: (r.sequence as number) ?? 0,
   addedBy: o(r.addedBy), addedAt: o(r.addedAt), submittedBy: o(r.submittedBy), submittedAt: o(r.submittedAt),
+  assignedTo: o(r.assignedTo), assignedToName: o(r.assignedToName),
 });
 export const mapTimeEntry = (r: Row): TimeEntry => ({
   id: s(r.id), jobCardId: s(r.jobCardId), moduleId: o(r.moduleId), userId: s(r.userId), userName: o(r.userName),
@@ -65,6 +67,7 @@ export const mapSubmission = (r: Row): Submission => {
 export const mapCertificate = (r: Row): Certificate => ({
   id: s(r.id), certificateNumber: s(r.certificateNumber), jobCardId: s(r.jobCardId), scaleId: s(r.scaleId),
   status: r.status as Certificate["status"], version: (r.version as number) ?? 1, issuedAt: s(r.issuedAt), pdfKey: s(r.pdfKey),
+  pdfStored: r.pdfStored == null ? undefined : (r.pdfStored as boolean),
 });
 export const mapTelegramGroup = (r: Row): TelegramGroupRow => ({
   id: s(r.id), chatId: s(r.chatId), groupName: o(r.groupName), active: r.active == null ? undefined : (r.active as boolean),
@@ -172,14 +175,17 @@ export async function addWorkItem(args: {
   scaleId: string;
   type: WorkItemType;
   user: TimeUser;
+  /** The technician (a system login user) the work is assigned to. Optional: can be assigned later. */
+  assignee?: Assignee | null;
 }): Promise<void> {
-  const { jobCard, scaleId, type, user } = args;
+  const { jobCard, scaleId, type, user, assignee } = args;
   if (jobCard.status !== "OPEN") throw new Error("This job card is closed.");
   const existing = (await listWorkItems(jobCard.id)).filter((i) => i.scaleId === scaleId);
   const at = new Date().toISOString();
   const res = await client.models.JobCardModule.create({
     jobCardId: jobCard.id, scaleId, moduleType: type, status: "PENDING",
     sequence: existing.reduce((m, i) => Math.max(m, i.sequence), 0) + 1, addedBy: user.id, addedAt: at,
+    assignedTo: assignee?.id, assignedToName: assignee?.name,
   });
   assertOk(res, "Could not add work item");
   await recordEngagement({
@@ -271,4 +277,60 @@ export async function findJobCards(term: string): Promise<JobCard[]> {
 /** Short-lived signed link to a file in storage (photos, certificate PDFs). */
 export async function getFileUrl(key: string): Promise<string> {
   return (await getUrl({ path: key })).url.toString();
+}
+
+/** Assign a work item to a technician, or pass null to unassign. Only possible until a result is submitted. */
+export async function assignWorkItem(item: Pick<WorkItem, "id" | "status">, assignee: Assignee | null): Promise<void> {
+  if (item.status !== "PENDING") throw new Error("This work item has already been submitted.");
+  assertOk(
+    await client.models.JobCardModule.update({
+      id: item.id, assignedTo: assignee?.id ?? null, assignedToName: assignee?.name ?? null,
+    }),
+    "Could not assign work item",
+  );
+}
+
+let technicianCache: { at: number; promise: Promise<Technician[]> } | null = null;
+const TECHNICIAN_CACHE_MS = 5 * 60_000;
+
+/** System login users who can be assigned work (enabled users only; names and emails, nothing else). Cached for 5 minutes. */
+export function listTechnicians(force = false): Promise<Technician[]> {
+  if (!force && technicianCache && Date.now() - technicianCache.at < TECHNICIAN_CACHE_MS) return technicianCache.promise;
+  const promise = (async () => {
+    const res = await client.queries.techniciansList();
+    assertOk(res, "Could not load users");
+    return ((res.data ?? []) as (Row | null)[])
+      .filter((t): t is Row => Boolean(t))
+      .map((t) => ({ id: s(t.id), name: s(t.name), email: o(t.email) }));
+  })();
+  technicianCache = { at: Date.now(), promise };
+  promise.catch(() => { if (technicianCache?.promise === promise) technicianCache = null; }); // never cache a failure
+  return promise;
+}
+
+/**
+ * Add a Telegram group by hand (name + chat ID). If the chat ID is already known (added by hand before, or
+ * recorded when the bot joined the group) the existing group is returned instead of creating a second one.
+ */
+export async function addTelegramGroup(input: GroupInput): Promise<{ group: TelegramGroupRow; existed: boolean }> {
+  const v = validateGroupInput(input);
+  if (!v.ok) throw new Error(v.error);
+  const { groupName, chatId } = v.value;
+
+  // The row id is derived from the chat ID (the backend bot capture uses the same rule), so a group added
+  // by hand and the same group captured when the bot joins can never become two rows.
+  const id = telegramGroupId(chatId);
+  const byId = await client.models.TelegramGroup.get({ id });
+  assertOk(byId, "Could not check existing groups");
+  if (byId.data) return { group: mapTelegramGroup(byId.data as Row), existed: true };
+  // Older rows created before this rule have random ids: still find them by chat ID.
+  const found = await client.models.TelegramGroup.telegramGroupsByChatId({ chatId });
+  assertOk(found, "Could not check existing groups");
+  const existing = found.data?.[0];
+  if (existing) return { group: mapTelegramGroup(existing as Row), existed: true };
+
+  const res = await client.models.TelegramGroup.create({ id, chatId, groupName, active: true, addedAt: new Date().toISOString() });
+  assertOk(res, "Could not add the group");
+  if (!res.data) throw new Error("Could not add the group.");
+  return { group: mapTelegramGroup(res.data as Row), existed: false };
 }
