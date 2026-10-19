@@ -1,19 +1,24 @@
+// amplify/data/resource.ts  (MODIFIED - search "JOBCARD" for the additions)
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { listUsers } from "../function/listUsers/resource";
 import { notifyPhotoApproval } from "../function/notifyPhotoApproval/resource";
 import { manageUser } from "../function/manageUser/resource";
 import { inviteUser } from "../function/inviteUser/resource";
-import { jobCardModels } from "./jobcards.models";
+import { jobCardModels } from "./jobcards.models"; // JOBCARD: new job card models
 import { listTechnicians } from "../function/listTechnicians/resource"; // JOBCARD: technician picker
+import { notifyWorkAssigned } from "../function/notifyWorkAssigned/resource"; // JOBCARD: push when work is assigned
 
 const schema = a.schema({
-   ...jobCardModels, 
+  ...jobCardModels, // JOBCARD: adds JobCard, JobCardScale, JobCardModule, JobCardSubmission, JobCardTimeEntry, TelegramGroup, CalibrationCertificate, CertificateCounter
   usersList: a
     .query()
     .returns(a.json().array())
     .authorization((allow) => [allow.groups(["ADMINS"])])
     .handler(a.handler.function(listUsers)),
-      TechnicianUser: a.customType({
+
+  // JOBCARD: system login users who can be assigned work. Readable by any signed-in user, unlike
+  // usersList (admins only). Returns only id, name and email of enabled users.
+  TechnicianUser: a.customType({
     id: a.string().required(),
     name: a.string().required(),
     email: a.string(),
@@ -23,6 +28,22 @@ const schema = a.schema({
     .returns(a.ref("TechnicianUser").array())
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(listTechnicians)),
+
+  // JOBCARD: push notification to a technician when work is assigned to them. Like notifyPhotoRequestStatus, the caller
+  // looks up the technician's push tokens first (pushTokensByUser) and passes them in.
+  notifyWorkAssigned: a
+    .mutation()
+    .arguments({
+      pushTokens: a.string().array().required(),
+      workItemId: a.string().required(),
+      jobCardId: a.string().required(),
+      jcNumber: a.string().required(),
+      scaleName: a.string().required(),
+      workItemLabel: a.string().required(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(notifyWorkAssigned)),
 
   notifyPhotoRequestStatus: a
     .mutation()
@@ -358,6 +379,7 @@ const schema = a.schema({
         "COMPLIANCE",
         "PERMISSIONS",
         "SUPPLIER",
+        "JOBCARD", // JOBCARD: new History entity type
       ]),
       entityId: a.string().required(),
       action: a.string().required(),

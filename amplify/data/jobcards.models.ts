@@ -13,7 +13,7 @@ export const jobCardModels = {
   JobCardModuleStatus: a.enum(["PENDING", "SUBMITTED"]),
   DeliveryStatus: a.enum(["PENDING", "SENT", "FAILED"]),
   CertificateStatus: a.enum(["ISSUED", "SUPERSEDED"]),
-  TimeEntryStartReason: a.enum(["WORK_ITEM_ADDED", "RESULT_SUBMITTED"]),
+  TimeEntryStartReason: a.enum(["WORK_ITEM_ADDED", "WORK_ITEM_STARTED", "RESULT_SUBMITTED"]),
   TimeEntryEndReason: a.enum(["ALL_SUBMITTED", "JOB_CLOSED", "NO_WORK_ITEMS"]),
 
   // Filled by the Telegram webhook function when the bot is added to a group.

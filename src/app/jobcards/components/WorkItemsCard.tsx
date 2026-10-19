@@ -1,4 +1,4 @@
-// src/app/jobcards/components/WorkItemsCard.tsx  (NEW FILE)
+// src/app/jobcards/components/WorkItemsCard.tsx
 import { useState } from "react";
 import { CheckCircle2, Circle, Loader2, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useTechnicians } from "@/hooks/useTechnicians";
-import { addScale, addWorkItem, assignWorkItem, removeScale, removeWorkItem } from "@/services/jobCardTime.service";
+import {
+  addScale, addWorkItem, assignNoticeMessage, assignWorkItem, removeScale, removeWorkItem, type AssignNotice,
+} from "@/services/jobCardTime.service";
 import {
   WORK_ITEM_LABEL, type JobCard, type JobCardScale, type Technician, type TimeUser, type WorkItem, type WorkItemType,
 } from "@/types/jobcards.types";
@@ -33,9 +35,11 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
   const editable = canEdit && jobCard.status === "OPEN" && !!user;
   const { technicians, loading: loadingTechnicians, error: technicianError } = useTechnicians(editable);
   const [assignTo, setAssignTo] = useState<Technician | null>(null); // who NEW work items are assigned to
-  const assigneeOf = (t: Technician | null) => (t ? { id: t.id, name: t.name } : null);
+  const assigneeOf = (t: Technician | null) => (t ? { id: t.id, name: t.name, email: t.email } : null);
+  const [notice, setNotice] = useState<string | null>(null); // e.g. "Ben has not signed in on the mobile app yet"
+  const tell = (n: AssignNotice, name: string | undefined) => setNotice(name ? assignNoticeMessage(n, name) : null);
 
-  const run = async (key: string, fn: () => Promise<void>) => {
+  const run = async (key: string, fn: () => Promise<unknown>) => {
     setBusy(key);
     try { await fn(); } catch (e) { onError(e instanceof Error ? e.message : "Something went wrong."); } finally { setBusy(null); }
   };
@@ -45,6 +49,12 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
 
   return (
     <div className="space-y-4">
+      {notice && (
+        <div role="status" className="flex items-start justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+          <span>{notice}</span>
+          <button type="button" className="shrink-0 cursor-pointer text-xs underline" onClick={() => setNotice(null)}>Dismiss</button>
+        </div>
+      )}
       {editable && (
         <div className="flex flex-wrap items-end justify-between gap-3">
         <form
@@ -124,7 +134,10 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
                           <TechnicianSelect
                             value={i.assignedTo} valueName={i.assignedToName} technicians={technicians} loading={loadingTechnicians}
                             disabled={busy === `assign-${i.id}`} className="h-7 w-40 text-xs"
-                            onChange={(t) => run(`assign-${i.id}`, () => assignWorkItem(i, assigneeOf(t)))}
+                            onChange={(t) => run(`assign-${i.id}`, async () => {
+                              setNotice(null);
+                              tell(await assignWorkItem(i, assigneeOf(t), { jobCardId: jobCard.id, jcNumber: jobCard.jcNumber, scaleName: sc.scaleName, type: i.moduleType }), t?.name);
+                            })}
                           />
                         ) : (
                           <span className="text-xs text-muted-foreground">{i.assignedToName ?? (i.status === "PENDING" ? "Unassigned" : "")}</span>
@@ -151,7 +164,10 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
                       <Button
                         key={t} size="sm" variant="outline" className="h-7 cursor-pointer px-2 text-xs"
                         disabled={busy === `add-${sc.id}-${t}`}
-                        onClick={() => run(`add-${sc.id}-${t}`, () => addWorkItem({ jobCard, scaleId: sc.id, type: t, user: user!, assignee: assigneeOf(assignTo) }))}
+                        onClick={() => run(`add-${sc.id}-${t}`, async () => {
+                          setNotice(null);
+                          tell(await addWorkItem({ jobCard, scaleId: sc.id, type: t, user: user!, assignee: assigneeOf(assignTo), scaleName: sc.scaleName, jcNumber: jobCard.jcNumber }), assignTo?.name);
+                        })}
                       >
                         {busy === `add-${sc.id}-${t}` ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
                         {WORK_ITEM_LABEL[t]}

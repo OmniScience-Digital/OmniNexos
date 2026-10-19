@@ -1,4 +1,4 @@
-// src/services/jobCardTime.service.ts  (NEW FILE)
+// src/services/jobCardTime.service.ts 
 // Job cards: data access + passive time tracking side effects.
 // The rules themselves live in src/utils/helper/jobCardTime.ts (pure, tested).
 // Everything here is idempotent, so the web app, the mobile app and a future
@@ -9,6 +9,7 @@ import type {
   Assignee, Certificate, DeliveryStatus, JobCard, JobCardScale, JobCardStatus, Submission, TelegramGroupRow,
   Technician, TimeEntry, TimeEntryStartReason, TimeUser, WorkItem, WorkItemType,
 } from "@/types/jobcards.types";
+import { WORK_ITEM_LABEL } from "@/types/jobcards.types";
 import { telegramGroupId, validateGroupInput, type GroupInput } from "@/utils/helper/telegramGroup";
 import type { PageCursor, StatusFilter, StatusQuery } from "@/utils/helper/jobCardPaging";
 import { fetchJobCardsPage } from "@/utils/helper/jobCardPaging";
@@ -177,7 +178,10 @@ export async function addWorkItem(args: {
   user: TimeUser;
   /** The technician (a system login user) the work is assigned to. Optional: can be assigned later. */
   assignee?: Assignee | null;
-}): Promise<void> {
+  /** Used in the notification text. */
+  scaleName?: string;
+  jcNumber?: string;
+}): Promise<AssignNotice> {
   const { jobCard, scaleId, type, user, assignee } = args;
   if (jobCard.status !== "OPEN") throw new Error("This job card is closed.");
   const existing = (await listWorkItems(jobCard.id)).filter((i) => i.scaleId === scaleId);
@@ -188,8 +192,11 @@ export async function addWorkItem(args: {
     assignedTo: assignee?.id, assignedToName: assignee?.name,
   });
   assertOk(res, "Could not add work item");
-  await recordEngagement({
-    jobCardId: jobCard.id, user, reason: "WORK_ITEM_ADDED", moduleId: (res.data as Row | null)?.id as string, at,
+  const workItemId = (res.data as Row | null)?.id as string;
+  await recordEngagement({ jobCardId: jobCard.id, user, reason: "WORK_ITEM_ADDED", moduleId: workItemId, at });
+  // The work is assigned either way; the push is a courtesy and never fails the assignment.
+  return notifyAssignee({
+    assignee, workItemId, jobCardId: jobCard.id, jcNumber: args.jcNumber ?? jobCard.id, scaleName: args.scaleName ?? "a scale", type,
   });
 }
 
@@ -280,7 +287,12 @@ export async function getFileUrl(key: string): Promise<string> {
 }
 
 /** Assign a work item to a technician, or pass null to unassign. Only possible until a result is submitted. */
-export async function assignWorkItem(item: Pick<WorkItem, "id" | "status">, assignee: Assignee | null): Promise<void> {
+export async function assignWorkItem(
+  item: Pick<WorkItem, "id" | "status"> & { assignedTo?: string | null },
+  assignee: Assignee | null,
+  /** What the notification should say. Without it no notification is sent. */
+  context?: { jobCardId: string; jcNumber: string; scaleName: string; type: WorkItemType },
+): Promise<AssignNotice> {
   if (item.status !== "PENDING") throw new Error("This work item has already been submitted.");
   assertOk(
     await client.models.JobCardModule.update({
@@ -288,6 +300,54 @@ export async function assignWorkItem(item: Pick<WorkItem, "id" | "status">, assi
     }),
     "Could not assign work item",
   );
+  // only when it really goes to someone new (not when unassigned, and not when picked again)
+  if (!context || !assignee || assignee.id === item.assignedTo) return "skipped";
+  return notifyAssignee({ assignee, workItemId: item.id, ...context });
+}
+
+export type AssignNotice = "sent" | "no-token" | "no-email" | "failed" | "skipped";
+
+/**
+ * Push "work assigned to you" to the technician's phone(s). The mobile app saves push tokens against the user's EMAIL,
+ * so that is what is looked up. Never throws: the answer says what happened.
+ */
+export async function notifyAssignee(a: {
+  assignee: Assignee | null | undefined;
+  workItemId: string;
+  jobCardId: string;
+  jcNumber: string;
+  scaleName: string;
+  type: WorkItemType;
+}): Promise<AssignNotice> {
+  if (!a.assignee) return "skipped";
+  if (!a.assignee.email) return "no-email";
+  try {
+    const rows = await allPages((nextToken) =>
+      client.models.PushToken.pushTokensByUser({ userId: a.assignee!.email! }, { nextToken }) as Promise<Page>,
+    );
+    const pushTokens = [...new Set(rows.map((r) => r.token as string).filter(Boolean))];
+    if (pushTokens.length === 0) return "no-token";
+    const res = await client.mutations.notifyWorkAssigned({
+      pushTokens, workItemId: a.workItemId, jobCardId: a.jobCardId, jcNumber: a.jcNumber, scaleName: a.scaleName,
+      workItemLabel: WORK_ITEM_LABEL[a.type],
+    });
+    if (res.errors?.length) return "failed";
+    const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+    return (data as { success?: boolean } | null)?.success ? "sent" : "failed";
+  } catch (e) {
+    console.error("[assignment push] failed", e);
+    return "failed";
+  }
+}
+
+/** Plain-words note for the office when the technician could not be notified (null = nothing to say). */
+export function assignNoticeMessage(notice: AssignNotice, name: string): string | null {
+  switch (notice) {
+    case "no-token": return `${name} has not signed in on the mobile app yet, so no notification was sent. They will see the work when they open the app.`;
+    case "no-email": return `${name} has no email on record, so no notification could be sent.`;
+    case "failed": return `Assigned to ${name}, but the notification could not be sent.`;
+    default: return null;
+  }
 }
 
 let technicianCache: { at: number; promise: Promise<Technician[]> } | null = null;

@@ -1,10 +1,10 @@
-// src/types/jobcards.types.ts  (NEW FILE)
+// src/types/jobcards.types.ts
 // Job card types used by the web app. Mirrors amplify/data/jobcards.models.ts.
 
 export type JobCardStatus = "OPEN" | "CLOSED";
 export type WorkItemType = "INSPECTION" | "ZERO_CALIBRATION" | "SPAN_CALIBRATION";
 export type WorkItemStatus = "PENDING" | "SUBMITTED";
-export type TimeEntryStartReason = "WORK_ITEM_ADDED" | "RESULT_SUBMITTED";
+export type TimeEntryStartReason = "WORK_ITEM_ADDED" | "WORK_ITEM_STARTED" | "RESULT_SUBMITTED";
 export type TimeEntryEndReason = "ALL_SUBMITTED" | "JOB_CLOSED" | "NO_WORK_ITEMS";
 
 export const WORK_ITEM_LABEL: Record<WorkItemType, string> = {
@@ -118,4 +118,6 @@ export interface Technician {
 export interface Assignee {
   id: string;
   name: string;
+  /** Needed to find their phone (push tokens are saved against the email). */
+  email?: string;
 }
