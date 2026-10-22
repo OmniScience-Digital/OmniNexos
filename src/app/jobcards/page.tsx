@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { pageContainer } from "@/components/shell/page-container";
-import { PageHeader } from "@/components/shell/page-header";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import ResponseModal from "@/components/widgets/response";
@@ -59,7 +57,7 @@ export default function JobCardChecklistPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="flex-1 mt-25 pb-20">
+      <main className="flex-1 p-6 mt-25 pb-20">
         {show && (
           <ResponseModal
             successful={successful}
@@ -68,10 +66,12 @@ export default function JobCardChecklistPage() {
           />
         )}
 
-        <div className={pageContainer({ width: "narrow" })}>
-          <PageHeader title="Commissioning Checklist" description="Complete every item before submitting the job card." />
-          <Card className="shadow-none">
-            <CardContent className="pt-6">
+        <div className="max-w-4xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>Commissioning Checklist</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="overflow-x-auto">
                 <form className="space-y-6 mt-2" onSubmit={handleSubmit}>
                   <CommissioningForm
