@@ -6,14 +6,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useNow } from "@/hooks/useJobCardLive";
 import type { TimeEntry, TimeEntryEndReason, WorkItem } from "@/types/jobcards.types";
 import {
-  allSubmitted, elapsedSpan, entrySeconds, formatDuration, isOpen, personSeconds, totalsByUser,
+  allSubmitted, elapsedSpan, entrySeconds, formatDuration, groupSessionsByDay, isOpen, personSeconds, SITE_TIME_ZONE,
+  totalsByUser,
 } from "@/utils/helper/jobCardTime";
 
 const END_LABEL: Record<TimeEntryEndReason, string> = {
   ALL_SUBMITTED: "Last work item submitted",
   JOB_CLOSED: "Job card closed",
   NO_WORK_ITEMS: "All work items removed",
+  SESSION_ENDED: "Left the job card",
+  IDLE_TIMEOUT: "No activity (session timed out)",
 };
+
+const fmtTime = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: SITE_TIME_ZONE }) : "-";
+const fmtDay = (day: string) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-ZA", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 
 const fmt = (iso?: string | null) =>
   iso
@@ -40,7 +48,7 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
 
   const people = totalsByUser(entries, now);
   const span = elapsedSpan(entries, now);
-  const sessions = [...entries].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+  const days = groupSessionsByDay(entries, now);
   const done = allSubmitted(items);
 
   const status = running
@@ -59,7 +67,7 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Stat label="Person time" value={formatDuration(personSeconds(entries, now))} hint="All users added together" />
+          <Stat label="Accumulated time" value={formatDuration(personSeconds(entries, now))} hint={`${days.length} site day${days.length === 1 ? "" : "s"}, all people added together`} />
           <Stat
             label="Elapsed"
             value={span ? formatDuration(span.seconds) : "0 min"}
@@ -70,8 +78,7 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
 
         {people.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No time recorded yet. Time starts automatically when a user adds the first work item and stops when the
-            last work item is submitted.
+            No time recorded yet. Time starts when a user opens the job card and is recorded one session per visit.
           </p>
         ) : (
           <>
@@ -101,36 +108,48 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
               </Table>
             </div>
 
-            <div>
-              <h4 className="mb-2 text-sm font-medium">Sessions</h4>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Started</TableHead>
-                    <TableHead>Ended</TableHead>
-                    <TableHead className="text-right">Time</TableHead>
-                    <TableHead>Ended because</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sessions.map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell>{e.userName || e.userId}</TableCell>
-                      <TableCell>{fmt(e.startedAt)}</TableCell>
-                      <TableCell>{e.endedAt ? fmt(e.endedAt) : "Running"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatDuration(entrySeconds(e, now))}</TableCell>
-                      <TableCell className="text-muted-foreground">{e.endReason ? END_LABEL[e.endReason] : "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium">Sessions by site day</h4>
+              {days.map((d) => (
+                <div key={d.day} className="space-y-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm font-bold">{fmtDay(d.day)}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {formatDuration(d.seconds)} · {d.sessions.length} session{d.sessions.length === 1 ? "" : "s"} · {d.people} {d.people === 1 ? "person" : "people"}
+                    </p>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Started</TableHead>
+                        <TableHead>Ended</TableHead>
+                        <TableHead className="text-right">Time</TableHead>
+                        <TableHead>Ended because</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {d.sessions.map((e) => (
+                        <TableRow key={e.id}>
+                          <TableCell>{e.userName || e.userId}</TableCell>
+                          <TableCell>{fmtTime(e.startedAt)}</TableCell>
+                          <TableCell>{e.endedAt ? fmtTime(e.endedAt) : "Running"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatDuration(entrySeconds(e, now))}</TableCell>
+                          <TableCell className="text-muted-foreground">{e.endReason ? END_LABEL[e.endReason] : "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
             </div>
           </>
         )}
         <p className="text-xs text-muted-foreground">
-          Recorded automatically for each user on this job card. A user's time starts when they first add a work item
-          or submit a result, and every running entry stops when the last work item is submitted.
+          Recorded automatically. A session starts when a person opens this job card and ends when they leave it (or after
+          a few minutes of no activity). Being assigned a job card does not start time. Several logins of one person
+          are counted as one person. Every running session also stops when the last work item is submitted or the job
+          card is closed.
         </p>
       </CardContent>
     </Card>

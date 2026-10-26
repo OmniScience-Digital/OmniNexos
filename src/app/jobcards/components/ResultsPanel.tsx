@@ -1,11 +1,15 @@
-// src/app/jobcards/components/ResultsPanel.tsx  (NEW FILE)
-import { CheckCircle2, ClipboardList, XCircle } from "lucide-react";
+// src/app/jobcards/components/ResultsPanel.tsx 
+import { useMemo, useState } from "react";
+import { CheckCircle2, ClipboardList, Search, X, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   WORK_ITEM_LABEL, type DeliveryStatus, type JobCardScale, type Submission, type TimeEntry, type WorkItem,
 } from "@/types/jobcards.types";
-import { describeResult } from "@/utils/helper/jobCardResults";
+import { ALL, describeResult, isFiltering, matchesResultFilter, NO_FILTER, type ResultFilter } from "@/utils/helper/jobCardResults";
 import PhotoThumb from "./PhotoThumb";
 
 const when = (iso: string) =>
@@ -22,7 +26,10 @@ function Delivery({ label, status }: { label: string; status?: DeliveryStatus | 
   );
 }
 
-/** Submitted results, grouped by scale. Results are immutable: a correction is a newer result, older ones are marked. */
+/**
+ * Submitted results, grouped by scale, with search and filters by scale and work item type.
+ * Results are immutable: a correction is a newer result, older ones are marked.
+ */
 export default function ResultsPanel({
   scales, items, results, entries,
 }: { scales: JobCardScale[]; items: WorkItem[]; results: Submission[]; entries: TimeEntry[] }) {
@@ -35,7 +42,17 @@ export default function ResultsPanel({
     latestPerItem.add(r.moduleId);
     return true;
   };
+  // "latest" is decided on ALL results, before filtering, so a filter never makes an old result look current.
   const rows = sorted.map((r) => ({ r, latest: isLatest(r) }));
+
+  const [filter, setFilter] = useState<ResultFilter>(NO_FILTER);
+  const scaleNameById = useMemo(() => new Map(scales.map((sc) => [sc.id, sc.scaleName])), [scales]);
+  const shown = rows.filter(({ r }) =>
+    matchesResultFilter(r, { scaleName: scaleNameById.get(r.scaleId) ?? "", submitterName: names.get(r.submittedBy) }, filter),
+  );
+  const scalesWithResults = [...scales]
+    .filter((sc) => results.some((r) => r.scaleId === sc.id))
+    .sort((a, b) => a.scaleName.localeCompare(b.scaleName));
 
   if (results.length === 0) {
     return (
@@ -50,12 +67,52 @@ export default function ResultsPanel({
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            className="h-8 w-56 pl-8 text-xs" placeholder="Search results" aria-label="Search results"
+            value={filter.term} onChange={(e) => setFilter((f) => ({ ...f, term: e.target.value }))}
+          />
+        </div>
+        <Select value={filter.scaleId} onValueChange={(v) => setFilter((f) => ({ ...f, scaleId: v }))}>
+          <SelectTrigger className="h-8 w-52 text-xs" aria-label="Filter by scale"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All scales</SelectItem>
+            {scalesWithResults.map((sc) => <SelectItem key={sc.id} value={sc.id}>{sc.scaleName}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filter.type} onValueChange={(v) => setFilter((f) => ({ ...f, type: v as ResultFilter["type"] }))}>
+          <SelectTrigger className="h-8 w-44 text-xs" aria-label="Filter by work item"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All work items</SelectItem>
+            {(Object.keys(WORK_ITEM_LABEL) as (keyof typeof WORK_ITEM_LABEL)[]).map((t) => (
+              <SelectItem key={t} value={t}>{WORK_ITEM_LABEL[t]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {isFiltering(filter) && (
+          <>
+            <span className="text-xs text-muted-foreground">{shown.length} of {rows.length} results</span>
+            <Button size="sm" variant="ghost" className="h-8 cursor-pointer" onClick={() => setFilter(NO_FILTER)}>
+              <X className="mr-1 h-3.5 w-3.5" /> Clear
+            </Button>
+          </>
+        )}
+      </div>
+
+      {shown.length === 0 && (
+        <Card className="shadow-none">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">No results match these filters.</CardContent>
+        </Card>
+      )}
+
       {[...scales].sort((a, b) => a.scaleName.localeCompare(b.scaleName)).map((sc) => {
-        const mine = rows.filter(({ r }) => r.scaleId === sc.id);
+        const mine = shown.filter(({ r }) => r.scaleId === sc.id);
         if (mine.length === 0) return null;
         return (
           <section key={sc.id} className="space-y-2">
-            <h3 className="text-sm font-semibold">{sc.scaleName}</h3>
+            <h3 className="text-sm font-bold">{sc.scaleName}</h3>
             {mine.map(({ r, latest }) => {
               const view = describeResult(r.moduleType, r.payload);
               const n = itemById.get(r.moduleId)?.sequence;

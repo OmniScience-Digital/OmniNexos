@@ -1,10 +1,15 @@
-// src/utils/helper/jobCardTime.ts  (NEW FILE)
+// src/utils/helper/jobCardTime.ts 
 // Passive time tracking for job cards: pure rules, no I/O.
 //
 // Rules
-//  1. A user "engages" with a job card when they add a work item (web or
-//     mobile) or submit a result. If that user has no open entry on the job
-//     card, one is started. There is no start/stop button.
+//  1. A user "engages" with a job card when they ENTER it (web app), add a work
+//     item, or submit a result. If that person has no open entry on the job
+//     card, one is started. There is no start/stop button. Being assigned a job
+//     card does NOT start time (technicians are often assigned days before they
+//     travel to site).
+//  1b. A web session is one visit: it ends when the user leaves the job card, or
+//     is closed as idle when its heartbeat goes stale. Each site day is therefore
+//     its own session(s), and the job card total is the sum of all sessions.
 //  2. All open entries on a job card stop together when its LAST work item is
 //     submitted. The stop time is that submission's time, not "now", so it does
 //     not matter which device or user notices first.
@@ -12,9 +17,16 @@
 //     is removed.
 //  4. Tracking is per user per job card. "Person time" is the sum of every
 //     user's entries; "elapsed" is first start to last stop.
-import type { TimeEntry, TimeEntryEndReason, WorkItem } from "@/types/jobcards.types";
+import type { JobCardStatus, TimeEntry, TimeEntryEndReason, WorkItem } from "@/types/jobcards.types";
 
 const MS_MIN = 60_000;
+
+/** The web page writes a heartbeat this often while a job card is open and visible. */
+export const HEARTBEAT_MS = 60_000;
+/** A web session with no heartbeat for this long is treated as abandoned (tab closed, laptop asleep). */
+export const SESSION_IDLE_MS = 5 * MS_MIN;
+/** Time zone used to decide which "site day" a session belongs to. */
+export const SITE_TIME_ZONE = "Africa/Johannesburg";
 
 export const isOpen = (e: Pick<TimeEntry, "endedAt">) => !e.endedAt;
 
@@ -64,11 +76,20 @@ export function planStop(
   items: Pick<WorkItem, "status" | "submittedAt">[],
   entries: Pick<TimeEntry, "endedAt">[],
   nowIso: string,
+  /**
+   * submittedAt of the newest result on the job card. A corrected result is a NEW result for an item that is
+   * already SUBMITTED, so the item's own submittedAt can be older than the correction; use whichever is later.
+   */
+  lastResultAt?: string | null,
 ): StopPlan | null {
   if (!entries.some(isOpen)) return null;
   if (items.length === 0) return { stopAt: nowIso, reason: "NO_WORK_ITEMS" };
   if (allSubmitted(items)) {
-    return { stopAt: lastSubmittedAt(items) ?? nowIso, reason: "ALL_SUBMITTED" };
+    const itemsAt = lastSubmittedAt(items);
+    const stopAt =
+      itemsAt && lastResultAt ? (Date.parse(lastResultAt) > Date.parse(itemsAt) ? lastResultAt : itemsAt)
+      : itemsAt ?? lastResultAt ?? nowIso;
+    return { stopAt, reason: "ALL_SUBMITTED" };
   }
   return null;
 }
@@ -79,6 +100,7 @@ export function clampEnd(startedAt: string, stopAt: string): string {
 }
 
 export interface UserTime {
+  /** One of the person's ids (their first entry's). */
   userId: string;
   userName: string;
   seconds: number;
@@ -86,11 +108,48 @@ export interface UserTime {
   running: boolean;
 }
 
-/** Per-user totals, longest first. */
-export function totalsByUser(entries: TimeEntry[], nowMs: number): UserTime[] {
+/** id (Cognito sub) -> lower-case email, learned from the entries themselves plus any extra source (the user list). */
+export function emailLookup(
+  entries: Pick<TimeEntry, "userId" | "userEmail">[],
+  extra?: Iterable<[string, string | null | undefined]>,
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [id, email] of extra ?? []) if (email) map.set(id, email.trim().toLowerCase());
+  for (const e of entries) if (e.userEmail) map.set(e.userId, e.userEmail.trim().toLowerCase());
+  return map;
+}
+
+/**
+ * The key that identifies a PERSON. A manual login and a social login are two Cognito identities with two
+ * different ids, so their time used to be split. The email is the same for both, so it wins; an id with no known
+ * email falls back to the id itself.
+ */
+export function personKey(e: Pick<TimeEntry, "userId" | "userEmail">, emails?: Map<string, string>): string {
+  const email = e.userEmail?.trim().toLowerCase() || emails?.get(e.userId);
+  return email ? `email:${email}` : `id:${e.userId}`;
+}
+
+/** True when the entry belongs to this person (same login, or the same email). */
+export function isSamePerson(
+  e: Pick<TimeEntry, "userId" | "userEmail">,
+  user: { id: string; email?: string | null },
+  emails?: Map<string, string>,
+): boolean {
+  if (e.userId === user.id) return true; // the same login is certainly the same person, even for rows saved before emails
+  return personKey(e, emails) === personKey({ userId: user.id, userEmail: user.email }, emails);
+}
+
+/** Per-person totals, longest first. Several logins of one person are added together. */
+export function totalsByUser(
+  entries: TimeEntry[],
+  nowMs: number,
+  extraEmails?: Iterable<[string, string | null | undefined]>,
+): UserTime[] {
+  const emails = emailLookup(entries, extraEmails);
   const map = new Map<string, UserTime>();
   for (const e of entries) {
-    const cur = map.get(e.userId) ?? {
+    const key = personKey(e, emails);
+    const cur = map.get(key) ?? {
       userId: e.userId,
       userName: e.userName || e.userId,
       seconds: 0,
@@ -101,7 +160,7 @@ export function totalsByUser(entries: TimeEntry[], nowMs: number): UserTime[] {
     cur.sessions += 1;
     cur.running = cur.running || isOpen(e);
     if (e.userName) cur.userName = e.userName;
-    map.set(e.userId, cur);
+    map.set(key, cur);
   }
   return [...map.values()].sort((a, b) => b.seconds - a.seconds);
 }
@@ -143,3 +202,80 @@ export function formatDuration(totalSeconds: number): string {
 
 /** Same, from stored minutes (used in lists where entries are not loaded). */
 export const formatMinutes = (minutes?: number | null) => formatDuration((minutes ?? 0) * 60);
+
+// ---------------------------------------------------------------------------
+// Web sessions (one per visit to a job card)
+// ---------------------------------------------------------------------------
+
+/**
+ * Should entering the job card start a session? Only for an open job card whose work is not already all
+ * submitted (otherwise the stop rule would end the session at once, at a time before it began), and only
+ * when this person has nothing running.
+ */
+export function shouldStartSession(args: {
+  status: JobCardStatus;
+  items: Pick<WorkItem, "status">[];
+  entries: Pick<TimeEntry, "userId" | "userEmail" | "endedAt">[];
+  user: { id: string; email?: string | null };
+}): boolean {
+  const { status, items, entries, user } = args;
+  if (status !== "OPEN") return false;
+  if (allSubmitted(items)) return false;
+  const emails = emailLookup(entries);
+  return !entries.some((e) => isOpen(e) && isSamePerson(e, user, emails));
+}
+
+export interface IdleStop {
+  entryId: string;
+  endedAt: string;
+}
+
+/**
+ * Web sessions whose heartbeat went quiet. They end at their LAST heartbeat (not "now"), so a closed laptop
+ * does not count as working time. Only entries started by the web app (JOB_CARD_OPENED) are swept: entries
+ * written by the mobile app have no heartbeat and end by the stop rule instead.
+ */
+export function planIdleStops(
+  entries: Pick<TimeEntry, "id" | "startedAt" | "lastActiveAt" | "endedAt" | "startReason">[],
+  nowMs: number,
+  idleMs = SESSION_IDLE_MS,
+): IdleStop[] {
+  const out: IdleStop[] = [];
+  for (const e of entries) {
+    if (!isOpen(e) || e.startReason !== "JOB_CARD_OPENED") continue;
+    const last = e.lastActiveAt ?? e.startedAt;
+    if (nowMs - Date.parse(last) < idleMs) continue;
+    out.push({ entryId: e.id, endedAt: clampEnd(e.startedAt, last) });
+  }
+  return out;
+}
+
+/** "2026-10-22" in site time. */
+export function siteDay(iso: string, timeZone = SITE_TIME_ZONE): string {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone });
+}
+
+export interface DaySessions<T extends TimeEntry = TimeEntry> {
+  day: string; // "2026-10-22"
+  seconds: number;
+  people: number;
+  sessions: T[]; // newest first
+}
+
+/** Sessions grouped by site day (newest day first), with the time spent on each day. */
+export function groupSessionsByDay<T extends TimeEntry>(entries: T[], nowMs: number, timeZone = SITE_TIME_ZONE): DaySessions<T>[] {
+  const emails = emailLookup(entries);
+  const days = new Map<string, T[]>();
+  for (const e of entries) {
+    const d = siteDay(e.startedAt, timeZone);
+    days.set(d, [...(days.get(d) ?? []), e]);
+  }
+  return [...days.entries()]
+    .map(([day, list]) => ({
+      day,
+      seconds: list.reduce((sum, e) => sum + entrySeconds(e, nowMs), 0),
+      people: new Set(list.map((e) => personKey(e, emails))).size,
+      sessions: [...list].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)),
+    }))
+    .sort((a, b) => (a.day < b.day ? 1 : -1));
+}

@@ -18,7 +18,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { client } from "@/services/schema";
 import { findJobCards, jobCardBackendReady, loadJobCardsPage } from "@/services/jobCardTime.service";
 import type { JobCard } from "@/types/jobcards.types";
-import { formatMinutes } from "@/utils/helper/jobCardTime";
 import {
   DEFAULT_PAGE_SIZE, PAGE_SIZES, type PageCursor, type StatusFilter,
 } from "@/utils/helper/jobCardPaging";
@@ -162,10 +161,7 @@ export default function JobCardsListPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Job card</TableHead>
-                        <TableHead className="hidden md:table-cell">Customer</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Time spent</TableHead>
-                        <TableHead className="hidden sm:table-cell">Opened</TableHead>
+                        <TableHead>Customer</TableHead>
                         <TableHead className="w-8" />
                       </TableRow>
                     </TableHeader>
@@ -173,29 +169,23 @@ export default function JobCardsListPage() {
                       {loading && !found
                         ? Array.from({ length: Math.min(pageSize, 8) }, (_, i) => (
                             <TableRow key={i}>
-                              <TableCell colSpan={6}><div className="h-5 w-full animate-pulse rounded bg-muted" /></TableCell>
+                              <TableCell colSpan={3}><div className="h-5 w-full animate-pulse rounded bg-muted" /></TableCell>
                             </TableRow>
                           ))
                         : rows.map((c) => (
                             <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/jobcards/${c.id}`)}>
                               <TableCell>
                                 <Link to={`/jobcards/${c.id}`} className="font-medium hover:underline" onClick={(e) => e.stopPropagation()}>{c.jcNumber}</Link>
-                                {c.title && <p className="max-w-xs truncate text-xs text-muted-foreground">{c.title}</p>}
+                                {/* Only marked when closed, so the All filter stays readable. */}
+                                {c.status === "CLOSED" && <Badge variant="secondary" className="ml-2 text-[10px]">Closed</Badge>}
                               </TableCell>
-                              <TableCell className="hidden md:table-cell">{c.customerName ?? "-"}</TableCell>
-                              <TableCell>
-                                <Badge variant={c.status === "OPEN" ? "default" : "secondary"}>{c.status === "OPEN" ? "Open" : "Closed"}</Badge>
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">{formatMinutes(c.totalMinutes)}</TableCell>
-                              <TableCell className="hidden sm:table-cell text-muted-foreground" title={c.openedAt ?? undefined}>
-                                {c.openedAt ? new Date(c.openedAt).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
-                              </TableCell>
+                              <TableCell>{c.customerName ?? "-"}</TableCell>
                               <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
                             </TableRow>
                           ))}
                       {!loading && rows.length === 0 && !data?.error && (
                         <TableRow>
-                          <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                          <TableCell colSpan={3} className="py-10 text-center text-sm text-muted-foreground">
                             {found ? `No job card matches "${found.term}".` : EMPTY_TEXT[filter]}
                           </TableCell>
                         </TableRow>

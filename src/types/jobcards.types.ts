@@ -4,8 +4,8 @@
 export type JobCardStatus = "OPEN" | "CLOSED";
 export type WorkItemType = "INSPECTION" | "ZERO_CALIBRATION" | "SPAN_CALIBRATION";
 export type WorkItemStatus = "PENDING" | "SUBMITTED";
-export type TimeEntryStartReason = "WORK_ITEM_ADDED" | "WORK_ITEM_STARTED" | "RESULT_SUBMITTED";
-export type TimeEntryEndReason = "ALL_SUBMITTED" | "JOB_CLOSED" | "NO_WORK_ITEMS";
+export type TimeEntryStartReason = "WORK_ITEM_ADDED" | "WORK_ITEM_STARTED" | "RESULT_SUBMITTED" | "JOB_CARD_OPENED";
+export type TimeEntryEndReason = "ALL_SUBMITTED" | "JOB_CLOSED" | "NO_WORK_ITEMS" | "SESSION_ENDED" | "IDLE_TIMEOUT";
 
 export const WORK_ITEM_LABEL: Record<WorkItemType, string> = {
   INSPECTION: "Inspection",
@@ -28,6 +28,12 @@ export interface JobCard {
   totalMinutes?: number | null;
   /** The Telegram group results are posted to (one group per job card). */
   telegramGroupId?: string | null;
+  /** The technician this job card is assigned to (Cognito sub). Assignment never restricts access. */
+  assignedTo?: string | null;
+  assignedToName?: string | null;
+  assignedAt?: string | null;
+  /** Set by the backend once the total time has been posted to Telegram (after all work is submitted). */
+  totalTimePostedAt?: string | null;
 }
 
 export interface JobCardScale {
@@ -58,7 +64,11 @@ export interface TimeEntry {
   moduleId?: string | null;
   userId: string;
   userName?: string | null;
+  /** Lower-case email: used to treat a manual login and a social login of one person as one person. */
+  userEmail?: string | null;
   startedAt: string;
+  /** Heartbeat of a web session. */
+  lastActiveAt?: string | null;
   endedAt?: string | null;
   minutes?: number | null;
   startReason?: TimeEntryStartReason | null;
@@ -69,6 +79,7 @@ export interface TimeEntry {
 export interface TimeUser {
   id: string;
   name: string;
+  email?: string;
 }
 
 export type DeliveryStatus = "PENDING" | "SENT" | "FAILED";

@@ -14,9 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
 import { usePermission } from "@/hooks/usePermission";
 import { useJobCardLive, useNow } from "@/hooks/useJobCardLive";
+import { useJobCardSession } from "@/hooks/useJobCardSession";
 import { closeJobCard, syncTimeTracking } from "@/services/jobCardTime.service";
 import type { TimeUser } from "@/types/jobcards.types";
 import { allSubmitted, formatDuration, isOpen, personSeconds, planStop } from "@/utils/helper/jobCardTime";
+import AssignJobCard from "../components/AssignJobCard";
 import BackendNotReady from "../components/BackendNotReady";
 import CertificatesPanel from "../components/CertificatesPanel";
 import ResultsPanel from "../components/ResultsPanel";
@@ -50,22 +52,31 @@ export default function JobCardDetailPage() {
   const showError = useCallback((m: string) => setMsg(m), []);
 
   const user: TimeUser | null = useMemo(
-    () => (permission?.username ? { id: permission.username, name: permission.name || permission.email } : null),
+    () => (permission?.username
+      ? { id: permission.username, name: permission.name || permission.email, email: permission.email?.toLowerCase() || undefined }
+      : null),
     [permission],
   );
 
   // Passive STOP. Results are usually submitted on the mobile app, so when this page sees that the
   // last work item is now submitted it closes the open entries (idempotent: the stop time is the
   // last submission's time, so it does not matter who runs it).
+  const lastResultAt = useMemo(
+    () => results.reduce<string | null>((m, r) => (m === null || Date.parse(r.submittedAt) > Date.parse(m) ? r.submittedAt : m), null),
+    [results],
+  );
   const stopping = useRef(false);
   useEffect(() => {
     if (loading || !jobCard || stopping.current) return;
-    if (!planStop(items, entries, new Date().toISOString())) return;
+    if (!planStop(items, entries, new Date().toISOString(), lastResultAt)) return;
     stopping.current = true;
     syncTimeTracking(jobCard.id)
       .catch((e) => console.error("[jobcard] stop failed", e))
       .finally(() => { stopping.current = false; });
-  }, [loading, jobCard, items, entries]);
+  }, [loading, jobCard, items, entries, lastResultAt]);
+
+  // Time starts when the person ENTERS the job card (not when it is assigned), one session per visit.
+  useJobCardSession({ jobCard, items, entries, user, ready: !loading && !unavailable, enabled: canEdit });
 
   const running = entries.some(isOpen);
   const now = useNow(running);
@@ -106,6 +117,7 @@ export default function JobCardDetailPage() {
                       {jobCard.quoteNumber && <span>Quote {jobCard.quoteNumber}</span>}
                       <span>Opened {fmtDate(jobCard.openedAt)}</span>
                       {jobCard.status === "CLOSED" && <span>Closed {fmtDate(jobCard.closedAt)}</span>}
+                      {jobCard.totalTimePostedAt && <span>Total time posted to Telegram {fmtDate(jobCard.totalTimePostedAt)}</span>}
                       {jobCard.clickupTaskId && (
                         <a className="inline-flex items-center gap-1 underline-offset-2 hover:underline" target="_blank" rel="noreferrer"
                            href={`https://app.clickup.com/t/${jobCard.clickupTaskId}`}>
@@ -113,6 +125,7 @@ export default function JobCardDetailPage() {
                         </a>
                       )}
                     </p>
+                    <AssignJobCard jobCard={jobCard} canEdit={canEdit} onError={showError} />
                   </div>
                   {canEdit && jobCard.status === "OPEN" && (
                     <Button
@@ -131,7 +144,7 @@ export default function JobCardDetailPage() {
 
                 {/* Summary tiles */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <Tile icon={<Clock className="h-3.5 w-3.5" />} label="Time spent (all users)">
+                  <Tile icon={<Clock className="h-3.5 w-3.5" />} label="Accumulated time (all people)">
                     <p className="text-xl font-semibold tabular-nums">{formatDuration(personSeconds(entries, now))}</p>
                   </Tile>
                   <Tile icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Work submitted">
@@ -165,7 +178,7 @@ export default function JobCardDetailPage() {
                     <TimeTrackingPanel entries={entries} items={items} />
                   </TabsContent>
                   <TabsContent value="certificates" className="pt-3">
-                    <CertificatesPanel certificates={certificates} scales={scales} onError={showError} />
+                    <CertificatesPanel jobCard={jobCard} certificates={certificates} scales={scales} items={items} onError={showError} />
                   </TabsContent>
                 </Tabs>
               </>

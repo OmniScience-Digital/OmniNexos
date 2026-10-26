@@ -1,4 +1,4 @@
-// amplify/data/jobcards.models.ts  (NEW FILE)
+// amplify/data/jobcards.models.ts 
 // Job Card models for the existing Amplify Gen2 data resource.
 // Usage in amplify/data/resource.ts:
 //   import { jobCardModels } from "./jobcards.models";
@@ -13,8 +13,10 @@ export const jobCardModels = {
   JobCardModuleStatus: a.enum(["PENDING", "SUBMITTED"]),
   DeliveryStatus: a.enum(["PENDING", "SENT", "FAILED"]),
   CertificateStatus: a.enum(["ISSUED", "SUPERSEDED"]),
-  TimeEntryStartReason: a.enum(["WORK_ITEM_ADDED", "WORK_ITEM_STARTED", "RESULT_SUBMITTED"]),
-  TimeEntryEndReason: a.enum(["ALL_SUBMITTED", "JOB_CLOSED", "NO_WORK_ITEMS"]),
+  // JOB_CARD_OPENED / SESSION_ENDED / IDLE_TIMEOUT: web app site-day sessions (a session starts when a user
+  // enters a job card). The older values are still written by the mobile app.
+  TimeEntryStartReason: a.enum(["WORK_ITEM_ADDED", "WORK_ITEM_STARTED", "RESULT_SUBMITTED", "JOB_CARD_OPENED"]),
+  TimeEntryEndReason: a.enum(["ALL_SUBMITTED", "JOB_CLOSED", "NO_WORK_ITEMS", "SESSION_ENDED", "IDLE_TIMEOUT"]),
 
   // Filled by the Telegram webhook function when the bot is added to a group.
   // One group can serve many JobCards; one JobCard has exactly one group.
@@ -46,6 +48,14 @@ export const jobCardModels = {
       closedBy: a.string(),
       clickupTaskId: a.string(), // CRM-05X task (copied from Quote)
       totalMinutes: a.integer(), // person-time: sum of all CLOSED time entries, recomputed (never incremented)
+      // The job card is assigned to one technician (a notification goes to them). It stays open to every
+      // technician: assignment never restricts access.
+      assignedTo: a.string(), // Cognito sub of the assignee
+      assignedToName: a.string(),
+      assignedAt: a.datetime(),
+      // Set by the backend when the total time has been posted to the job card's Telegram group. That happens
+      // once, after the entire scope of work is submitted (not per work item). The web app only displays it.
+      totalTimePostedAt: a.datetime(),
       telegramGroupId: a.id(),
       telegramGroup: a.belongsTo("TelegramGroup", "telegramGroupId"),
       scales: a.hasMany("JobCardScale", "jobCardId"),
@@ -148,7 +158,11 @@ export const jobCardModels = {
       moduleId: a.id(), // work item that started the entry (optional)
       userId: a.string().required(), // Cognito sub
       userName: a.string(),
+      // Lower-case email. The same person can have two Cognito identities (manual and social login), so people
+      // are grouped by email when it is present. Older rows without it fall back to userId.
+      userEmail: a.string(),
       startedAt: a.datetime().required(),
+      lastActiveAt: a.datetime(), // heartbeat of a web session; a stale one is closed as IDLE_TIMEOUT
       endedAt: a.datetime(), // empty while the entry is open
       minutes: a.integer(), // set when closed
       startReason: a.ref("TimeEntryStartReason"),

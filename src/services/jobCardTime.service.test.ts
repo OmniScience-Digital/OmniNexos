@@ -68,8 +68,8 @@ vi.mock("@/services/schema", () => ({
 }));
 
 import {
-  addTelegramGroup, addWorkItem, assignWorkItem, closeJobCard, listTechnicians, recordEngagement, removeScale, removeWorkItem,
-  setTelegramGroup, syncTimeTracking,
+  addTelegramGroup, addWorkItem, assignJobCard, closeJobCard, endSession, listTechnicians, recordEngagement, removeScale,
+  removeWorkItem, setTelegramGroup, sweepIdleSessions, syncTimeTracking, touchSession,
 } from "./jobCardTime.service";
 
 const A = { id: "userA", name: "Ayanda" };
@@ -183,22 +183,83 @@ describe("passive time tracking, end to end", () => {
     expect(db.jc.telegramGroupId).toBeNull();
   });
 
-  it("assigns a technician when adding work, but the time entry stays with the person who added it", async () => {
-    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A, assignee: { id: "userB", name: "Ben" } });
-    expect(db.items.get("wi1")).toMatchObject({ assignedTo: "userB", assignedToName: "Ben", addedBy: "userA" });
+  it("adding work does not assign it to anyone: assignment is per job card", async () => {
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
+    expect(db.items.get("wi1")!.assignedTo).toBeUndefined();
+    expect(db.items.get("wi1")).toMatchObject({ addedBy: "userA" });
     expect(entries().map((e) => e.userId)).toEqual(["userA"]);
   });
 
-  it("assigns, reassigns and unassigns pending work, but never submitted work", async () => {
+  it("assigns, reassigns and unassigns the job card, and assigning does not start any time", async () => {
+    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-QU-0032", customerName: "ESCOM", assignedTo: undefined as string | undefined };
+    await assignJobCard(card, { id: "userB", name: "Ben" });
+    expect(db.jc).toMatchObject({ assignedTo: "userB", assignedToName: "Ben" });
+    expect(db.jc.assignedAt).toBeTruthy();
+    await assignJobCard({ ...card, assignedTo: "userB" }, { id: "userC", name: "Cara" });
+    expect(db.jc).toMatchObject({ assignedTo: "userC", assignedToName: "Cara" });
+    await assignJobCard({ ...card, assignedTo: "userC" }, null);
+    expect(db.jc).toMatchObject({ assignedTo: null, assignedToName: null, assignedAt: null });
+    expect(entries()).toHaveLength(0); // assigned days before site: no timer
+  });
+
+  it("assigning says why nobody was notified, never notifies on unassign or re-pick, and refuses a closed card", async () => {
+    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-1", customerName: null, assignedTo: undefined as string | undefined };
+    expect(await assignJobCard(card, { id: "userB", name: "Ben" })).toBe("no-email");
+    expect(await assignJobCard({ ...card, assignedTo: "userB" }, { id: "userB", name: "Ben" })).toBe("skipped");
+    expect(await assignJobCard(card, null)).toBe("skipped");
+    await expect(assignJobCard({ ...card, status: "CLOSED" as never }, { id: "userB", name: "Ben" })).rejects.toThrow(/closed/);
+  });
+
+  it("one person with a manual and a social login has one running session, not two", async () => {
+    const manual = { id: "sub-manual", name: "Ayanda", email: "Ayanda@x.co" };
+    const social = { id: "Google_123", name: "Ayanda", email: "ayanda@x.co" };
+    expect(await recordEngagement({ jobCardId: "jc1", user: manual, reason: "JOB_CARD_OPENED" })).not.toBeNull();
+    expect(await recordEngagement({ jobCardId: "jc1", user: social, reason: "WORK_ITEM_ADDED" })).toBeNull();
+    expect(entries()).toHaveLength(1);
+    expect(entries()[0]).toMatchObject({ userEmail: "ayanda@x.co" }); // stored lower-case
+  });
+
+  it("a web session starts with a heartbeat, ends when the person leaves, and is idempotent", async () => {
+    const e = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED" }))!;
+    expect(db.entries.get(e.id)).toMatchObject({ startReason: "JOB_CARD_OPENED", lastActiveAt: at("08:00") });
+    vi.setSystemTime(new Date(at("08:02")));
+    await touchSession(e.id);
+    expect(db.entries.get(e.id)!.lastActiveAt).toBe(at("08:02"));
+    vi.setSystemTime(new Date(at("08:40")));
+    expect(await endSession({ id: e.id, jobCardId: "jc1", startedAt: e.startedAt })).toBe(true);
+    expect(db.entries.get(e.id)).toMatchObject({ endedAt: at("08:40"), minutes: 40, endReason: "SESSION_ENDED" });
+    expect(db.jc.totalMinutes).toBe(40);
+    expect(await endSession({ id: e.id, jobCardId: "jc1", startedAt: e.startedAt, endedAt: at("08:40") })).toBe(false);
+  });
+
+  it("visits on different days are separate sessions that add up", async () => {
+    const day1 = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED", at: "2026-10-12T08:00:00.000Z" }))!;
+    await endSession({ id: day1.id, jobCardId: "jc1", startedAt: day1.startedAt }, "SESSION_ENDED", "2026-10-12T10:00:00.000Z");
+    const day2 = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED", at: "2026-10-14T09:00:00.000Z" }))!;
+    await endSession({ id: day2.id, jobCardId: "jc1", startedAt: day2.startedAt }, "SESSION_ENDED", "2026-10-14T09:30:00.000Z");
+    expect(entries().map((x) => x.id)).toEqual(["jc1#userA#1", "jc1#userA#2"]);
+    expect(db.jc.totalMinutes).toBe(150);
+  });
+
+  it("an abandoned web session is closed at its last heartbeat, and mobile entries are left alone", async () => {
+    const web = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED" }))!;
+    await recordEngagement({ jobCardId: "jc1", user: B, reason: "WORK_ITEM_ADDED" }); // mobile-style: no heartbeat
+    vi.setSystemTime(new Date(at("08:03")));
+    await touchSession(web.id);
+    vi.setSystemTime(new Date(at("08:06")));
+    expect(await sweepIdleSessions("jc1", Date.now())).toBe(0); // 3 min quiet: still alive
+    vi.setSystemTime(new Date(at("09:00")));
+    expect(await sweepIdleSessions("jc1", Date.now())).toBe(1);
+    expect(db.entries.get(web.id)).toMatchObject({ endedAt: at("08:03"), minutes: 3, endReason: "IDLE_TIMEOUT" });
+    expect(db.entries.get("jc1#userB#1")!.endedAt).toBeUndefined();
+    expect(await sweepIdleSessions("jc1", Date.now())).toBe(0); // idempotent
+  });
+
+  it("a corrected result after completion moves the stop time forward", async () => {
     await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
-    expect(db.items.get("wi1")!.assignedTo).toBeUndefined();
-    await assignWorkItem({ id: "wi1", status: "PENDING" }, { id: "userB", name: "Ben" });
-    expect(db.items.get("wi1")).toMatchObject({ assignedTo: "userB", assignedToName: "Ben" });
-    await assignWorkItem({ id: "wi1", status: "PENDING" }, { id: "userC", name: "Cara" });
-    expect(db.items.get("wi1")).toMatchObject({ assignedTo: "userC", assignedToName: "Cara" });
-    await assignWorkItem({ id: "wi1", status: "PENDING" }, null);
-    expect(db.items.get("wi1")).toMatchObject({ assignedTo: null, assignedToName: null });
-    await expect(assignWorkItem({ id: "wi1", status: "SUBMITTED" }, { id: "userB", name: "Ben" })).rejects.toThrow(/submitted/);
+    submit("wi1", "09:00");
+    expect(await syncTimeTracking("jc1", at("23:00"))).toBe(true);
+    expect(db.entries.get("jc1#userA#1")).toMatchObject({ endedAt: at("09:00"), minutes: 60 });
   });
 
   it("technician list drops empty rows, is cached for 5 minutes, and a failure is not cached", async () => {

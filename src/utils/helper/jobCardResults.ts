@@ -1,6 +1,6 @@
 // src/utils/helper/jobCardResults.ts  
 // Turns a submitted result (JobCardSubmission.payload) into labelled rows for display. Pure.
-import type { WorkItemType } from "@/types/jobcards.types";
+import { WORK_ITEM_LABEL, type WorkItemType } from "@/types/jobcards.types";
 
 export interface ResultField { label: string; value: string }
 export interface ResultPhoto { label: string; key: string }
@@ -90,4 +90,38 @@ export function describeResult(type: WorkItemType, payload: Record<string, unkno
     else if (typeof v === "string" && v) photos.push({ label, key: v });
   }
   return { fields, photos };
+}
+
+// ---------------------------------------------------------------------------
+// Search and filter on the results screen
+// ---------------------------------------------------------------------------
+
+export const ALL = "ALL";
+export interface ResultFilter {
+  scaleId: string; // a scale id, or ALL
+  type: WorkItemType | typeof ALL;
+  term: string; // free text
+}
+export const NO_FILTER: ResultFilter = { scaleId: ALL, type: ALL, term: "" };
+export const isFiltering = (f: ResultFilter) => f.scaleId !== ALL || f.type !== ALL || f.term.trim() !== "";
+
+/**
+ * Does a result pass the filter? Scale and work item type are exact matches; the free text must find EVERY word
+ * somewhere in the scale name, work item type, who submitted it, or any reading / answer shown for it.
+ */
+export function matchesResultFilter(
+  r: { scaleId: string; moduleType: WorkItemType; payload: Record<string, unknown> },
+  ctx: { scaleName: string; submitterName?: string },
+  f: ResultFilter,
+): boolean {
+  if (f.scaleId !== ALL && r.scaleId !== f.scaleId) return false;
+  if (f.type !== ALL && r.moduleType !== f.type) return false;
+  const words = f.term.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const view = describeResult(r.moduleType, r.payload);
+  const hay = [
+    ctx.scaleName, WORK_ITEM_LABEL[r.moduleType], ctx.submitterName ?? "",
+    ...view.fields.flatMap((x) => [x.label, x.value]),
+  ].join(" ").toLowerCase();
+  return words.every((w) => hay.includes(w));
 }

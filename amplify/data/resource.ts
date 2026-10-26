@@ -1,4 +1,4 @@
-// amplify/data/resource.ts  (MODIFIED - search "JOBCARD" for the additions)
+// amplify/data/resource.ts  
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { listUsers } from "../function/listUsers/resource";
 import { notifyPhotoApproval } from "../function/notifyPhotoApproval/resource";
@@ -29,17 +29,20 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(listTechnicians)),
 
-  // JOBCARD: push notification to a technician when work is assigned to them. Like notifyPhotoRequestStatus, the caller
-  // looks up the technician's push tokens first (pushTokensByUser) and passes them in.
+  // JOBCARD: push notification to a technician when a JOB CARD is assigned to them. Like notifyPhotoRequestStatus, the
+  // caller looks up the technician's push tokens first (pushTokensByUser) and passes them in.
+  // workItemId / scaleName / workItemLabel are optional and only kept so an older caller that still names a
+  // work item keeps working; the web app now assigns whole job cards and sends only jobCardId, jcNumber, customerName.
   notifyWorkAssigned: a
     .mutation()
     .arguments({
       pushTokens: a.string().array().required(),
-      workItemId: a.string().required(),
       jobCardId: a.string().required(),
       jcNumber: a.string().required(),
-      scaleName: a.string().required(),
-      workItemLabel: a.string().required(),
+      customerName: a.string(),
+      workItemId: a.string(),
+      scaleName: a.string(),
+      workItemLabel: a.string(),
     })
     .returns(a.json())
     .authorization((allow) => [allow.authenticated()])

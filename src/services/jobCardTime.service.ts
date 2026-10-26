@@ -9,12 +9,12 @@ import type {
   Assignee, Certificate, DeliveryStatus, JobCard, JobCardScale, JobCardStatus, Submission, TelegramGroupRow,
   Technician, TimeEntry, TimeEntryStartReason, TimeUser, WorkItem, WorkItemType,
 } from "@/types/jobcards.types";
-import { WORK_ITEM_LABEL } from "@/types/jobcards.types";
 import { telegramGroupId, validateGroupInput, type GroupInput } from "@/utils/helper/telegramGroup";
 import type { PageCursor, StatusFilter, StatusQuery } from "@/utils/helper/jobCardPaging";
 import { fetchJobCardsPage } from "@/utils/helper/jobCardPaging";
 import {
-  clampEnd, closedMinutesTotal, isOpen, minutesBetween, nextSessionId, planStop,
+  clampEnd, closedMinutesTotal, emailLookup, isOpen, isSamePerson, minutesBetween, nextSessionId, planIdleStops,
+  planStop, SESSION_IDLE_MS,
 } from "@/utils/helper/jobCardTime";
 
 /** False until the backend with the job card models is deployed and amplify_outputs.json is regenerated. */
@@ -34,6 +34,8 @@ export const mapJobCard = (r: Row): JobCard => ({
   id: s(r.id), jcNumber: s(r.jcNumber), quoteNumber: o(r.quoteNumber), customerName: o(r.customerName),
   title: o(r.title), status: r.status as JobCard["status"], openedAt: o(r.openedAt), closedAt: o(r.closedAt),
   closedBy: o(r.closedBy), clickupTaskId: o(r.clickupTaskId), telegramGroupId: o(r.telegramGroupId),
+  assignedTo: o(r.assignedTo), assignedToName: o(r.assignedToName), assignedAt: o(r.assignedAt),
+  totalTimePostedAt: o(r.totalTimePostedAt),
   totalMinutes: r.totalMinutes == null ? undefined : (r.totalMinutes as number),
 });
 export const mapScale = (r: Row): JobCardScale => ({
@@ -47,7 +49,7 @@ export const mapWorkItem = (r: Row): WorkItem => ({
 });
 export const mapTimeEntry = (r: Row): TimeEntry => ({
   id: s(r.id), jobCardId: s(r.jobCardId), moduleId: o(r.moduleId), userId: s(r.userId), userName: o(r.userName),
-  startedAt: s(r.startedAt), endedAt: o(r.endedAt), minutes: r.minutes == null ? undefined : (r.minutes as number),
+  userEmail: o(r.userEmail), startedAt: s(r.startedAt), lastActiveAt: o(r.lastActiveAt), endedAt: o(r.endedAt), minutes: r.minutes == null ? undefined : (r.minutes as number),
   startReason: o(r.startReason) as TimeEntry["startReason"], endReason: o(r.endReason) as TimeEntry["endReason"],
 });
 
@@ -108,9 +110,10 @@ export async function listWorkItems(jobCardId: string): Promise<WorkItem[]> {
 }
 
 /**
- * Passive START. Call whenever a user engages with a job card: after they add a
- * work item, or submit a result. Starts a session only if that user has no open
- * entry on this job card. Returns the new entry, or null if nothing was started.
+ * Passive START. Call whenever a user engages with a job card: when they enter it (web), add a
+ * work item, or submit a result. Starts a session only if that PERSON has no open entry on this
+ * job card (a manual login and a social login of the same person count as one person).
+ * Returns the new entry, or null if nothing was started.
  */
 export async function recordEngagement(args: {
   jobCardId: string;
@@ -121,15 +124,20 @@ export async function recordEngagement(args: {
 }): Promise<TimeEntry | null> {
   const { jobCardId, user, reason, moduleId } = args;
   const entries = await listTimeEntries(jobCardId);
-  if (entries.some((e) => e.userId === user.id && isOpen(e))) return null;
+  const emails = emailLookup(entries);
+  if (entries.some((e) => isOpen(e) && isSamePerson(e, user, emails))) return null;
 
+  const startedAt = args.at ?? new Date().toISOString();
   const res = await client.models.JobCardTimeEntry.create({
     id: nextSessionId(jobCardId, user.id, entries),
     jobCardId,
     userId: user.id,
     userName: user.name,
+    userEmail: user.email ? user.email.trim().toLowerCase() : undefined,
     moduleId,
-    startedAt: args.at ?? new Date().toISOString(),
+    startedAt,
+    // only web sessions carry a heartbeat (the idle sweep ignores entries without JOB_CARD_OPENED)
+    lastActiveAt: reason === "JOB_CARD_OPENED" ? startedAt : undefined,
     startReason: reason,
   });
   // Another tab/device created the same session id first: that is fine, one open entry exists.
@@ -150,8 +158,10 @@ export async function recomputeTotalMinutes(jobCardId: string): Promise<number> 
  * the open entries end. Safe to call any time, from anywhere; returns true if it closed entries.
  */
 export async function syncTimeTracking(jobCardId: string, nowIso = new Date().toISOString()): Promise<boolean> {
-  const [items, entries] = await Promise.all([listWorkItems(jobCardId), listTimeEntries(jobCardId)]);
-  const plan = planStop(items, entries, nowIso);
+  const [items, entries, lastResultAt] = await Promise.all([
+    listWorkItems(jobCardId), listTimeEntries(jobCardId), latestResultAt(jobCardId),
+  ]);
+  const plan = planStop(items, entries, nowIso, lastResultAt);
   if (!plan) return false;
   for (const e of entries.filter(isOpen)) {
     const endedAt = clampEnd(e.startedAt, plan.stopAt);
@@ -166,38 +176,92 @@ export async function syncTimeTracking(jobCardId: string, nowIso = new Date().to
   return true;
 }
 
+/**
+ * When the newest result on the job card was submitted. A corrected result is a new result on an item that is
+ * already SUBMITTED, so this can be later than every work item's own submittedAt. Never throws: it only refines
+ * the stop time.
+ */
+export async function latestResultAt(jobCardId: string): Promise<string | null> {
+  try {
+    const res = await client.models.JobCardSubmission.submissionsByJobCard(
+      { jobCardId }, { sortDirection: "DESC", limit: 1 },
+    );
+    if (res.errors?.length) return null;
+    return ((res.data?.[0] as Row | undefined)?.submittedAt as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Heartbeat of a running web session: proves the person is still on the job card. */
+export async function touchSession(entryId: string, at = new Date().toISOString()): Promise<void> {
+  assertOk(await client.models.JobCardTimeEntry.update({ id: entryId, lastActiveAt: at }), "Could not update session");
+}
+
+/** End one web session (the person left the job card). Idempotent: a session that already ended is left alone. */
+export async function endSession(
+  entry: Pick<TimeEntry, "id" | "jobCardId" | "startedAt" | "endedAt">,
+  reason: "SESSION_ENDED" | "IDLE_TIMEOUT" = "SESSION_ENDED",
+  at = new Date().toISOString(),
+): Promise<boolean> {
+  if (entry.endedAt) return false;
+  const endedAt = clampEnd(entry.startedAt, at);
+  assertOk(
+    await client.models.JobCardTimeEntry.update({
+      id: entry.id, endedAt, minutes: minutesBetween(entry.startedAt, endedAt), endReason: reason,
+    }),
+    "Could not end session",
+  );
+  await recomputeTotalMinutes(entry.jobCardId);
+  return true;
+}
+
+/**
+ * Close web sessions whose heartbeat went quiet (tab closed, laptop asleep). Any viewer can run this; it ends each
+ * session at its last heartbeat, so doing it twice or from two places gives the same result.
+ */
+export async function sweepIdleSessions(jobCardId: string, nowMs = Date.now(), idleMs = SESSION_IDLE_MS): Promise<number> {
+  const entries = await listTimeEntries(jobCardId);
+  const stops = planIdleStops(entries, nowMs, idleMs);
+  for (const stop of stops) {
+    const e = entries.find((x) => x.id === stop.entryId)!;
+    assertOk(
+      await client.models.JobCardTimeEntry.update({
+        id: e.id, endedAt: stop.endedAt, minutes: minutesBetween(e.startedAt, stop.endedAt), endReason: "IDLE_TIMEOUT",
+      }),
+      "Could not close an idle session",
+    );
+  }
+  if (stops.length > 0) await recomputeTotalMinutes(jobCardId);
+  return stops.length;
+}
+
 export async function addScale(jobCardId: string, scaleName: string): Promise<void> {
   assertOk(await client.models.JobCardScale.create({ jobCardId, scaleName: scaleName.trim() }), "Could not add scale");
 }
 
-/** Assign a work item to a scale. Starts this user's time entry if they have none open. */
+/**
+ * Add a work item to a scale. Work items are NOT assigned to anyone: the job card is assigned as a whole
+ * (see assignJobCard) and every technician can work on every work item. Starts this person's time entry if
+ * they have none open.
+ */
 export async function addWorkItem(args: {
   jobCard: Pick<JobCard, "id" | "status">;
   scaleId: string;
   type: WorkItemType;
   user: TimeUser;
-  /** The technician (a system login user) the work is assigned to. Optional: can be assigned later. */
-  assignee?: Assignee | null;
-  /** Used in the notification text. */
-  scaleName?: string;
-  jcNumber?: string;
-}): Promise<AssignNotice> {
-  const { jobCard, scaleId, type, user, assignee } = args;
+}): Promise<void> {
+  const { jobCard, scaleId, type, user } = args;
   if (jobCard.status !== "OPEN") throw new Error("This job card is closed.");
   const existing = (await listWorkItems(jobCard.id)).filter((i) => i.scaleId === scaleId);
   const at = new Date().toISOString();
   const res = await client.models.JobCardModule.create({
     jobCardId: jobCard.id, scaleId, moduleType: type, status: "PENDING",
     sequence: existing.reduce((m, i) => Math.max(m, i.sequence), 0) + 1, addedBy: user.id, addedAt: at,
-    assignedTo: assignee?.id, assignedToName: assignee?.name,
   });
   assertOk(res, "Could not add work item");
   const workItemId = (res.data as Row | null)?.id as string;
   await recordEngagement({ jobCardId: jobCard.id, user, reason: "WORK_ITEM_ADDED", moduleId: workItemId, at });
-  // The work is assigned either way; the push is a courtesy and never fails the assignment.
-  return notifyAssignee({
-    assignee, workItemId, jobCardId: jobCard.id, jcNumber: args.jcNumber ?? jobCard.id, scaleName: args.scaleName ?? "a scale", type,
-  });
 }
 
 /** Remove a work item that has no result yet. May complete the job card (see stop rule). */
@@ -286,38 +350,40 @@ export async function getFileUrl(key: string): Promise<string> {
   return (await getUrl({ path: key })).url.toString();
 }
 
-/** Assign a work item to a technician, or pass null to unassign. Only possible until a result is submitted. */
-export async function assignWorkItem(
-  item: Pick<WorkItem, "id" | "status"> & { assignedTo?: string | null },
-  assignee: Assignee | null,
-  /** What the notification should say. Without it no notification is sent. */
-  context?: { jobCardId: string; jcNumber: string; scaleName: string; type: WorkItemType },
-): Promise<AssignNotice> {
-  if (item.status !== "PENDING") throw new Error("This work item has already been submitted.");
-  assertOk(
-    await client.models.JobCardModule.update({
-      id: item.id, assignedTo: assignee?.id ?? null, assignedToName: assignee?.name ?? null,
-    }),
-    "Could not assign work item",
-  );
-  // only when it really goes to someone new (not when unassigned, and not when picked again)
-  if (!context || !assignee || assignee.id === item.assignedTo) return "skipped";
-  return notifyAssignee({ assignee, workItemId: item.id, ...context });
-}
-
 export type AssignNotice = "sent" | "no-token" | "no-email" | "failed" | "skipped";
 
 /**
- * Push "work assigned to you" to the technician's phone(s). The mobile app saves push tokens against the user's EMAIL,
+ * Assign the whole job card to a technician, or pass null to unassign. One notification goes to the new assignee.
+ * Assigning does not start time and does not stop anyone else from opening or working on the job card.
+ */
+export async function assignJobCard(
+  jobCard: Pick<JobCard, "id" | "status" | "jcNumber" | "customerName" | "assignedTo">,
+  assignee: Assignee | null,
+): Promise<AssignNotice> {
+  if (jobCard.status !== "OPEN") throw new Error("This job card is closed.");
+  assertOk(
+    await client.models.JobCard.update({
+      id: jobCard.id,
+      assignedTo: assignee?.id ?? null,
+      assignedToName: assignee?.name ?? null,
+      assignedAt: assignee ? new Date().toISOString() : null,
+    }),
+    "Could not assign job card",
+  );
+  // only when it really goes to someone new (not when unassigned, and not when picked again)
+  if (!assignee || assignee.id === jobCard.assignedTo) return "skipped";
+  return notifyAssignee({ assignee, jobCardId: jobCard.id, jcNumber: jobCard.jcNumber, customerName: jobCard.customerName });
+}
+
+/**
+ * Push "job card assigned to you" to the technician's phone(s). The mobile app saves push tokens against the user's EMAIL,
  * so that is what is looked up. Never throws: the answer says what happened.
  */
 export async function notifyAssignee(a: {
   assignee: Assignee | null | undefined;
-  workItemId: string;
   jobCardId: string;
   jcNumber: string;
-  scaleName: string;
-  type: WorkItemType;
+  customerName?: string | null;
 }): Promise<AssignNotice> {
   if (!a.assignee) return "skipped";
   if (!a.assignee.email) return "no-email";
@@ -328,8 +394,7 @@ export async function notifyAssignee(a: {
     const pushTokens = [...new Set(rows.map((r) => r.token as string).filter(Boolean))];
     if (pushTokens.length === 0) return "no-token";
     const res = await client.mutations.notifyWorkAssigned({
-      pushTokens, workItemId: a.workItemId, jobCardId: a.jobCardId, jcNumber: a.jcNumber, scaleName: a.scaleName,
-      workItemLabel: WORK_ITEM_LABEL[a.type],
+      pushTokens, jobCardId: a.jobCardId, jcNumber: a.jcNumber, customerName: a.customerName ?? undefined,
     });
     if (res.errors?.length) return "failed";
     const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
@@ -343,7 +408,7 @@ export async function notifyAssignee(a: {
 /** Plain-words note for the office when the technician could not be notified (null = nothing to say). */
 export function assignNoticeMessage(notice: AssignNotice, name: string): string | null {
   switch (notice) {
-    case "no-token": return `${name} has not signed in on the mobile app yet, so no notification was sent. They will see the work when they open the app.`;
+    case "no-token": return `${name} has not signed in on the mobile app yet, so no notification was sent. They will see the job card when they open the app.`;
     case "no-email": return `${name} has no email on record, so no notification could be sent.`;
     case "failed": return `Assigned to ${name}, but the notification could not be sent.`;
     default: return null;

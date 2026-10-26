@@ -7,14 +7,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { useTechnicians } from "@/hooks/useTechnicians";
+import { addScale, addWorkItem, removeScale, removeWorkItem } from "@/services/jobCardTime.service";
 import {
-  addScale, addWorkItem, assignNoticeMessage, assignWorkItem, removeScale, removeWorkItem, type AssignNotice,
-} from "@/services/jobCardTime.service";
-import {
-  WORK_ITEM_LABEL, type JobCard, type JobCardScale, type Technician, type TimeUser, type WorkItem, type WorkItemType,
+  WORK_ITEM_LABEL, type JobCard, type JobCardScale, type TimeUser, type WorkItem, type WorkItemType,
 } from "@/types/jobcards.types";
-import TechnicianSelect from "./TechnicianSelect";
 
 interface Props {
   jobCard: JobCard;
@@ -27,17 +23,15 @@ interface Props {
 
 const TYPES = Object.keys(WORK_ITEM_LABEL) as WorkItemType[];
 
-/** Assign work items to scales. Adding the first one is what starts the user's time entry. */
+/**
+ * Add scales and work items to a job card. Work items are not assigned to individual people: the whole job card is
+ * assigned (see AssignJobCard) and any technician can work on any item. Adding work engages the user's time entry.
+ */
 export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, onError }: Props) {
   const [newScale, setNewScale] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<JobCardScale | null>(null);
   const editable = canEdit && jobCard.status === "OPEN" && !!user;
-  const { technicians, loading: loadingTechnicians, error: technicianError } = useTechnicians(editable);
-  const [assignTo, setAssignTo] = useState<Technician | null>(null); // who NEW work items are assigned to
-  const assigneeOf = (t: Technician | null) => (t ? { id: t.id, name: t.name, email: t.email } : null);
-  const [notice, setNotice] = useState<string | null>(null); // e.g. "Ben has not signed in on the mobile app yet"
-  const tell = (n: AssignNotice, name: string | undefined) => setNotice(name ? assignNoticeMessage(n, name) : null);
 
   const run = async (key: string, fn: () => Promise<unknown>) => {
     setBusy(key);
@@ -49,12 +43,6 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
 
   return (
     <div className="space-y-4">
-      {notice && (
-        <div role="status" className="flex items-start justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
-          <span>{notice}</span>
-          <button type="button" className="shrink-0 cursor-pointer text-xs underline" onClick={() => setNotice(null)}>Dismiss</button>
-        </div>
-      )}
       {editable && (
         <div className="flex flex-wrap items-end justify-between gap-3">
         <form
@@ -70,19 +58,8 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
             {busy === "scale" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Plus className="mr-1 h-4 w-4" />} Add scale
           </Button>
         </form>
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Assign new work to</p>
-          <TechnicianSelect
-            value={assignTo?.id} technicians={technicians} loading={loadingTechnicians}
-            onChange={setAssignTo} className="h-9 w-56 text-sm"
-          />
-        </div>
         </div>
       )}
-      {editable && technicianError && (
-        <p className="text-xs text-destructive">Could not load users ({technicianError}). Work can still be added and assigned later.</p>
-      )}
-
       {sorted.length === 0 && (
         <Card className="shadow-none">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -101,7 +78,7 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{sc.scaleName}</p>
+                    <p className="truncate font-bold">{sc.scaleName}</p>
                     <p className="text-xs text-muted-foreground">
                       {rows.length === 0 ? "No work assigned" : `${done} of ${rows.length} submitted`}
                     </p>
@@ -130,18 +107,6 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
                         {WORK_ITEM_LABEL[i.moduleType]} #{i.sequence}
                       </span>
                       <span className="flex flex-wrap items-center justify-end gap-1">
-                        {editable && i.status === "PENDING" ? (
-                          <TechnicianSelect
-                            value={i.assignedTo} valueName={i.assignedToName} technicians={technicians} loading={loadingTechnicians}
-                            disabled={busy === `assign-${i.id}`} className="h-7 w-40 text-xs"
-                            onChange={(t) => run(`assign-${i.id}`, async () => {
-                              setNotice(null);
-                              tell(await assignWorkItem(i, assigneeOf(t), { jobCardId: jobCard.id, jcNumber: jobCard.jcNumber, scaleName: sc.scaleName, type: i.moduleType }), t?.name);
-                            })}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">{i.assignedToName ?? (i.status === "PENDING" ? "Unassigned" : "")}</span>
-                        )}
                         <Badge variant={i.status === "SUBMITTED" ? "secondary" : "outline"} className="text-[10px]">
                           {i.status === "SUBMITTED" ? "Submitted" : "Pending"}
                         </Badge>
@@ -164,10 +129,7 @@ export default function WorkItemsCard({ jobCard, scales, items, user, canEdit, o
                       <Button
                         key={t} size="sm" variant="outline" className="h-7 cursor-pointer px-2 text-xs"
                         disabled={busy === `add-${sc.id}-${t}`}
-                        onClick={() => run(`add-${sc.id}-${t}`, async () => {
-                          setNotice(null);
-                          tell(await addWorkItem({ jobCard, scaleId: sc.id, type: t, user: user!, assignee: assigneeOf(assignTo), scaleName: sc.scaleName, jcNumber: jobCard.jcNumber }), assignTo?.name);
-                        })}
+                        onClick={() => run(`add-${sc.id}-${t}`, () => addWorkItem({ jobCard, scaleId: sc.id, type: t, user: user! }))}
                       >
                         {busy === `add-${sc.id}-${t}` ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
                         {WORK_ITEM_LABEL[t]}

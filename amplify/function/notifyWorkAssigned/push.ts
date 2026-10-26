@@ -1,20 +1,22 @@
 // amplify/function/notifyWorkAssigned/push.ts
-// Builds the push notification for "work assigned to you". Pure: no network.
+// Builds the push notification for "job card assigned to you". Pure: no network.
 
 export interface AssignmentArgs {
   pushTokens: string[];
-  workItemId: string;
   jobCardId: string;
   jcNumber: string;
-  scaleName: string;
-  workItemLabel: string;
+  customerName?: string | null;
+  /** Legacy: set only by a caller that still assigns a single work item. */
+  workItemId?: string | null;
+  scaleName?: string | null;
+  workItemLabel?: string | null;
 }
 
 export interface ExpoMessage {
   to: string;
   title: string;
   body: string;
-  data: { type: "jobcard-assigned"; workItemId: string; jobCardId: string };
+  data: { type: "jobcard-assigned"; jobCardId: string; workItemId?: string };
   sound: "default";
   priority: "high";
   channelId: "jobcards";
@@ -26,13 +28,21 @@ export const isExpoToken = (t: unknown): t is string =>
 
 /** One message per distinct valid token. Returns [] when there is nothing valid to send to. */
 export function buildAssignmentMessages(a: Partial<AssignmentArgs> | null | undefined): ExpoMessage[] {
-  if (!a || !a.workItemId || !a.jobCardId || !a.jcNumber || !a.scaleName || !a.workItemLabel) return [];
+  if (!a || !a.jobCardId || !a.jcNumber) return [];
   const tokens = [...new Set((a.pushTokens ?? []).filter(isExpoToken))];
+
+  // Legacy single work item message, kept for callers that still send one.
+  const legacy = Boolean(a.workItemId && a.scaleName && a.workItemLabel);
+  const title = legacy ? "New job card work" : "Job card assigned to you";
+  const body = legacy
+    ? `${a.workItemLabel} - ${a.scaleName} (${a.jcNumber})`
+    : a.customerName ? `${a.jcNumber} - ${a.customerName}` : a.jcNumber;
+
   return tokens.map((to) => ({
     to,
-    title: "New job card work",
-    body: `${a.workItemLabel} - ${a.scaleName} (${a.jcNumber})`,
-    data: { type: "jobcard-assigned", workItemId: a.workItemId!, jobCardId: a.jobCardId! },
+    title,
+    body,
+    data: { type: "jobcard-assigned", jobCardId: a.jobCardId!, ...(legacy ? { workItemId: a.workItemId! } : {}) },
     sound: "default",
     priority: "high",
     channelId: "jobcards",
