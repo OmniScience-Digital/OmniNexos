@@ -1,4 +1,4 @@
-// src/services/jobCardTime.service.test.ts 
+// src/services/jobCardTime.service.test.ts  (NEW FILE - test)
 // Runs the real service functions against an in-memory fake of the Amplify client.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -210,13 +210,13 @@ describe("passive time tracking, end to end", () => {
 
   it("assigns, reassigns and unassigns the job card, and assigning does not start any time", async () => {
     const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-QU-0032", customerName: "ESCOM", assignedTo: undefined as string | undefined };
-    await assignJobCard(card, { id: "userB", name: "Ben" });
-    expect(db.jc).toMatchObject({ assignedTo: "userB", assignedToName: "Ben" });
+    await assignJobCard(card, { id: "userB", name: "Ben", email: "Ben@x.co" });
+    expect(db.jc).toMatchObject({ assignedTo: "userB", assignedToName: "Ben", assignedToEmail: "ben@x.co" });
     expect(db.jc.assignedAt).toBeTruthy();
     await assignJobCard({ ...card, assignedTo: "userB" }, { id: "userC", name: "Cara" });
     expect(db.jc).toMatchObject({ assignedTo: "userC", assignedToName: "Cara" });
     await assignJobCard({ ...card, assignedTo: "userC" }, null);
-    expect(db.jc).toMatchObject({ assignedTo: null, assignedToName: null, assignedAt: null });
+    expect(db.jc).toMatchObject({ assignedTo: null, assignedToName: null, assignedToEmail: null, assignedAt: null });
     expect(entries()).toHaveLength(0); // assigned days before site: no timer
   });
 

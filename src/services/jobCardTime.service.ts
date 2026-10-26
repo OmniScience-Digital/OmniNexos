@@ -34,7 +34,8 @@ export const mapJobCard = (r: Row): JobCard => ({
   id: s(r.id), jcNumber: s(r.jcNumber), quoteNumber: o(r.quoteNumber), customerName: o(r.customerName),
   title: o(r.title), status: r.status as JobCard["status"], openedAt: o(r.openedAt), closedAt: o(r.closedAt),
   closedBy: o(r.closedBy), clickupTaskId: o(r.clickupTaskId), telegramGroupId: o(r.telegramGroupId),
-  assignedTo: o(r.assignedTo), assignedToName: o(r.assignedToName), assignedAt: o(r.assignedAt),
+  assignedTo: o(r.assignedTo), assignedToName: o(r.assignedToName), assignedToEmail: o(r.assignedToEmail),
+  assignedAt: o(r.assignedAt),
   totalTimePostedAt: o(r.totalTimePostedAt),
   totalMinutes: r.totalMinutes == null ? undefined : (r.totalMinutes as number),
 });
@@ -363,6 +364,7 @@ export async function assignJobCard(
       id: jobCard.id,
       assignedTo: assignee?.id ?? null,
       assignedToName: assignee?.name ?? null,
+      assignedToEmail: assignee?.email ? assignee.email.trim().toLowerCase() : null,
       assignedAt: assignee ? new Date().toISOString() : null,
     }),
     "Could not assign job card",

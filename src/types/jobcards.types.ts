@@ -31,6 +31,8 @@ export interface JobCard {
   /** The technician this job card is assigned to (Cognito sub). Assignment never restricts access. */
   assignedTo?: string | null;
   assignedToName?: string | null;
+  /** Lower-case email: how a person is recognised across a manual and a social login. */
+  assignedToEmail?: string | null;
   assignedAt?: string | null;
   /** Set by the backend once the total time has been posted to Telegram (after all work is submitted). */
   totalTimePostedAt?: string | null;

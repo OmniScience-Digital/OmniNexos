@@ -52,6 +52,7 @@ export const jobCardModels = {
       // technician: assignment never restricts access.
       assignedTo: a.string(), // Cognito sub of the assignee
       assignedToName: a.string(),
+      assignedToEmail: a.string(), // lower-case: the phone matches "assigned to me" by email, so either login works
       assignedAt: a.datetime(),
       // Set by the backend when the total time has been posted to the job card's Telegram group. That happens
       // once, after the entire scope of work is submitted (not per work item). The web app only displays it.
