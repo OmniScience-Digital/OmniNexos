@@ -1,4 +1,4 @@
-// src/services/jobCardTime.service.test.ts  (NEW FILE - test)
+// src/services/jobCardTime.service.test.ts 
 // Runs the real service functions against an in-memory fake of the Amplify client.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -88,13 +88,25 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+/** A technician entering the job card: the only thing that starts time. */
+const enter = (user: typeof A) => recordEngagement({ jobCardId: "jc1", user, reason: "JOB_CARD_OPENED" });
+
 describe("passive time tracking, end to end", () => {
-  it("starts on the first work item, per user, and stops at the last submission", async () => {
-    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A }); // 08:00 A starts
+  it("adding work starts no timer", async () => {
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
+    await addWorkItem({ jobCard, scaleId: "s1", type: "SPAN_CALIBRATION", user: B });
+    expect(db.items.size).toBe(2);
+    expect(entries()).toHaveLength(0);
+  });
+
+  it("starts when each technician enters, per user, and stops at the last submission", async () => {
+    await enter(A);                                                                    // 08:00 A starts
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
     vi.setSystemTime(new Date(at("08:30")));
-    await addWorkItem({ jobCard, scaleId: "s1", type: "SPAN_CALIBRATION", user: B }); // 08:30 B starts
+    await enter(B);                                                                    // 08:30 B starts
+    await addWorkItem({ jobCard, scaleId: "s1", type: "SPAN_CALIBRATION", user: B });
     vi.setSystemTime(new Date(at("08:45")));
-    await addWorkItem({ jobCard, scaleId: "s1", type: "INSPECTION", user: A });       // A already running
+    await addWorkItem({ jobCard, scaleId: "s1", type: "INSPECTION", user: A });       // adds nothing
 
     expect(entries()).toHaveLength(2);
     expect(entries().map((e) => e.userId).sort()).toEqual(["userA", "userB"]);
@@ -117,25 +129,29 @@ describe("passive time tracking, end to end", () => {
 
   it("two devices starting at once create only one open entry", async () => {
     const results = await Promise.all([
-      recordEngagement({ jobCardId: "jc1", user: A, reason: "WORK_ITEM_ADDED" }),
-      recordEngagement({ jobCardId: "jc1", user: A, reason: "WORK_ITEM_ADDED" }),
+      recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED" }),
+      recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED" }),
     ]);
     expect(entries()).toHaveLength(1);
     expect(results.filter(Boolean)).toHaveLength(1);
   });
 
-  it("adding a work item after completion starts a new session for that user only", async () => {
+  it("entering again after completion starts a new session for that user only; adding work does not", async () => {
+    await enter(A);
     await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
     submit("wi1", "09:00");
     await syncTimeTracking("jc1", at("09:05"));
     vi.setSystemTime(new Date(at("13:00")));
     await addWorkItem({ jobCard, scaleId: "s1", type: "SPAN_CALIBRATION", user: A });
+    expect(entries()).toHaveLength(1); // work added by the office at 13:00 clocks nothing
+    await enter(A);
     expect(entries()).toHaveLength(2);
     expect(db.entries.get("jc1#userA#2")).toMatchObject({ startedAt: at("13:00") });
     expect(db.entries.get("jc1#userA#2")!.endedAt).toBeUndefined();
   });
 
   it("removing the last pending work item completes the job card", async () => {
+    await enter(A);
     await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
     await addWorkItem({ jobCard, scaleId: "s1", type: "SPAN_CALIBRATION", user: A });
     submit("wi1", "08:20");
@@ -145,6 +161,7 @@ describe("passive time tracking, end to end", () => {
   });
 
   it("closing the job card stops everyone and refuses new work items", async () => {
+    await enter(A);
     await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
     vi.setSystemTime(new Date(at("08:50")));
     await closeJobCard("jc1", A);
@@ -156,6 +173,7 @@ describe("passive time tracking, end to end", () => {
 
   it("removing a scale deletes its pending work items and stops time if that completes the job", async () => {
     db.scales.set("s1", { id: "s1" }); db.scales.set("s2", { id: "s2" });
+    await enter(A);
     await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A }); // wi1 (s1)
     await addWorkItem({ jobCard, scaleId: "s2", type: "SPAN_CALIBRATION", user: A }); // wi2 (s2)
     submit("wi1", "08:20");
@@ -187,7 +205,7 @@ describe("passive time tracking, end to end", () => {
     await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
     expect(db.items.get("wi1")!.assignedTo).toBeUndefined();
     expect(db.items.get("wi1")).toMatchObject({ addedBy: "userA" });
-    expect(entries().map((e) => e.userId)).toEqual(["userA"]);
+    expect(entries()).toHaveLength(0);
   });
 
   it("assigns, reassigns and unassigns the job card, and assigning does not start any time", async () => {
@@ -214,7 +232,7 @@ describe("passive time tracking, end to end", () => {
     const manual = { id: "sub-manual", name: "Ayanda", email: "Ayanda@x.co" };
     const social = { id: "Google_123", name: "Ayanda", email: "ayanda@x.co" };
     expect(await recordEngagement({ jobCardId: "jc1", user: manual, reason: "JOB_CARD_OPENED" })).not.toBeNull();
-    expect(await recordEngagement({ jobCardId: "jc1", user: social, reason: "WORK_ITEM_ADDED" })).toBeNull();
+    expect(await recordEngagement({ jobCardId: "jc1", user: social, reason: "RESULT_SUBMITTED" })).toBeNull();
     expect(entries()).toHaveLength(1);
     expect(entries()[0]).toMatchObject({ userEmail: "ayanda@x.co" }); // stored lower-case
   });
@@ -243,7 +261,7 @@ describe("passive time tracking, end to end", () => {
 
   it("an abandoned web session is closed at its last heartbeat, and mobile entries are left alone", async () => {
     const web = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED" }))!;
-    await recordEngagement({ jobCardId: "jc1", user: B, reason: "WORK_ITEM_ADDED" }); // mobile-style: no heartbeat
+    await recordEngagement({ jobCardId: "jc1", user: B, reason: "RESULT_SUBMITTED" }); // mobile-style: no heartbeat
     vi.setSystemTime(new Date(at("08:03")));
     await touchSession(web.id);
     vi.setSystemTime(new Date(at("08:06")));
@@ -256,6 +274,7 @@ describe("passive time tracking, end to end", () => {
   });
 
   it("a corrected result after completion moves the stop time forward", async () => {
+    await enter(A);
     await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
     submit("wi1", "09:00");
     expect(await syncTimeTracking("jc1", at("23:00"))).toBe(true);

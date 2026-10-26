@@ -4,9 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNow } from "@/hooks/useJobCardLive";
-import type { TimeEntry, TimeEntryEndReason, WorkItem } from "@/types/jobcards.types";
+import type { JobCard, TimeEntry, TimeEntryEndReason, WorkItem } from "@/types/jobcards.types";
 import {
-  allSubmitted, elapsedSpan, entrySeconds, formatDuration, groupSessionsByDay, isOpen, personSeconds, SITE_TIME_ZONE,
+  allSubmitted, elapsedSinceAllocated, entrySeconds, formatDuration, groupSessionsByDay, isOpen, personSeconds, SITE_TIME_ZONE,
   totalsByUser,
 } from "@/utils/helper/jobCardTime";
 
@@ -42,14 +42,17 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
  * Time tracking for one job card. Read-only on purpose: entries are recorded
  * passively (see src/utils/helper/jobCardTime.ts), so there is nothing to start or stop here.
  */
-export default function TimeTrackingPanel({ entries, items }: { entries: TimeEntry[]; items: WorkItem[] }) {
+export default function TimeTrackingPanel({ jobCard, entries, items }: { jobCard: JobCard; entries: TimeEntry[]; items: WorkItem[] }) {
   const running = entries.some(isOpen);
-  const now = useNow(running);
+  const done = allSubmitted(items);
+  const elapsedGoing = jobCard.status === "OPEN" && !done;
+  const now = useNow(running || elapsedGoing);
 
   const people = totalsByUser(entries, now);
-  const span = elapsedSpan(entries, now);
+  const elapsed = elapsedSinceAllocated({
+    assignedAt: jobCard.assignedAt, openedAt: jobCard.openedAt, closedAt: jobCard.closedAt, items, nowMs: now,
+  });
   const days = groupSessionsByDay(entries, now);
-  const done = allSubmitted(items);
 
   const status = running
     ? { label: "Running", icon: <Play className="size-3" />, variant: "default" as const }
@@ -67,11 +70,13 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Stat label="Accumulated time" value={formatDuration(personSeconds(entries, now))} hint={`${days.length} site day${days.length === 1 ? "" : "s"}, all people added together`} />
+          <Stat label="Time worked" value={formatDuration(personSeconds(entries, now))} hint={`What technicians actually worked: ${days.length} site day${days.length === 1 ? "" : "s"}, all people added together`} />
           <Stat
-            label="Elapsed"
-            value={span ? formatDuration(span.seconds) : "0 min"}
-            hint={span ? `${fmt(span.startedAt)} to ${span.endedAt ? fmt(span.endedAt) : "now"}` : "Starts with the first work item"}
+            label="Elapsed since allocated"
+            value={elapsed ? formatDuration(elapsed.seconds) : "-"}
+            hint={elapsed
+              ? `${jobCard.assignedAt ? "Assigned" : "Opened"} ${fmt(elapsed.from)} to ${elapsed.to ? fmt(elapsed.to) : "now"}. Not time worked`
+              : "Not assigned yet"}
           />
           <Stat label="Users engaged" value={String(people.length)} hint="Tracked separately below" />
         </div>
@@ -96,7 +101,10 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
                 <TableBody>
                   {people.map((u) => (
                     <TableRow key={u.userId}>
-                      <TableCell className="font-medium">{u.userName}</TableCell>
+                      <TableCell>
+                        <p className="font-medium">{u.userName}</p>
+                        {u.userEmail && <p className="text-xs text-muted-foreground">{u.userEmail}</p>}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{u.sessions}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatDuration(u.seconds)}</TableCell>
                       <TableCell>
@@ -131,7 +139,10 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
                     <TableBody>
                       {d.sessions.map((e) => (
                         <TableRow key={e.id}>
-                          <TableCell>{e.userName || e.userId}</TableCell>
+                          <TableCell>
+                            {e.userName || e.userId}
+                            {e.userEmail && <span className="block text-xs text-muted-foreground">{e.userEmail}</span>}
+                          </TableCell>
                           <TableCell>{fmtTime(e.startedAt)}</TableCell>
                           <TableCell>{e.endedAt ? fmtTime(e.endedAt) : "Running"}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatDuration(entrySeconds(e, now))}</TableCell>
@@ -149,7 +160,7 @@ export default function TimeTrackingPanel({ entries, items }: { entries: TimeEnt
           Recorded automatically. A session starts when a person opens this job card and ends when they leave it (or after
           a few minutes of no activity). Being assigned a job card does not start time. Several logins of one person
           are counted as one person. Every running session also stops when the last work item is submitted or the job
-          card is closed.
+          card is closed. "Time worked" is what is posted to Telegram; "Elapsed since allocated" is shown here only.
         </p>
       </CardContent>
     </Card>

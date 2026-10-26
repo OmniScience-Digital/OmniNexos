@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   allSubmitted, clampEnd, closedMinutesTotal, elapsedSpan, entrySeconds, formatDuration,
-  emailLookup, groupSessionsByDay, isSamePerson, lastSubmittedAt, minutesBetween, nextSessionId, personKey,
+  elapsedSinceAllocated, emailLookup, groupSessionsByDay, isSamePerson, lastSubmittedAt, minutesBetween, nextSessionId, personKey,
   personSeconds, planIdleStops, planStop, shouldStartSession, siteDay, totalsByUser,
 } from "./jobCardTime";
 import type { TimeEntry, WorkItem } from "@/types/jobcards.types";
@@ -183,5 +183,32 @@ describe("stop time after a corrected result", () => {
     expect(planStop(items, [entry("a", "08:00")], t("23:00"), t("10:15"))).toEqual({ stopAt: t("10:15"), reason: "ALL_SUBMITTED" });
     expect(planStop(items, [entry("a", "08:00")], t("23:00"), t("09:00"))).toEqual({ stopAt: t("09:30"), reason: "ALL_SUBMITTED" });
     expect(planStop(items, [entry("a", "08:00")], t("23:00"), null)).toEqual({ stopAt: t("09:30"), reason: "ALL_SUBMITTED" });
+  });
+});
+
+
+describe("elapsed time (allocated, not worked)", () => {
+  const base = { openedAt: t("06:00"), nowMs: Date.parse("2026-10-16T08:00:00.000Z") };
+  it("runs from the assignment, so days between assigning and arriving show as elapsed", () => {
+    const e = elapsedSinceAllocated({ ...base, assignedAt: "2026-10-12T08:00:00.000Z", items: [item("PENDING")] })!;
+    expect(e).toMatchObject({ from: "2026-10-12T08:00:00.000Z", to: null });
+    expect(e.seconds).toBe(4 * 24 * 3600);
+  });
+  it("falls back to when the job card was opened, and is null when neither is known", () => {
+    expect(elapsedSinceAllocated({ ...base, items: [] })!.from).toBe(t("06:00"));
+    expect(elapsedSinceAllocated({ nowMs: base.nowMs, items: [] })).toBeNull();
+  });
+  it("stops at the last submission, or at closing", () => {
+    const done = elapsedSinceAllocated({ ...base, assignedAt: t("07:00"), items: [item("SUBMITTED", t("10:00"))] })!;
+    expect(done).toMatchObject({ to: t("10:00"), seconds: 3 * 3600 });
+    const closed = elapsedSinceAllocated({ ...base, assignedAt: t("07:00"), closedAt: t("12:00"), items: [item("PENDING")] })!;
+    expect(closed).toMatchObject({ to: t("12:00"), seconds: 5 * 3600 });
+  });
+});
+
+describe("person totals show the email", () => {
+  it("carries the lower-case email, learned from any of the person's rows", () => {
+    const [p] = totalsByUser([{ ...entry("a", "08:00", "09:00", 60), userEmail: "A@x.co" }, entry("a", "10:00", "11:00", 60)], Date.parse(t("23:00")));
+    expect(p).toMatchObject({ userEmail: "a@x.co", sessions: 2 });
   });
 });

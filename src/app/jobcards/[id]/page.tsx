@@ -144,7 +144,7 @@ export default function JobCardDetailPage() {
 
                 {/* Summary tiles */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <Tile icon={<Clock className="h-3.5 w-3.5" />} label="Accumulated time (all people)">
+                  <Tile icon={<Clock className="h-3.5 w-3.5" />} label="Time worked (all people)">
                     <p className="text-xl font-semibold tabular-nums">{formatDuration(personSeconds(entries, now))}</p>
                   </Tile>
                   <Tile icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Work submitted">
@@ -175,7 +175,7 @@ export default function JobCardDetailPage() {
                     <ResultsPanel scales={scales} items={items} results={results} entries={entries} />
                   </TabsContent>
                   <TabsContent value="time" className="pt-3">
-                    <TimeTrackingPanel entries={entries} items={items} />
+                    <TimeTrackingPanel jobCard={jobCard} entries={entries} items={items} />
                   </TabsContent>
                   <TabsContent value="certificates" className="pt-3">
                     <CertificatesPanel jobCard={jobCard} certificates={certificates} scales={scales} items={items} onError={showError} />

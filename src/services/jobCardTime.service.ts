@@ -110,8 +110,8 @@ export async function listWorkItems(jobCardId: string): Promise<WorkItem[]> {
 }
 
 /**
- * Passive START. Call whenever a user engages with a job card: when they enter it (web), add a
- * work item, or submit a result. Starts a session only if that PERSON has no open entry on this
+ * Passive START. Call when a technician enters a job card or submits a result. Adding or assigning work is NOT
+ * engagement: it starts nothing. Starts a session only if that PERSON has no open entry on this
  * job card (a manual login and a social login of the same person count as one person).
  * Returns the new entry, or null if nothing was started.
  */
@@ -241,9 +241,9 @@ export async function addScale(jobCardId: string, scaleName: string): Promise<vo
 }
 
 /**
- * Add a work item to a scale. Work items are NOT assigned to anyone: the job card is assigned as a whole
- * (see assignJobCard) and every technician can work on every work item. Starts this person's time entry if
- * they have none open.
+ * Add a work item to a scale. Adding work starts NO timer and assigns it to no one: the whole job card is assigned
+ * (see assignJobCard), every technician can work on every item, and time starts only when a technician ENTERS the
+ * job card (see useJobCardSession). An office user setting up the work must not clock hours.
  */
 export async function addWorkItem(args: {
   jobCard: Pick<JobCard, "id" | "status">;
@@ -254,14 +254,11 @@ export async function addWorkItem(args: {
   const { jobCard, scaleId, type, user } = args;
   if (jobCard.status !== "OPEN") throw new Error("This job card is closed.");
   const existing = (await listWorkItems(jobCard.id)).filter((i) => i.scaleId === scaleId);
-  const at = new Date().toISOString();
   const res = await client.models.JobCardModule.create({
     jobCardId: jobCard.id, scaleId, moduleType: type, status: "PENDING",
-    sequence: existing.reduce((m, i) => Math.max(m, i.sequence), 0) + 1, addedBy: user.id, addedAt: at,
+    sequence: existing.reduce((m, i) => Math.max(m, i.sequence), 0) + 1, addedBy: user.id, addedAt: new Date().toISOString(),
   });
   assertOk(res, "Could not add work item");
-  const workItemId = (res.data as Row | null)?.id as string;
-  await recordEngagement({ jobCardId: jobCard.id, user, reason: "WORK_ITEM_ADDED", moduleId: workItemId, at });
 }
 
 /** Remove a work item that has no result yet. May complete the job card (see stop rule). */

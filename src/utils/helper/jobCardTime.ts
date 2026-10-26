@@ -1,12 +1,15 @@
-// src/utils/helper/jobCardTime.ts 
+// src/utils/helper/jobCardTime.ts  
 // Passive time tracking for job cards: pure rules, no I/O.
 //
 // Rules
-//  1. A user "engages" with a job card when they ENTER it (web app), add a work
-//     item, or submit a result. If that person has no open entry on the job
-//     card, one is started. There is no start/stop button. Being assigned a job
-//     card does NOT start time (technicians are often assigned days before they
-//     travel to site).
+//  1. A technician "engages" with a job card when they ENTER it or submit a
+//     result. If that person has no open entry on the job card, one is started.
+//     There is no start/stop button. Being assigned a job card, or having work
+//     added to it, does NOT start time (technicians are often assigned days
+//     before they travel to site, and office staff set the work up).
+//  1a. Two different numbers exist. TIME WORKED (person time) is the sum of the
+//     sessions: it is what is posted to Telegram. ELAPSED time is how long the
+//     job card has been allocated, and is shown on the web only.
 //  1b. A web session is one visit: it ends when the user leaves the job card, or
 //     is closed as idle when its heartbeat goes stale. Each site day is therefore
 //     its own session(s), and the job card total is the sum of all sessions.
@@ -103,6 +106,7 @@ export interface UserTime {
   /** One of the person's ids (their first entry's). */
   userId: string;
   userName: string;
+  userEmail?: string;
   seconds: number;
   sessions: number;
   running: boolean;
@@ -160,6 +164,8 @@ export function totalsByUser(
     cur.sessions += 1;
     cur.running = cur.running || isOpen(e);
     if (e.userName) cur.userName = e.userName;
+    const email = e.userEmail?.trim().toLowerCase() || emails.get(e.userId);
+    if (email) cur.userEmail = email;
     map.set(key, cur);
   }
   return [...map.values()].sort((a, b) => b.seconds - a.seconds);
@@ -278,4 +284,28 @@ export function groupSessionsByDay<T extends TimeEntry>(entries: T[], nowMs: num
       sessions: [...list].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)),
     }))
     .sort((a, b) => (a.day < b.day ? 1 : -1));
+}
+
+
+/**
+ * ELAPSED time: how long the work has been allocated, from the day it was assigned (or, if it was never assigned,
+ * when the job card was opened) to when it ended (closed, or all work submitted) or to now while it is still going.
+ * This is NOT time worked: a job card assigned on Monday and visited on Thursday has days of elapsed time.
+ */
+export function elapsedSinceAllocated(args: {
+  assignedAt?: string | null;
+  openedAt?: string | null;
+  closedAt?: string | null;
+  items: Pick<WorkItem, "status" | "submittedAt">[];
+  nowMs: number;
+}): { from: string; to: string | null; seconds: number } | null {
+  const from = args.assignedAt ?? args.openedAt ?? null;
+  if (!from) return null;
+  const endIso = args.closedAt ?? (allSubmitted(args.items) ? lastSubmittedAt(args.items) : null);
+  const endMs = endIso ? Date.parse(endIso) : args.nowMs;
+  return {
+    from,
+    to: endIso ?? null,
+    seconds: Math.max(0, Math.floor((endMs - Date.parse(from)) / 1000)),
+  };
 }
