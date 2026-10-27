@@ -348,17 +348,22 @@ export async function getFileUrl(key: string): Promise<string> {
   return (await getUrl({ path: key })).url.toString();
 }
 
+/** A job card cannot be assigned until a Telegram group is selected for it (the group is where its updates go). */
+export const ASSIGN_NEEDS_GROUP = "Select a Telegram group for this job card before assigning it.";
+
 export type AssignNotice = "sent" | "no-token" | "no-email" | "failed" | "skipped";
 
 /**
  * Assign the whole job card to a technician, or pass null to unassign. One notification goes to the new assignee.
- * Assigning does not start time and does not stop anyone else from opening or working on the job card.
+ * Assigning needs a Telegram group selected first (unassigning does not). Assigning does not start time and does not
+ * stop anyone else from opening or working on the job card.
  */
 export async function assignJobCard(
-  jobCard: Pick<JobCard, "id" | "status" | "jcNumber" | "customerName" | "assignedTo">,
+  jobCard: Pick<JobCard, "id" | "status" | "jcNumber" | "customerName" | "assignedTo" | "telegramGroupId">,
   assignee: Assignee | null,
 ): Promise<AssignNotice> {
   if (jobCard.status !== "OPEN") throw new Error("This job card is closed.");
+  if (assignee && !jobCard.telegramGroupId) throw new Error(ASSIGN_NEEDS_GROUP);
   // Picking the same person again changes nothing: no new assigned date, so no second alert on the phone.
   if (assignee && assignee.id === jobCard.assignedTo) return "skipped";
   assertOk(

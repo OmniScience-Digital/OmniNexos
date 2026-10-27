@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { UserCheck } from "lucide-react";
 import { useTechnicians } from "@/hooks/useTechnicians";
-import { assignJobCard, assignNoticeMessage } from "@/services/jobCardTime.service";
+import { ASSIGN_NEEDS_GROUP, assignJobCard, assignNoticeMessage } from "@/services/jobCardTime.service";
 import type { JobCard } from "@/types/jobcards.types";
 import TechnicianSelect from "./TechnicianSelect";
 
@@ -19,6 +19,9 @@ export default function AssignJobCard({ jobCard, canEdit, onError }: Props) {
   const { technicians, loading, error } = useTechnicians(editable);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // No Telegram group, no assigning. (A job card that is already assigned can still be unassigned.)
+  const needsGroup = !jobCard.telegramGroupId;
+  const blocked = needsGroup && !jobCard.assignedTo;
 
   if (!editable) {
     return (
@@ -36,7 +39,7 @@ export default function AssignJobCard({ jobCard, canEdit, onError }: Props) {
         </span>
         <TechnicianSelect
           value={jobCard.assignedTo} valueName={jobCard.assignedToName} technicians={technicians} loading={loading}
-          disabled={busy} className="h-8 w-52 text-xs"
+          disabled={busy || blocked} className="h-8 w-52 text-xs"
           onChange={async (t) => {
             setBusy(true);
             setNotice(null);
@@ -51,7 +54,11 @@ export default function AssignJobCard({ jobCard, canEdit, onError }: Props) {
           }}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground">Everyone can still open and work on this job card.</p>
+      {needsGroup ? (
+        <p role="status" className="text-xs text-amber-700 dark:text-amber-300">{ASSIGN_NEEDS_GROUP}</p>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">Everyone can still open and work on this job card.</p>
+      )}
       {error && <p className="text-xs text-destructive">Could not load users ({error}).</p>}
       {notice && (
         <p role="status" className="text-xs text-amber-700 dark:text-amber-300">

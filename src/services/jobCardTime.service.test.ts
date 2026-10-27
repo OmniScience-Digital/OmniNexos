@@ -1,4 +1,4 @@
-// src/services/jobCardTime.service.test.ts  
+// src/services/jobCardTime.service.test.ts  (NEW FILE - test)
 // Runs the real service functions against an in-memory fake of the Amplify client.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -209,7 +209,7 @@ describe("passive time tracking, end to end", () => {
   });
 
   it("assigns, reassigns and unassigns the job card, and assigning does not start any time", async () => {
-    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-QU-0032", customerName: "ESCOM", assignedTo: undefined as string | undefined };
+    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-QU-0032", customerName: "ESCOM", assignedTo: undefined as string | undefined, telegramGroupId: "g1" };
     await assignJobCard(card, { id: "userB", name: "Ben", email: "Ben@x.co" });
     expect(db.jc).toMatchObject({ assignedTo: "userB", assignedToName: "Ben", assignedToEmail: "ben@x.co" });
     expect(db.jc.assignedAt).toBeTruthy();
@@ -220,8 +220,17 @@ describe("passive time tracking, end to end", () => {
     expect(entries()).toHaveLength(0); // assigned days before site: no timer
   });
 
+  it("a job card cannot be assigned until a Telegram group is selected, but it can be unassigned", async () => {
+    const noGroup = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-1", customerName: null, assignedTo: undefined as string | undefined, telegramGroupId: null };
+    await expect(assignJobCard(noGroup, { id: "userB", name: "Ben", email: "b@x.co" })).rejects.toThrow(/Telegram group/);
+    expect(db.jc.assignedTo).toBeUndefined(); // nothing was saved
+    await expect(assignJobCard({ ...noGroup, assignedTo: "userB" }, { id: "userC", name: "Cara" })).rejects.toThrow(/Telegram group/);
+    await assignJobCard({ ...noGroup, assignedTo: "userB" }, null); // unassigning needs no group
+    expect(db.jc).toMatchObject({ assignedTo: null });
+  });
+
   it("picking the same technician again changes nothing and sends no second alert", async () => {
-    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-1", customerName: null, assignedTo: "userB" };
+    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-1", customerName: null, assignedTo: "userB", telegramGroupId: "g1" };
     db.jc.assignedAt = "2026-10-20T07:00:00.000Z";
     expect(await assignJobCard(card, { id: "userB", name: "Ben", email: "ben@x.co" })).toBe("skipped");
     expect(db.jc.assignedAt).toBe("2026-10-20T07:00:00.000Z"); // the assigned date is not touched
@@ -240,7 +249,7 @@ describe("passive time tracking, end to end", () => {
   });
 
   it("assigning says why nobody was notified, never notifies on unassign or re-pick, and refuses a closed card", async () => {
-    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-1", customerName: null, assignedTo: undefined as string | undefined };
+    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-1", customerName: null, assignedTo: undefined as string | undefined, telegramGroupId: "g1" };
     expect(await assignJobCard(card, { id: "userB", name: "Ben" })).toBe("no-email");
     expect(await assignJobCard({ ...card, assignedTo: "userB" }, { id: "userB", name: "Ben" })).toBe("skipped");
     expect(await assignJobCard(card, null)).toBe("skipped");
