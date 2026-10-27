@@ -1,4 +1,4 @@
-// src/services/jobCardTime.service.test.ts  (NEW FILE - test)
+// src/services/jobCardTime.service.test.ts  
 // Runs the real service functions against an in-memory fake of the Amplify client.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -218,6 +218,25 @@ describe("passive time tracking, end to end", () => {
     await assignJobCard({ ...card, assignedTo: "userC" }, null);
     expect(db.jc).toMatchObject({ assignedTo: null, assignedToName: null, assignedToEmail: null, assignedAt: null });
     expect(entries()).toHaveLength(0); // assigned days before site: no timer
+  });
+
+  it("picking the same technician again changes nothing and sends no second alert", async () => {
+    const card = { id: "jc1", status: "OPEN" as const, jcNumber: "JC-1", customerName: null, assignedTo: "userB" };
+    db.jc.assignedAt = "2026-10-20T07:00:00.000Z";
+    expect(await assignJobCard(card, { id: "userB", name: "Ben", email: "ben@x.co" })).toBe("skipped");
+    expect(db.jc.assignedAt).toBe("2026-10-20T07:00:00.000Z"); // the assigned date is not touched
+  });
+
+  it("a session that begins after the work was finished is not stopped by it", async () => {
+    await addWorkItem({ jobCard, scaleId: "s1", type: "ZERO_CALIBRATION", user: A });
+    await enter(A);                                   // 08:00
+    submit("wi1", "09:00");
+    expect(await syncTimeTracking("jc1", at("09:05"))).toBe(true);
+    expect(db.entries.get("jc1#userA#1")).toMatchObject({ endedAt: at("09:00") });
+    vi.setSystemTime(new Date(at("14:00")));
+    await enter(B);                                   // someone opens the finished card to correct it
+    expect(await syncTimeTracking("jc1", at("14:05"))).toBe(false);
+    expect(db.entries.get("jc1#userB#1")!.endedAt).toBeUndefined();
   });
 
   it("assigning says why nobody was notified, never notifies on unassign or re-pick, and refuses a closed card", async () => {

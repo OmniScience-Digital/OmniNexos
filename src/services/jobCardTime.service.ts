@@ -14,7 +14,7 @@ import type { PageCursor, StatusFilter, StatusQuery } from "@/utils/helper/jobCa
 import { fetchJobCardsPage } from "@/utils/helper/jobCardPaging";
 import {
   clampEnd, closedMinutesTotal, emailLookup, isOpen, isSamePerson, minutesBetween, nextSessionId, planIdleStops,
-  planStop, SESSION_IDLE_MS,
+  planStop, SESSION_IDLE_MS, stoppable,
 } from "@/utils/helper/jobCardTime";
 
 /** False until the backend with the job card models is deployed and amplify_outputs.json is regenerated. */
@@ -164,7 +164,7 @@ export async function syncTimeTracking(jobCardId: string, nowIso = new Date().to
   ]);
   const plan = planStop(items, entries, nowIso, lastResultAt);
   if (!plan) return false;
-  for (const e of entries.filter(isOpen)) {
+  for (const e of stoppable(entries, plan)) {
     const endedAt = clampEnd(e.startedAt, plan.stopAt);
     assertOk(
       await client.models.JobCardTimeEntry.update({
@@ -359,6 +359,8 @@ export async function assignJobCard(
   assignee: Assignee | null,
 ): Promise<AssignNotice> {
   if (jobCard.status !== "OPEN") throw new Error("This job card is closed.");
+  // Picking the same person again changes nothing: no new assigned date, so no second alert on the phone.
+  if (assignee && assignee.id === jobCard.assignedTo) return "skipped";
   assertOk(
     await client.models.JobCard.update({
       id: jobCard.id,
@@ -369,8 +371,8 @@ export async function assignJobCard(
     }),
     "Could not assign job card",
   );
-  // only when it really goes to someone new (not when unassigned, and not when picked again)
-  if (!assignee || assignee.id === jobCard.assignedTo) return "skipped";
+  // only when it really goes to someone new (not when unassigned)
+  if (!assignee) return "skipped";
   return notifyAssignee({ assignee, jobCardId: jobCard.id, jcNumber: jobCard.jcNumber, customerName: jobCard.customerName });
 }
 

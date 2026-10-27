@@ -1,4 +1,4 @@
-// src/utils/helper/jobCardTime.ts  
+// src/utils/helper/jobCardTime.ts  (NEW FILE)
 // Passive time tracking for job cards: pure rules, no I/O.
 //
 // Rules
@@ -72,12 +72,21 @@ export interface StopPlan {
 }
 
 /**
+ * The open entries a stop plan applies to. A session that began AFTER the work was finished is someone correcting
+ * submitted work: it counts as work time and is not cut off at the earlier finish. It ends when they leave, or
+ * at the next stop plan (a correction being submitted moves the finish time forward).
+ */
+export function stoppable<T extends Pick<TimeEntry, "endedAt" | "startedAt">>(entries: T[], plan: StopPlan): T[] {
+  return entries.filter((e) => isOpen(e) && (plan.reason === "NO_WORK_ITEMS" || Date.parse(e.startedAt) < Date.parse(plan.stopAt)));
+}
+
+/**
  * Decide whether open entries should stop now.
- * Returns null when nothing is open or the job card is not finished yet.
+ * Returns null when nothing is open (or nothing open began before the work finished) or the job card is not finished yet.
  */
 export function planStop(
   items: Pick<WorkItem, "status" | "submittedAt">[],
-  entries: Pick<TimeEntry, "endedAt">[],
+  entries: Pick<TimeEntry, "endedAt" | "startedAt">[],
   nowIso: string,
   /**
    * submittedAt of the newest result on the job card. A corrected result is a NEW result for an item that is
@@ -86,15 +95,16 @@ export function planStop(
   lastResultAt?: string | null,
 ): StopPlan | null {
   if (!entries.some(isOpen)) return null;
-  if (items.length === 0) return { stopAt: nowIso, reason: "NO_WORK_ITEMS" };
-  if (allSubmitted(items)) {
+  let plan: StopPlan | null = null;
+  if (items.length === 0) plan = { stopAt: nowIso, reason: "NO_WORK_ITEMS" };
+  else if (allSubmitted(items)) {
     const itemsAt = lastSubmittedAt(items);
     const stopAt =
       itemsAt && lastResultAt ? (Date.parse(lastResultAt) > Date.parse(itemsAt) ? lastResultAt : itemsAt)
       : itemsAt ?? lastResultAt ?? nowIso;
-    return { stopAt, reason: "ALL_SUBMITTED" };
+    plan = { stopAt, reason: "ALL_SUBMITTED" };
   }
-  return null;
+  return plan && stoppable(entries, plan).length > 0 ? plan : null;
 }
 
 /** Clamp a stop time so an entry never ends before it started. */
@@ -214,19 +224,19 @@ export const formatMinutes = (minutes?: number | null) => formatDuration((minute
 // ---------------------------------------------------------------------------
 
 /**
- * Should entering the job card start a session? Only for an open job card whose work is not already all
- * submitted (otherwise the stop rule would end the session at once, at a time before it began), and only
- * when this person has nothing running.
+ * Should entering the job card start a session? Only for an OPEN job card (a closed one is gone from the phones),
+ * and only when this person has nothing running. A job card whose work is all submitted still starts one: a
+ * technician opening it is there to correct submitted work, and that counts as work time. The stop rule leaves
+ * such a session alone (see stoppable).
  */
 export function shouldStartSession(args: {
   status: JobCardStatus;
-  items: Pick<WorkItem, "status">[];
+  items?: Pick<WorkItem, "status">[];
   entries: Pick<TimeEntry, "userId" | "userEmail" | "endedAt">[];
   user: { id: string; email?: string | null };
 }): boolean {
-  const { status, items, entries, user } = args;
+  const { status, entries, user } = args;
   if (status !== "OPEN") return false;
-  if (allSubmitted(items)) return false;
   const emails = emailLookup(entries);
   return !entries.some((e) => isOpen(e) && isSamePerson(e, user, emails));
 }

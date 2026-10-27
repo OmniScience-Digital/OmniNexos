@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   allSubmitted, clampEnd, closedMinutesTotal, elapsedSpan, entrySeconds, formatDuration,
   elapsedSinceAllocated, emailLookup, groupSessionsByDay, isSamePerson, lastSubmittedAt, minutesBetween, nextSessionId, personKey,
-  personSeconds, planIdleStops, planStop, shouldStartSession, siteDay, totalsByUser,
+  personSeconds, planIdleStops, planStop, shouldStartSession, siteDay, stoppable, totalsByUser,
 } from "./jobCardTime";
 import type { TimeEntry, WorkItem } from "@/types/jobcards.types";
 
@@ -132,8 +132,8 @@ describe("starting a session on entering a job card", () => {
   it("does not start on a closed job card", () => {
     expect(shouldStartSession({ status: "CLOSED", items: pending, entries: [], user: me })).toBe(false);
   });
-  it("does not start when all work is already submitted (it would end before it began)", () => {
-    expect(shouldStartSession({ status: "OPEN", items: [item("SUBMITTED", t("10:00"))], entries: [], user: me })).toBe(false);
+  it("starts when all work is already submitted: someone opening it is correcting work, which counts as work time", () => {
+    expect(shouldStartSession({ status: "OPEN", items: [item("SUBMITTED", t("10:00"))], entries: [], user: me })).toBe(true);
   });
   it("does not start a second one for the same person, but does for someone else", () => {
     expect(shouldStartSession({ status: "OPEN", items: pending, entries: [entry("a", "08:00")], user: me })).toBe(false);
@@ -210,5 +210,27 @@ describe("person totals show the email", () => {
   it("carries the lower-case email, learned from any of the person's rows", () => {
     const [p] = totalsByUser([{ ...entry("a", "08:00", "09:00", 60), userEmail: "A@x.co" }, entry("a", "10:00", "11:00", 60)], Date.parse(t("23:00")));
     expect(p).toMatchObject({ userEmail: "a@x.co", sessions: 2 });
+  });
+});
+
+
+describe("a correction on a finished job card is not cut off", () => {
+  const done = [item("SUBMITTED", t("09:30"))];
+  it("a session that began before the finish stops at the finish", () => {
+    expect(planStop(done, [entry("a", "08:00")], t("23:00"))).toEqual({ stopAt: t("09:30"), reason: "ALL_SUBMITTED" });
+  });
+  it("a session that began after the finish is left running (someone is correcting submitted work)", () => {
+    expect(planStop(done, [entry("a", "11:00")], t("23:00"))).toBeNull();
+  });
+  it("only the earlier session is stopped when both are open", () => {
+    const plan = planStop(done, [entry("a", "08:00"), entry("b", "11:00")], t("23:00"))!;
+    expect(stoppable([entry("a", "08:00"), entry("b", "11:00")], plan).map((e) => e.userId)).toEqual(["a"]);
+  });
+  it("submitting the correction moves the finish forward, so that session stops there", () => {
+    const plan = planStop(done, [entry("b", "11:00")], t("23:00"), t("11:40"))!;
+    expect(plan).toEqual({ stopAt: t("11:40"), reason: "ALL_SUBMITTED" });
+  });
+  it("removing all work items still stops everything", () => {
+    expect(planStop([], [entry("a", "11:00")], t("12:00"))).toEqual({ stopAt: t("12:00"), reason: "NO_WORK_ITEMS" });
   });
 });
