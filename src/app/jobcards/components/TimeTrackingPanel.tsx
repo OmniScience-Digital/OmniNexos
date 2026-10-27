@@ -83,7 +83,7 @@ export default function TimeTrackingPanel({ jobCard, entries, items }: { jobCard
 
         {people.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No time recorded yet. Time starts when a user opens the job card and is recorded one session per visit.
+            No time recorded yet. The mobile app starts time when a technician opens the job card, one session per visit.
           </p>
         ) : (
           <>
@@ -157,10 +157,10 @@ export default function TimeTrackingPanel({ jobCard, entries, items }: { jobCard
           </>
         )}
         <p className="text-xs text-muted-foreground">
-          Recorded automatically. A session starts when a person opens this job card and ends when they leave it (or after
-          a few minutes of no activity). Being assigned a job card does not start time. Several logins of one person
-          are counted as one person. Every running session also stops when the last work item is submitted or the job
-          card is closed. "Time worked" is what is posted to Telegram; "Elapsed since allocated" is shown here only.
+          Recorded by the mobile app: a session starts when a technician opens this job card and ends when they leave it. The
+          web app never starts time. Being assigned a job card does not start time. Several logins of one person are
+          counted as one person. Every running session also stops when the last work item is submitted or the job card is
+          closed. "Time worked" is what is posted to Telegram; "Elapsed since allocated" is shown here only.
         </p>
       </CardContent>
     </Card>

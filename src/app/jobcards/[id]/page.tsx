@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/auth-context";
 import { usePermission } from "@/hooks/usePermission";
 import { useJobCardLive, useNow } from "@/hooks/useJobCardLive";
-import { useJobCardSession } from "@/hooks/useJobCardSession";
 import { closeJobCard, syncTimeTracking } from "@/services/jobCardTime.service";
 import type { TimeUser } from "@/types/jobcards.types";
 import { allSubmitted, formatDuration, isOpen, personSeconds, planStop } from "@/utils/helper/jobCardTime";
@@ -74,9 +73,6 @@ export default function JobCardDetailPage() {
       .catch((e) => console.error("[jobcard] stop failed", e))
       .finally(() => { stopping.current = false; });
   }, [loading, jobCard, items, entries, lastResultAt]);
-
-  // Time starts when the person ENTERS the job card (not when it is assigned), one session per visit.
-  useJobCardSession({ jobCard, items, entries, user, ready: !loading && !unavailable, enabled: canEdit });
 
   const running = entries.some(isOpen);
   const now = useNow(running);

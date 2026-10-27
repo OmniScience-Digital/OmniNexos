@@ -13,8 +13,7 @@ import { telegramGroupId, validateGroupInput, type GroupInput } from "@/utils/he
 import type { PageCursor, StatusFilter, StatusQuery } from "@/utils/helper/jobCardPaging";
 import { fetchJobCardsPage } from "@/utils/helper/jobCardPaging";
 import {
-  clampEnd, closedMinutesTotal, emailLookup, isOpen, isSamePerson, minutesBetween, nextSessionId, planIdleStops,
-  planStop, SESSION_IDLE_MS, stoppable,
+  clampEnd, closedMinutesTotal, emailLookup, isOpen, isSamePerson, minutesBetween, nextSessionId, planStop, stoppable,
 } from "@/utils/helper/jobCardTime";
 
 /** False until the backend with the job card models is deployed and amplify_outputs.json is regenerated. */
@@ -137,7 +136,7 @@ export async function recordEngagement(args: {
     userEmail: user.email ? user.email.trim().toLowerCase() : undefined,
     moduleId,
     startedAt,
-    // only web sessions carry a heartbeat (the idle sweep ignores entries without JOB_CARD_OPENED)
+    // a session started by the app carries a heartbeat
     lastActiveAt: reason === "JOB_CARD_OPENED" ? startedAt : undefined,
     startReason: reason,
   });
@@ -194,57 +193,14 @@ export async function latestResultAt(jobCardId: string): Promise<string | null> 
   }
 }
 
-/** Heartbeat of a running web session: proves the person is still on the job card. */
-export async function touchSession(entryId: string, at = new Date().toISOString()): Promise<void> {
-  assertOk(await client.models.JobCardTimeEntry.update({ id: entryId, lastActiveAt: at }), "Could not update session");
-}
-
-/** End one web session (the person left the job card). Idempotent: a session that already ended is left alone. */
-export async function endSession(
-  entry: Pick<TimeEntry, "id" | "jobCardId" | "startedAt" | "endedAt">,
-  reason: "SESSION_ENDED" | "IDLE_TIMEOUT" = "SESSION_ENDED",
-  at = new Date().toISOString(),
-): Promise<boolean> {
-  if (entry.endedAt) return false;
-  const endedAt = clampEnd(entry.startedAt, at);
-  assertOk(
-    await client.models.JobCardTimeEntry.update({
-      id: entry.id, endedAt, minutes: minutesBetween(entry.startedAt, endedAt), endReason: reason,
-    }),
-    "Could not end session",
-  );
-  await recomputeTotalMinutes(entry.jobCardId);
-  return true;
-}
-
-/**
- * Close web sessions whose heartbeat went quiet (tab closed, laptop asleep). Any viewer can run this; it ends each
- * session at its last heartbeat, so doing it twice or from two places gives the same result.
- */
-export async function sweepIdleSessions(jobCardId: string, nowMs = Date.now(), idleMs = SESSION_IDLE_MS): Promise<number> {
-  const entries = await listTimeEntries(jobCardId);
-  const stops = planIdleStops(entries, nowMs, idleMs);
-  for (const stop of stops) {
-    const e = entries.find((x) => x.id === stop.entryId)!;
-    assertOk(
-      await client.models.JobCardTimeEntry.update({
-        id: e.id, endedAt: stop.endedAt, minutes: minutesBetween(e.startedAt, stop.endedAt), endReason: "IDLE_TIMEOUT",
-      }),
-      "Could not close an idle session",
-    );
-  }
-  if (stops.length > 0) await recomputeTotalMinutes(jobCardId);
-  return stops.length;
-}
-
 export async function addScale(jobCardId: string, scaleName: string): Promise<void> {
   assertOk(await client.models.JobCardScale.create({ jobCardId, scaleName: scaleName.trim() }), "Could not add scale");
 }
 
 /**
  * Add a work item to a scale. Adding work starts NO timer and assigns it to no one: the whole job card is assigned
- * (see assignJobCard), every technician can work on every item, and time starts only when a technician ENTERS the
- * job card (see useJobCardSession). An office user setting up the work must not clock hours.
+ * (see assignJobCard), every technician can work on every item, and time is started only by the mobile app when a
+ * technician enters the job card. The web app never starts a timer.
  */
 export async function addWorkItem(args: {
   jobCard: Pick<JobCard, "id" | "status">;

@@ -68,8 +68,8 @@ vi.mock("@/services/schema", () => ({
 }));
 
 import {
-  addTelegramGroup, addWorkItem, assignJobCard, closeJobCard, endSession, listTechnicians, recordEngagement, removeScale,
-  removeWorkItem, setTelegramGroup, sweepIdleSessions, syncTimeTracking, touchSession,
+  addTelegramGroup, addWorkItem, assignJobCard, closeJobCard, listTechnicians, recordEngagement, removeScale,
+  removeWorkItem, setTelegramGroup, syncTimeTracking,
 } from "./jobCardTime.service";
 
 const A = { id: "userA", name: "Ayanda" };
@@ -263,42 +263,6 @@ describe("passive time tracking, end to end", () => {
     expect(await recordEngagement({ jobCardId: "jc1", user: social, reason: "RESULT_SUBMITTED" })).toBeNull();
     expect(entries()).toHaveLength(1);
     expect(entries()[0]).toMatchObject({ userEmail: "ayanda@x.co" }); // stored lower-case
-  });
-
-  it("a web session starts with a heartbeat, ends when the person leaves, and is idempotent", async () => {
-    const e = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED" }))!;
-    expect(db.entries.get(e.id)).toMatchObject({ startReason: "JOB_CARD_OPENED", lastActiveAt: at("08:00") });
-    vi.setSystemTime(new Date(at("08:02")));
-    await touchSession(e.id);
-    expect(db.entries.get(e.id)!.lastActiveAt).toBe(at("08:02"));
-    vi.setSystemTime(new Date(at("08:40")));
-    expect(await endSession({ id: e.id, jobCardId: "jc1", startedAt: e.startedAt })).toBe(true);
-    expect(db.entries.get(e.id)).toMatchObject({ endedAt: at("08:40"), minutes: 40, endReason: "SESSION_ENDED" });
-    expect(db.jc.totalMinutes).toBe(40);
-    expect(await endSession({ id: e.id, jobCardId: "jc1", startedAt: e.startedAt, endedAt: at("08:40") })).toBe(false);
-  });
-
-  it("visits on different days are separate sessions that add up", async () => {
-    const day1 = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED", at: "2026-10-12T08:00:00.000Z" }))!;
-    await endSession({ id: day1.id, jobCardId: "jc1", startedAt: day1.startedAt }, "SESSION_ENDED", "2026-10-12T10:00:00.000Z");
-    const day2 = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED", at: "2026-10-14T09:00:00.000Z" }))!;
-    await endSession({ id: day2.id, jobCardId: "jc1", startedAt: day2.startedAt }, "SESSION_ENDED", "2026-10-14T09:30:00.000Z");
-    expect(entries().map((x) => x.id)).toEqual(["jc1#userA#1", "jc1#userA#2"]);
-    expect(db.jc.totalMinutes).toBe(150);
-  });
-
-  it("an abandoned web session is closed at its last heartbeat, and mobile entries are left alone", async () => {
-    const web = (await recordEngagement({ jobCardId: "jc1", user: A, reason: "JOB_CARD_OPENED" }))!;
-    await recordEngagement({ jobCardId: "jc1", user: B, reason: "RESULT_SUBMITTED" }); // mobile-style: no heartbeat
-    vi.setSystemTime(new Date(at("08:03")));
-    await touchSession(web.id);
-    vi.setSystemTime(new Date(at("08:06")));
-    expect(await sweepIdleSessions("jc1", Date.now())).toBe(0); // 3 min quiet: still alive
-    vi.setSystemTime(new Date(at("09:00")));
-    expect(await sweepIdleSessions("jc1", Date.now())).toBe(1);
-    expect(db.entries.get(web.id)).toMatchObject({ endedAt: at("08:03"), minutes: 3, endReason: "IDLE_TIMEOUT" });
-    expect(db.entries.get("jc1#userB#1")!.endedAt).toBeUndefined();
-    expect(await sweepIdleSessions("jc1", Date.now())).toBe(0); // idempotent
   });
 
   it("a corrected result after completion moves the stop time forward", async () => {

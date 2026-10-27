@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   allSubmitted, clampEnd, closedMinutesTotal, elapsedSpan, entrySeconds, formatDuration,
   elapsedSinceAllocated, emailLookup, groupSessionsByDay, isSamePerson, lastSubmittedAt, minutesBetween, nextSessionId, personKey,
-  personSeconds, planIdleStops, planStop, shouldStartSession, siteDay, stoppable, totalsByUser,
+  personSeconds, planStop, siteDay, stoppable, totalsByUser,
 } from "./jobCardTime";
 import type { TimeEntry, WorkItem } from "@/types/jobcards.types";
 
@@ -122,44 +122,7 @@ describe("one person, two logins", () => {
   });
 });
 
-describe("starting a session on entering a job card", () => {
-  const me = { id: "a", email: "a@x.co" };
-  const pending = [item("PENDING")];
-  it("starts on an open job card with work still to do", () => {
-    expect(shouldStartSession({ status: "OPEN", items: pending, entries: [], user: me })).toBe(true);
-    expect(shouldStartSession({ status: "OPEN", items: [], entries: [], user: me })).toBe(true); // no work added yet
-  });
-  it("does not start on a closed job card", () => {
-    expect(shouldStartSession({ status: "CLOSED", items: pending, entries: [], user: me })).toBe(false);
-  });
-  it("starts when all work is already submitted: someone opening it is correcting work, which counts as work time", () => {
-    expect(shouldStartSession({ status: "OPEN", items: [item("SUBMITTED", t("10:00"))], entries: [], user: me })).toBe(true);
-  });
-  it("does not start a second one for the same person, but does for someone else", () => {
-    expect(shouldStartSession({ status: "OPEN", items: pending, entries: [entry("a", "08:00")], user: me })).toBe(false);
-    expect(shouldStartSession({ status: "OPEN", items: pending, entries: [entry("a", "08:00")], user: { id: "b" } })).toBe(true);
-    expect(shouldStartSession({ status: "OPEN", items: pending, entries: [entry("a", "08:00", "09:00", 60)], user: me })).toBe(true);
-  });
-});
 
-describe("idle web sessions", () => {
-  const web = (id: string, start: string, last?: string, over: Partial<TimeEntry> = {}): TimeEntry => ({
-    ...entry(id, start), startReason: "JOB_CARD_OPENED", lastActiveAt: last ? t(last) : undefined, ...over,
-  });
-  const now = Date.parse(t("12:00"));
-  it("ends a quiet session at its LAST heartbeat, not now", () => {
-    expect(planIdleStops([web("a", "08:00", "08:41")], now)).toEqual([{ entryId: "a08:00", endedAt: t("08:41") }]);
-  });
-  it("leaves a session with a recent heartbeat", () => {
-    expect(planIdleStops([web("a", "08:00", "11:58")], now)).toEqual([]);
-  });
-  it("uses the start time when there was never a heartbeat", () => {
-    expect(planIdleStops([web("a", "08:00")], now)).toEqual([{ entryId: "a08:00", endedAt: t("08:00") }]);
-  });
-  it("ignores mobile entries (no JOB_CARD_OPENED) and entries that already ended", () => {
-    expect(planIdleStops([entry("m", "08:00"), web("a", "08:00", "08:30", { endedAt: t("08:30") })], now)).toEqual([]);
-  });
-});
 
 describe("sessions by site day", () => {
   it("groups by the site-day (SAST) a session started on, newest day first", () => {

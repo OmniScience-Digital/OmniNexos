@@ -2,17 +2,17 @@
 // Passive time tracking for job cards: pure rules, no I/O.
 //
 // Rules
-//  1. A technician "engages" with a job card when they ENTER it or submit a
-//     result. If that person has no open entry on the job card, one is started.
-//     There is no start/stop button. Being assigned a job card, or having work
-//     added to it, does NOT start time (technicians are often assigned days
-//     before they travel to site, and office staff set the work up).
+//  1. The MOBILE APP starts time: when a technician enters a job card (or
+//     submits a result). The web app never starts a timer; it only shows the
+//     time and stops what is running when the work is finished. There is no
+//     start/stop button. Being assigned a job card, or having work added to it,
+//     does NOT start time (technicians are often assigned days before they
+//     travel to site, and office staff set the work up).
 //  1a. Two different numbers exist. TIME WORKED (person time) is the sum of the
 //     sessions: it is what is posted to Telegram. ELAPSED time is how long the
 //     job card has been allocated, and is shown on the web only.
-//  1b. A web session is one visit: it ends when the user leaves the job card, or
-//     is closed as idle when its heartbeat goes stale. Each site day is therefore
-//     its own session(s), and the job card total is the sum of all sessions.
+//  1b. A session is one visit to the job card, recorded by the app, so each site
+//     day or visit is separate and the job card total is the sum of all sessions.
 //  2. All open entries on a job card stop together when its LAST work item is
 //     submitted. The stop time is that submission's time, not "now", so it does
 //     not matter which device or user notices first.
@@ -20,14 +20,10 @@
 //     is removed.
 //  4. Tracking is per user per job card. "Person time" is the sum of every
 //     user's entries; "elapsed" is first start to last stop.
-import type { JobCardStatus, TimeEntry, TimeEntryEndReason, WorkItem } from "@/types/jobcards.types";
+import type { TimeEntry, TimeEntryEndReason, WorkItem } from "@/types/jobcards.types";
 
 const MS_MIN = 60_000;
 
-/** The web page writes a heartbeat this often while a job card is open and visible. */
-export const HEARTBEAT_MS = 60_000;
-/** A web session with no heartbeat for this long is treated as abandoned (tab closed, laptop asleep). */
-export const SESSION_IDLE_MS = 5 * MS_MIN;
 /** Time zone used to decide which "site day" a session belongs to. */
 export const SITE_TIME_ZONE = "Africa/Johannesburg";
 
@@ -222,49 +218,6 @@ export const formatMinutes = (minutes?: number | null) => formatDuration((minute
 // ---------------------------------------------------------------------------
 // Web sessions (one per visit to a job card)
 // ---------------------------------------------------------------------------
-
-/**
- * Should entering the job card start a session? Only for an OPEN job card (a closed one is gone from the phones),
- * and only when this person has nothing running. A job card whose work is all submitted still starts one: a
- * technician opening it is there to correct submitted work, and that counts as work time. The stop rule leaves
- * such a session alone (see stoppable).
- */
-export function shouldStartSession(args: {
-  status: JobCardStatus;
-  items?: Pick<WorkItem, "status">[];
-  entries: Pick<TimeEntry, "userId" | "userEmail" | "endedAt">[];
-  user: { id: string; email?: string | null };
-}): boolean {
-  const { status, entries, user } = args;
-  if (status !== "OPEN") return false;
-  const emails = emailLookup(entries);
-  return !entries.some((e) => isOpen(e) && isSamePerson(e, user, emails));
-}
-
-export interface IdleStop {
-  entryId: string;
-  endedAt: string;
-}
-
-/**
- * Web sessions whose heartbeat went quiet. They end at their LAST heartbeat (not "now"), so a closed laptop
- * does not count as working time. Only entries started by the web app (JOB_CARD_OPENED) are swept: entries
- * written by the mobile app have no heartbeat and end by the stop rule instead.
- */
-export function planIdleStops(
-  entries: Pick<TimeEntry, "id" | "startedAt" | "lastActiveAt" | "endedAt" | "startReason">[],
-  nowMs: number,
-  idleMs = SESSION_IDLE_MS,
-): IdleStop[] {
-  const out: IdleStop[] = [];
-  for (const e of entries) {
-    if (!isOpen(e) || e.startReason !== "JOB_CARD_OPENED") continue;
-    const last = e.lastActiveAt ?? e.startedAt;
-    if (nowMs - Date.parse(last) < idleMs) continue;
-    out.push({ entryId: e.id, endedAt: clampEnd(e.startedAt, last) });
-  }
-  return out;
-}
 
 /** "2026-10-22" in site time. */
 export function siteDay(iso: string, timeZone = SITE_TIME_ZONE): string {
