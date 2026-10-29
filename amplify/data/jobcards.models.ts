@@ -56,6 +56,7 @@ export const jobCardModels = {
       totalTimePostedAt: a.datetime(),
       certificateSentAt: a.datetime(),
       certificateClickupAt: a.datetime(),
+      totalTimePostedClickupAt: a.datetime(),
       // Sparse GSI partition key. Set to "PENDING" when the card is closed;
       // removed once both markers above are set. Only cards awaiting wrap-up
       // appear in jobCardsByWrapUpPending, so the sweep query stays at 1 RCU.
