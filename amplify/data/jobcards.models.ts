@@ -1,10 +1,4 @@
-// amplify/data/jobcards.models.ts 
-// Job Card models for the existing Amplify Gen2 data resource.
-// Usage in amplify/data/resource.ts:
-//   import { jobCardModels } from "./jobcards.models";
-//   const schema = a.schema({ ...jobCardModels, /* existing models */ });
-// Also add "JOBCARD" to the History.entityType enum.
-
+// amplify/data/jobcards.models.ts
 import { a } from "@aws-amplify/backend";
 
 export const jobCardModels = {
@@ -13,13 +7,20 @@ export const jobCardModels = {
   JobCardModuleStatus: a.enum(["PENDING", "SUBMITTED"]),
   DeliveryStatus: a.enum(["PENDING", "SENT", "FAILED"]),
   CertificateStatus: a.enum(["ISSUED", "SUPERSEDED"]),
-  // JOB_CARD_OPENED / SESSION_ENDED / IDLE_TIMEOUT: web app site-day sessions (a session starts when a user
-  // enters a job card). The older values are still written by the mobile app.
-  TimeEntryStartReason: a.enum(["WORK_ITEM_ADDED", "WORK_ITEM_STARTED", "RESULT_SUBMITTED", "JOB_CARD_OPENED"]),
-  TimeEntryEndReason: a.enum(["ALL_SUBMITTED", "JOB_CLOSED", "NO_WORK_ITEMS", "SESSION_ENDED", "IDLE_TIMEOUT"]),
+  TimeEntryStartReason: a.enum([
+    "WORK_ITEM_ADDED",
+    "WORK_ITEM_STARTED",
+    "RESULT_SUBMITTED",
+    "JOB_CARD_OPENED",
+  ]),
+  TimeEntryEndReason: a.enum([
+    "ALL_SUBMITTED",
+    "JOB_CLOSED",
+    "NO_WORK_ITEMS",
+    "SESSION_ENDED",
+    "IDLE_TIMEOUT",
+  ]),
 
-  // Filled by the Telegram webhook function when the bot is added to a group.
-  // One group can serve many JobCards; one JobCard has exactly one group.
   TelegramGroup: a
     .model({
       chatId: a.string().required(),
@@ -33,30 +34,31 @@ export const jobCardModels = {
     ])
     .authorization((allow) => [allow.authenticated()]),
 
-  // Created automatically when Quote.quoteStatus becomes ACCEPTED.
   JobCard: a
     .model({
-      jcNumber: a.string().required(), // "JC-" + Quote.quoteNumber
+      jcNumber: a.string().required(),
       quoteId: a.string(),
       quoteNumber: a.string(),
       customerName: a.string(),
-      customerSiteId: a.id(), // optional link to CustomerSite
+      customerSiteId: a.id(),
       title: a.string(),
       status: a.ref("JobCardStatus").required(),
       openedAt: a.datetime(),
       closedAt: a.datetime(),
       closedBy: a.string(),
-      clickupTaskId: a.string(), // CRM-05X task (copied from Quote)
-      totalMinutes: a.integer(), // person-time: sum of all CLOSED time entries, recomputed (never incremented)
-      // The job card is assigned to one technician (a notification goes to them). It stays open to every
-      // technician: assignment never restricts access.
-      assignedTo: a.string(), // Cognito sub of the assignee
+      clickupTaskId: a.string(),
+      totalMinutes: a.integer(),
+      assignedTo: a.string(),
       assignedToName: a.string(),
-      assignedToEmail: a.string(), // lower-case: the phone matches "assigned to me" by email, so either login works
+      assignedToEmail: a.string(),
       assignedAt: a.datetime(),
-      // Set by the backend when the total time has been posted to the job card's Telegram group. That happens
-      // once, after the entire scope of work is submitted (not per work item). The web app only displays it.
+      // Backend markers, visible via GraphQL.
       totalTimePostedAt: a.datetime(),
+      certificateSentAt: a.datetime(),
+      // Sparse GSI partition key. Set to "PENDING" when the card is closed;
+      // removed once both markers above are set. Only cards awaiting wrap-up
+      // appear in jobCardsByWrapUpPending, so the sweep query stays at 1 RCU.
+      wrapUpPending: a.string(),
       telegramGroupId: a.id(),
       telegramGroup: a.belongsTo("TelegramGroup", "telegramGroupId"),
       scales: a.hasMany("JobCardScale", "jobCardId"),
@@ -66,6 +68,7 @@ export const jobCardModels = {
       index("jcNumber").queryField("jobCardsByNumber"),
       index("quoteNumber").queryField("jobCardsByQuoteNumber"),
       index("status").sortKeys(["openedAt"]).queryField("jobCardsByStatus"),
+      index("wrapUpPending").sortKeys(["closedAt"]).queryField("jobCardsByWrapUpPending"),
     ])
     .authorization((allow) => [allow.authenticated()]),
 
@@ -73,9 +76,9 @@ export const jobCardModels = {
     .model({
       jobCardId: a.id().required(),
       jobCard: a.belongsTo("JobCard", "jobCardId"),
-      scaleName: a.string().required(), // free text in MVP
-      assetId: a.id(), // optional link to Asset
-      monitoringScaleId: a.string(), // reserved for monitoring-app import
+      scaleName: a.string().required(),
+      assetId: a.id(),
+      monitoringScaleId: a.string(),
       createdBy: a.string(),
       modules: a.hasMany("JobCardModule", "scaleId"),
       certificates: a.hasMany("CalibrationCertificate", "scaleId"),
@@ -85,33 +88,29 @@ export const jobCardModels = {
     ])
     .authorization((allow) => [allow.authenticated()]),
 
-  // One row per work item on a scale. Several of the same type are allowed.
-  // Assigned from the web app or the mobile app.
   JobCardModule: a
     .model({
       scaleId: a.id().required(),
       scale: a.belongsTo("JobCardScale", "scaleId"),
-      jobCardId: a.id().required(), // denormalised for per-JC queries
+      jobCardId: a.id().required(),
       moduleType: a.ref("JobCardModuleType").required(),
       status: a.ref("JobCardModuleStatus").required(),
       sequence: a.integer().required(),
-      addedBy: a.string(), // Cognito sub of the user who assigned the work item
+      addedBy: a.string(),
       addedAt: a.datetime(),
       submittedBy: a.string(),
-      submittedAt: a.datetime(), // set when status becomes SUBMITTED; ends the time entries
-      assignedTo: a.string(), // Cognito sub of the technician (a system login user) the work is assigned to
-      assignedToName: a.string(), // their display name, kept here so lists need no user lookup
+      submittedAt: a.datetime(),
+      assignedTo: a.string(),
+      assignedToName: a.string(),
       submissions: a.hasMany("JobCardSubmission", "moduleId"),
     })
     .secondaryIndexes((index) => [
       index("scaleId").sortKeys(["sequence"]).queryField("modulesByScale"),
       index("jobCardId").queryField("modulesByJobCard"),
-      index("assignedTo").queryField("modulesByAssignee"), // a technician's own work
+      index("assignedTo").queryField("modulesByAssignee"),
     ])
     .authorization((allow) => [allow.authenticated()]),
 
-  // Immutable. The device generates the `id` (UUID) so a retried upload
-  // fails the create condition instead of duplicating the record.
   JobCardSubmission: a
     .model({
       moduleId: a.id().required(),
@@ -119,14 +118,11 @@ export const jobCardModels = {
       scaleId: a.id().required(),
       jobCardId: a.id().required(),
       moduleType: a.ref("JobCardModuleType").required(),
-      scaleTypeKey: a.string().required(), // `${scaleId}#${moduleType}`
-      submittedBy: a.string().required(), // Cognito sub
+      scaleTypeKey: a.string().required(),
+      submittedBy: a.string().required(),
       submittedAt: a.datetime().required(),
       schemaVersion: a.integer().required(),
-      payload: a.json().required(), // see payload types below
-      // Delivery bookkeeping, written by the backend worker. Whoever CREATES a submission (the mobile app)
-      // must set deliveryState: "PENDING": the worker finds work through that field (a sparse index), and
-      // removes it once the result has been fully handled.
+      payload: a.json().required(),
       deliveryState: a.string(),
       clickupStatus: a.ref("DeliveryStatus"),
       telegramStatus: a.ref("DeliveryStatus"),
@@ -137,35 +133,24 @@ export const jobCardModels = {
     })
     .secondaryIndexes((index) => [
       index("moduleId").sortKeys(["submittedAt"]).queryField("submissionsByModule"),
-      index("scaleTypeKey")
-        .sortKeys(["submittedAt"])
-        .queryField("submissionsByScaleType"), // "latest zero/span" lookup
+      index("scaleTypeKey").sortKeys(["submittedAt"]).queryField("submissionsByScaleType"),
       index("jobCardId").sortKeys(["submittedAt"]).queryField("submissionsByJobCard"),
       index("deliveryState").sortKeys(["submittedAt"]).queryField("submissionsByDeliveryState"),
     ])
     .authorization((allow) => [allow.authenticated()]),
-  // Passive time tracking: one row per user per "session" on a JobCard.
-  //  - starts when the user first engages with the job card (adds a work item,
-  //    or submits a result) and they have no open entry;
-  //  - ends for everyone when the LAST work item on the job card is SUBMITTED
-  //    (endedAt = that submission time), or when the job card is closed.
-  // The id is deterministic: `${jobCardId}#${userId}#${sessionNo}`, so two
-  // devices starting at once cannot create two open entries (the second create
-  // fails its condition and is ignored).
+
   JobCardTimeEntry: a
     .model({
       jobCardId: a.id().required(),
       jobCard: a.belongsTo("JobCard", "jobCardId"),
-      moduleId: a.id(), // work item that started the entry (optional)
-      userId: a.string().required(), // Cognito sub
+      moduleId: a.id(),
+      userId: a.string().required(),
       userName: a.string(),
-      // Lower-case email. The same person can have two Cognito identities (manual and social login), so people
-      // are grouped by email when it is present. Older rows without it fall back to userId.
       userEmail: a.string(),
       startedAt: a.datetime().required(),
-      lastActiveAt: a.datetime(), // heartbeat of a web session; a stale one is closed as IDLE_TIMEOUT
-      endedAt: a.datetime(), // empty while the entry is open
-      minutes: a.integer(), // set when closed
+      lastActiveAt: a.datetime(),
+      endedAt: a.datetime(),
+      minutes: a.integer(),
       startReason: a.ref("TimeEntryStartReason"),
       endReason: a.ref("TimeEntryEndReason"),
     })
@@ -175,13 +160,9 @@ export const jobCardModels = {
     ])
     .authorization((allow) => [allow.authenticated()]),
 
-  // Issued by the backend when every Zero/Span work item on a scale is
-  // SUBMITTED. Clients read only; the backend function is granted write
-  // access with allow.resource(...) at schema level.
-  // A correction issues a new row (version + 1) and marks the old one SUPERSEDED.
   CalibrationCertificate: a
     .model({
-      certificateNumber: a.string().required(), // "CRT-" + zero-padded sequence, e.g. "CRT-000123"
+      certificateNumber: a.string().required(),
       jobCardId: a.id().required(),
       scaleId: a.id().required(),
       scale: a.belongsTo("JobCardScale", "scaleId"),
@@ -189,10 +170,10 @@ export const jobCardModels = {
       version: a.integer().required(),
       issuedAt: a.datetime().required(),
       issuedBy: a.string(),
-      sourceSubmissionIds: a.string().array(), // results the PDF was built from
-      dataSnapshot: a.json(), // values printed on the certificate
-      pdfKey: a.string().required(), // S3 key of the stored PDF
-      pdfStored: a.boolean(), // false while the number is reserved but the PDF is not uploaded yet
+      sourceSubmissionIds: a.string().array(),
+      dataSnapshot: a.json(),
+      pdfKey: a.string().required(),
+      pdfStored: a.boolean(),
     })
     .secondaryIndexes((index) => [
       index("certificateNumber").queryField("certificatesByNumber"),
@@ -201,64 +182,54 @@ export const jobCardModels = {
     ])
     .authorization((allow) => [allow.authenticated().to(["read"])]),
 
-  // Sequence source for certificate numbers. Incremented with an atomic
-  // conditional update in the backend so two certificates never share a number.
   CertificateCounter: a
     .model({
-      counterKey: a.string().required(), // "CRT" (the certificate number prefix)
+      counterKey: a.string().required(),
       lastNumber: a.integer().required(),
     })
     .secondaryIndexes((index) => [index("counterKey")])
     .authorization((allow) => [allow.authenticated().to(["read"])]),
 };
 
-// ---------------------------------------------------------------------------
-// Payload types (JobCardSubmission.payload, schemaVersion = 1).
-// Photo values are S3 keys.
-// ---------------------------------------------------------------------------
+// ---- payload types unchanged ----
 
 export interface InspectionPayload {
-  asFoundTotalizer: string; // tons, digits only, max 10
-  asFoundSpanCoefficient: string; // points, digits only, max 8
-  asFoundZeroValue: string; // points, digits only, max 5
-  asFoundSpeedCoefficient: string; // points, digits only, max 6
-  asFoundMaxTph?: number; // 2 dp
-  asFoundMinTph?: number; // 2 dp
-  asFoundRunningSpeed?: number; // m/s, 2 dp
+  asFoundTotalizer: string;
+  asFoundSpanCoefficient: string;
+  asFoundZeroValue: string;
+  asFoundSpeedCoefficient: string;
+  asFoundMaxTph?: number;
+  asFoundMinTph?: number;
+  asFoundRunningSpeed?: number;
   partsAttached: boolean;
   weighframeClean: boolean;
   integratorPanelClean: boolean;
   weighframeMovesFreely: boolean;
-  torsionRodsMoveFreely: boolean | null; // null = N/A
+  torsionRodsMoveFreely: boolean | null;
   rollersTurning: boolean;
   beltTracking: boolean;
   integratorOk: boolean;
   speedSensorOk: boolean;
-  photos: {
-    speedSensor: string;
-    integratorPanel: string;
-    scale: string[]; // min 5, max 15
-  };
+  photos: { speedSensor: string; integratorPanel: string; scale: string[] };
 }
 
 export interface ZeroCalibrationPayload {
-  newZeroValue: string; // points, digits only, max 5
+  newZeroValue: string;
   photos: { zero: string };
 }
 
 export interface SpanCalibrationPayload {
-  offset: number; // kg/m, 2 dp
-  actual: number; // kg/m, 2 dp
-  indicated: number; // kg/m, 2 dp
+  offset: number;
+  actual: number;
+  indicated: number;
   photos: { offset: string; actual: string; indicated: string };
-  // calculated (client computes, server recomputes and validates)
   indicatedActual: number;
-  adjustmentRatio: number; // display as % (x100)
+  adjustmentRatio: number;
   newPotentialSpan: number;
   latestSpanUsed: number;
   latestZeroUsed: number;
   spanAdjusted: boolean;
-  newSpan: string; // points, digits only, max 8
+  newSpan: string;
 }
 
 export function calcSpan(
