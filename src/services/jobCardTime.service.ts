@@ -239,7 +239,13 @@ export async function closeJobCard(jobCardId: string, user: TimeUser): Promise<v
     );
   }
   assertOk(
-    await client.models.JobCard.update({ id: jobCardId, status: "CLOSED", closedAt: nowIso, closedBy: user.id }),
+    await client.models.JobCard.update({
+      id: jobCardId,
+      status: "CLOSED",
+      closedAt: nowIso,
+      closedBy: user.id,
+      wrapUpPending: "PENDING",   // ← new: enters the wrap-up GSI
+    }),
     "Could not close job card",
   );
   await recomputeTotalMinutes(jobCardId);

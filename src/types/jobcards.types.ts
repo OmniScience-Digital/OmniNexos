@@ -36,6 +36,10 @@ export interface JobCard {
   assignedAt?: string | null;
   /** Set by the backend once the total time has been posted to Telegram (after all work is submitted). */
   totalTimePostedAt?: string | null;
+  totalTimePostedClickupAt?: string | null;
+  certificateSentAt?: string | null;
+  certificateClickupAt?: string | null;
+  wrapUpPending?: string | null;
 }
 
 export interface JobCardScale {
