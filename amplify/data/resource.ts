@@ -7,6 +7,7 @@ import { inviteUser } from "../function/inviteUser/resource";
 import { jobCardModels } from "./jobcards.models"; // JOBCARD: new job card models
 import { listTechnicians } from "../function/listTechnicians/resource"; // JOBCARD: technician picker
 import { notifyWorkAssigned } from "../function/notifyWorkAssigned/resource"; // JOBCARD: push when work is assigned
+import { inventoryCounts } from "../function/inventoryCounts/resource";
 
 const schema = a.schema({
   ...jobCardModels, // JOBCARD: adds JobCard, JobCardScale, JobCardModule, JobCardSubmission, JobCardTimeEntry, TelegramGroup, CalibrationCertificate, CertificateCounter
@@ -753,13 +754,35 @@ const schema = a.schema({
       localSelfieUri: a.string(), // temp local path — cleared after S3 sync
       date: a.date().required(), // YYYY-MM-DD — for date-range queries
     })
-    .secondaryIndexes((index) => [
+   .secondaryIndexes((index) => [
       index("userId")
         .sortKeys(["clockInTime"])
         .queryField("clockRecordsByUserAndTime"),
       index("date").sortKeys(["clockInTime"]).queryField("clockRecordsByDate"),
     ])
     .authorization((allow) => [allow.authenticated()]),
+      // ── Inventory aggregation ────────────────────────────────────────────
+  InventoryCountsCategory: a.customType({
+    categoryId: a.string().required(),
+    subcategoryCount: a.integer().required(),
+    componentCount: a.integer().required(),
+    lowStockCount: a.integer().required(),
+  }),
+  InventoryCountsTotals: a.customType({
+    subcategoryCount: a.integer().required(),
+    componentCount: a.integer().required(),
+    lowStockCount: a.integer().required(),
+  }),
+  InventoryCounts: a.customType({
+    categories: a.ref("InventoryCountsCategory").array().required(),
+    totals: a.ref("InventoryCountsTotals").required(),
+    cachedAt: a.string().required(),
+  }),
+  inventoryCounts: a
+    .query()
+    .returns(a.ref("InventoryCounts"))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(inventoryCounts)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

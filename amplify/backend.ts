@@ -13,6 +13,7 @@ import { listTechnicians } from "./function/listTechnicians/resource.js"; // JOB
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import { Stack } from "aws-cdk-lib";
+import { inventoryCounts } from "./function/inventoryCounts/resource.js";
 import { Function } from "aws-cdk-lib/aws-lambda";
 
 const backend = defineBackend({
@@ -26,6 +27,7 @@ const backend = defineBackend({
   manageUser,
   inviteUser,
   listTechnicians, // JOBCARD
+  inventoryCounts
 });
 
 const { cfnUserPool } = backend.auth.resources.cfnResources;
@@ -244,6 +246,15 @@ const api = new apigateway.LambdaRestApi(stack, "VerifyFaceApi", {
     allowMethods: apigateway.Cors.ALL_METHODS,
   },
 });
+// ── Inventory aggregation Lambda: read-only access to the two tables it scans.
+const inventoryCountsLambda = backend.inventoryCounts.resources.lambda as Function;
+const componentTable = backend.data.resources.tables["Component"];
+const subCategoryTable = backend.data.resources.tables["SubCategory"];
+
+inventoryCountsLambda.addEnvironment("COMPONENT_TABLE", componentTable.tableName);
+inventoryCountsLambda.addEnvironment("SUBCATEGORY_TABLE", subCategoryTable.tableName);
+componentTable.grantReadData(inventoryCountsLambda);
+subCategoryTable.grantReadData(inventoryCountsLambda);
 
 backend.addOutput({
   custom: {
