@@ -1,7 +1,15 @@
-// amplify/auth/resource.ts  (MODIFIED - search "JOBCARD" for the 2 additions)
+// OmniNexos/amplify/auth/resource.ts  (MODIFIED - search "JOBCARD" and "RESET-EMAIL")
+//
+// Cognito auth definition: email login, Google sign-in, verification email, SES sender,
+// triggers and group/permission access.
+// Additions: 2 for JOBCARD (listTechnicians import + access), and 2 for RESET-EMAIL:
+//   - import of customMessage  (next to the postConfirmation import)
+//   - triggers.customMessage   (inside `triggers`), which gives password-reset emails
+//     their own template via amplify/function/auth/custom-message/
 import { defineAuth, secret } from "@aws-amplify/backend";
 import { preSignup } from "../function/auth/pre-signup/resource";
 import { postConfirmation } from "../function/post-confirmation/resource";
+import { customMessage } from "../function/auth/custom-message/resource"; // RESET-EMAIL
 import { listUsers } from "../function/listUsers/resource";
 import { manageUser } from "../function/manageUser/resource";
 import { inviteUser } from "../function/inviteUser/resource";
@@ -174,6 +182,7 @@ export const auth = defineAuth({
   triggers: {
     preSignUp: preSignup,
     postConfirmation: postConfirmation,
+    customMessage: customMessage, // RESET-EMAIL: own template for forgot-password
   },
   access: (allow) => [
     allow.resource(postConfirmation).to(["addUserToGroup"]),
