@@ -110,6 +110,7 @@ export const jobCardModels = {
       index("scaleId").sortKeys(["sequence"]).queryField("modulesByScale"),
       index("jobCardId").queryField("modulesByJobCard"),
       index("assignedTo").queryField("modulesByAssignee"),
+      index("jobCardId").sortKeys(["status"]).queryField("modulesByJobCardAndStatus"),
     ])
     .authorization((allow) => [allow.authenticated()]),
 
