@@ -161,6 +161,7 @@ export const auth = defineAuth({
         scopes: ["profile", "email"],
         attributeMapping: {
           email: "email",
+          emailVerified: "email_verified", // GOOGLE-VERIFIED-FIX: copy Google's verified flag onto the Cognito user
           preferredUsername: "name",
         },
       },
