@@ -65,6 +65,8 @@ const JobCardChecklistPage = lazy(() => import("./app/jobcards/page"));
 // JOBCARD: new pages
 const JobCardsListPage = lazy(() => import("./app/jobcards/lists/page"));
 const JobCardDetailPage = lazy(() => import("./app/jobcards/[id]/page"));
+// TICKETING: task form (any signed-in user)
+const TaskFormPage = lazy(() => import("./app/taskform/page"));
 
 function RouteFallback() {
   return (
@@ -198,6 +200,8 @@ function Layout() {
         <Route path="/" element={<AuthScreen />} />
         <Route path="/landing" element={requireAuth(<Landing />)} />
         <Route path="/forms" element={requireAuth(<FormsLanding />)} />
+        {/* TICKETING: any signed-in user, same login as the other forms, no extra permission */}
+        <Route path="/taskform" element={requireAuth(<TaskFormPage />)} />
         <Route
           path="/stockcontrolform"
           element={requireAuth(<ComponentForm />, false, "scf.")}

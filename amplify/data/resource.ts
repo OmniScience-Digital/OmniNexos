@@ -7,9 +7,11 @@ import { inviteUser } from "../function/inviteUser/resource";
 import { jobCardModels } from "./jobcards.models"; // JOBCARD: new job card models
 import { listTechnicians } from "../function/listTechnicians/resource"; // JOBCARD: technician picker
 import { notifyWorkAssigned } from "../function/notifyWorkAssigned/resource"; // JOBCARD: push when work is assigned
+import { ticketingModels } from "./ticketing.models"; // TICKETING: task / ticket system
 import { inventoryCounts } from "../function/inventoryCounts/resource";
 
 const schema = a.schema({
+    ...ticketingModels, // TICKETING: adds Ticket, TicketCounter (see ticketing.models.ts)
   ...jobCardModels, // JOBCARD: adds JobCard, JobCardScale, JobCardModule, JobCardSubmission, JobCardTimeEntry, TelegramGroup, CalibrationCertificate, CertificateCounter
   usersList: a
     .query()
