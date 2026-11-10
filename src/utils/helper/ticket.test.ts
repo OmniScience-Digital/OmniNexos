@@ -246,7 +246,7 @@ describe("ticketStatus", () => {
     expect(ticketStatus(ticket({ status: "CLOSED" }), before).label).toBe("Done");
     expect(ticketStatus(ticket(), before).label).toBe("On track");
     expect(ticketStatus(ticket({ followUpSentAt: "2026-11-09T08:00:00.000Z" }), before).label).toBe("Follow-up sent");
-    expect(ticketStatus(ticket({ gleedTaggedAt: "2026-11-09T09:00:00.000Z", followUpSentAt: "x" }), before).label).toBe("Escalated to Inkulu");
+    expect(ticketStatus(ticket({ gleedTaggedAt: "2026-11-09T09:00:00.000Z", followUpSentAt: "x" }), before).label).toBe("Escalated to Gleed");
     expect(ticketStatus(ticket({ hasUpdate: true, gleedTaggedAt: "x" }), before).label).toBe("Update received");
   });
 

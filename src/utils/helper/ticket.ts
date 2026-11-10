@@ -240,7 +240,7 @@ export function ticketStatus(
   if (t.status === "SUBMITTED") return { label: "Creating in ClickUp", tone: "info" };
   if (t.status === "CLOSED") return { label: "Done", tone: "neutral" };
   if (t.hasUpdate) return { label: "Update received", tone: "ok" };
-  if (t.gleedTaggedAt) return { label: "Escalated to Inkulu", tone: "bad" };
+  if (t.gleedTaggedAt) return { label: "Escalated to Gleed", tone: "bad" };
   if (t.followUpSentAt) return { label: "Follow-up sent", tone: "warn" };
   if (isOverdue(t, now)) return { label: "Overdue", tone: "bad" };
   return { label: "On track", tone: "ok" };
