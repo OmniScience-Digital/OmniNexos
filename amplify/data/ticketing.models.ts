@@ -1,4 +1,4 @@
-// amplify/data/ticketing.models.ts
+// amplify/data/ticketing.models.ts  (MODIFIED - search "CLICKUP-PEOPLE")
 //
 // TICKETING: the task / ticket system. Mirrors how jobcards.models.ts is wired:
 // this file exports a plain object that data/resource.ts spreads into the schema.
@@ -34,7 +34,10 @@ export const ticketingModels = {
       title: a.string().required(),
       requiredOutcome: a.string().required(),
       urgency: a.string().required(), // "ASAP" | "1H" | "2H" | "4H" | "16H" | "27H" (validated by the backend)
-      assignees: a.string().array().required(), // names ticked on the form
+      assignees: a.string().array().required(), // names picked on the form
+      // ClickUp user ids of the picked people who ARE on ClickUp (taken from ClickUpMember below).
+      // Optional: the backend should prefer these over name matching, and fall back to `assignees`.
+      assigneeClickupIds: a.string().array(),
       mit: a.boolean(), // MIT checkbox. Not mapped to ClickUp, kept for reporting only.
       createdBy: a.string().required(), // Cognito sub of the person who submitted
       createdByName: a.string(),
@@ -73,6 +76,20 @@ export const ticketingModels = {
     // create + read only: once submitted, a ticket can only be changed by the backend
     // (which uses IAM, not these rules).
     .authorization((allow) => [allow.authenticated().to(["create", "read"])]),
+
+  // TICKETING: everyone in the ClickUp workspace, so the Task Form can offer them (with a
+  // "ClickUp user" tag) without hard-coding names or putting the ClickUp token in the browser.
+  // The BACKEND fills this table (a sync job reading ClickUp's members) and uses the ClickUp
+  // user id as the row id; the web app can only read it.
+  // CLICKUP-PEOPLE
+  ClickUpMember: a
+    .model({
+      name: a.string().required(),
+      email: a.string(),
+      avatarUrl: a.string(),
+      isActive: a.boolean(), // false once the person is removed from the workspace
+    })
+    .authorization((allow) => [allow.authenticated().to(["read"])]),
 
   // Single row (id "TKT") holding the last number handed out. The backend bumps it with an
   // atomic ADD, exactly like CertificateCounter, so two tickets can never share a number.

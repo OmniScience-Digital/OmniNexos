@@ -16,21 +16,58 @@ export const URGENCY_OPTIONS = [
 
 export type UrgencyValue = (typeof URGENCY_OPTIONS)[number]["value"];
 
-// Names that can be ticked on the form. The backend matches each one to a ClickUp
-// user; any name that is not on ClickUp is given to Gleed instead.
-export const ASSIGNEE_OPTIONS = [
+/** Business minutes each urgency allows (ASAP = 0). Must match the backend's ticket.config.ts. */
+export const URGENCY_MINUTES: Record<UrgencyValue, number> = {
+  ASAP: 0,
+  "1H": 60,
+  "2H": 120,
+  "4H": 240,
+  "16H": 960,
+  "27H": 1620,
+};
+
+// The standard list from the spreadsheet (plus Gleed). Everyone here always appears in the
+// people picker. When the same person exists in ClickUp the picker shows them once, with a
+// "ClickUp user" tag; anyone not on ClickUp stays selectable and is given to Gleed by the backend.
+export const SHEET_PEOPLE = [
   "Shaughn",
   "Marco",
   "Byron",
   "Conraad",
   "Willie",
   "Martiens",
+  "Nkulu",
   "Maryke",
   "Wendie",
   "Vehan",
   "Gert",
   "Tshepo",
+  "Gleed",
 ] as const;
+
+// Use this when a sheet name is spelled differently from the person's ClickUp name, so the two
+// are treated as one person. Left empty on purpose: a wrong link would assign work to the wrong
+// person. Example: { Tshepo: ["Itumeleng Tshepe"] }
+export const SHEET_ALIASES: Record<string, string[]> = {};
+
+/** One selectable person in the picker. */
+export interface Person {
+  key: string; // stable React key
+  label: string; // what the user sees
+  value: string; // what is saved in `assignees` (the sheet name when there is one, else the full name)
+  clickupUserId: string | null; // null = not on ClickUp
+  avatarUrl: string | null;
+}
+
+/** A ClickUp workspace member as stored by the backend sync. */
+export interface ClickUpMember {
+  id: string; // the ClickUp user id
+  name: string;
+  email?: string | null;
+  avatarUrl?: string | null;
+  isActive?: boolean | null;
+  updatedAt?: string | null;
+}
 
 /** What the form collects. */
 export interface TicketFormValues {
@@ -39,6 +76,8 @@ export interface TicketFormValues {
   urgency: UrgencyValue | "";
   assignees: string[];
   mit: boolean;
+  /** Filled in at submit time from the picked people who are on ClickUp. */
+  assigneeClickupIds?: string[];
 }
 
 /** Who is submitting (taken from the signed-in user, never typed). */
@@ -48,7 +87,7 @@ export interface TicketSubmitter {
   email?: string;
 }
 
-/** A ticket as the "My tickets" list shows it. */
+/** A ticket as the "My tasks" list shows it. */
 export interface TicketSummary {
   id: string;
   ticketNumber: string | null;
@@ -57,6 +96,10 @@ export interface TicketSummary {
   assignees: string[];
   status: TicketStatus;
   dueAt: string | null;
+  urgencyMinutes: number | null;
+  hasUpdate: boolean;
+  followUpSentAt: string | null;
+  gleedTaggedAt: string | null;
   clickupTaskUrl: string | null;
   lastError: string | null;
   createdAt: string;
