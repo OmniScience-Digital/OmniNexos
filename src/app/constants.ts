@@ -1,3 +1,5 @@
+import amplifyOutputs from "../../amplify_outputs.json";
+
 export const baseUrl = "http://localhost:5001/api/v1";
 // export const securebaseUrlprod = "https://unb298qh1g.execute-api.us-east-2.amazonaws.com/api/v1";
 export const securebaseUrltest ="https://wq3qo9l3de.execute-api.us-east-1.amazonaws.com/api/v1";
@@ -16,10 +18,31 @@ if (!API_TOKEN && import.meta.env.DEV) {
     "VITE_CLICKUP_API_TOKEN is not set. Add it to a .env.local file for local development.",
   );
 }
-//main
-//export const VIF_LIST_ID = '901213458480';
-//test
-export const VIF_LIST_ID = '901214245527';
+
+const getIsTestEnv = () => {
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost") return true;
+
+  const redirectUris: string[] =
+    amplifyOutputs.auth.oauth.redirect_sign_in_uri;
+
+  const matchedUri = redirectUris.find((uri) =>
+    uri.includes(hostname),
+  );
+
+  if (!matchedUri) return false;
+
+  return matchedUri.includes("vite.") || matchedUri.includes("test.");
+};
+
+export const VIF_LIST_ID_PROD = '901214245527';
+export const VIF_LIST_ID_Test = '1500700000004440';
+
+export const VIF_LIST_ID = getIsTestEnv()
+  ? VIF_LIST_ID_Test
+  : VIF_LIST_ID_PROD;
+
 export const USERNAME_FIELD_ID = 'daf6f996-8096-473b-b9e4-9e20f4568d63';
 export const SERVICE_FIELD_ID = '70b7bb17-88b8-44ed-9df3-2ab192e5619a';
 export const TYRE_FIELD_ID = 'df6d9886-035c-49fd-aeed-527d8c63903d';
