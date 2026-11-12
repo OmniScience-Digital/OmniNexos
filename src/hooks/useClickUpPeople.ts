@@ -1,35 +1,59 @@
 // src/hooks/useClickUpPeople.ts
-// TICKETING: the people the Task Form offers. Reads the ClickUp members the backend synced and
-// merges them with the standard list. If the read fails (or the backend has not synced yet) the
-// form still works with the standard list, just without the "ClickUp user" tags.
-import { useEffect, useMemo, useState } from "react";
-import { listClickUpMembers } from "@/services/ticket.service";
-import type { ClickUpMember } from "@/types/ticket.types";
+// TICKETING: the people the Task Form offers.
+//
+// Once someone has set up the reusable list ("Manage people"), the dropdown offers ONLY the people on
+// that list. Until then (a fresh install) it falls back to the old behaviour, the standard names plus
+// every ClickUp member, so the form is never empty. `usingDefault` tells the page which one it is.
+// If a read fails the form still works, just without the "ClickUp user" tags.
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { listClickUpMembers, listPickedPeople } from "@/services/ticket.service";
+import type { ClickUpMember, PickedPerson } from "@/types/ticket.types";
 import { buildPeople, latestSync } from "@/utils/helper/ticket";
+import { buildPickerPeople } from "@/utils/helper/ticketPeople";
 
 export function useClickUpPeople() {
   const [members, setMembers] = useState<ClickUpMember[]>([]);
+  const [picked, setPicked] = useState<PickedPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
+  const load = useCallback(async () => {
+    const [m, p] = await Promise.allSettled([listClickUpMembers(), listPickedPeople()]);
+    setMembers(m.status === "fulfilled" ? m.value : []);
+    setPicked(p.status === "fulfilled" ? p.value : []);
+    setFailed(m.status === "rejected");
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    listClickUpMembers()
-      .then((rows) => {
-        if (!cancelled) setMembers(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    Promise.allSettled([listClickUpMembers(), listPickedPeople()]).then(([m, p]) => {
+      if (cancelled) return;
+      setMembers(m.status === "fulfilled" ? m.value : []);
+      setPicked(p.status === "fulfilled" ? p.value : []);
+      setFailed(m.status === "rejected");
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const people = useMemo(() => buildPeople(members), [members]);
+  const usingDefault = picked.length === 0;
+  const people = useMemo(
+    () => (usingDefault ? buildPeople(members) : buildPickerPeople(picked, members)),
+    [usingDefault, members, picked],
+  );
   const syncedAt = useMemo(() => latestSync(members), [members]);
-  return { people, syncedAt, loading, failed, hasClickUp: members.length > 0 };
+  return {
+    people,
+    syncedAt,
+    loading,
+    failed,
+    hasClickUp: members.length > 0,
+    members,
+    picked,
+    usingDefault,
+    reload: load,
+  };
 }

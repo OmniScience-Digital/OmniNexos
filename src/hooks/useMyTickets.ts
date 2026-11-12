@@ -1,15 +1,18 @@
 // src/hooks/useMyTickets.ts
 // TICKETING: the signed-in user's tickets for the list under the Task Form.
 //
-// A new ticket starts as SUBMITTED and the backend gives it a number a few seconds later,
-// so while any ticket is still waiting we re-read every few seconds. If the backend is
-// down the waiting ticket would stay SUBMITTED forever, so auto-refresh gives up after
-// WAIT_MS and the person can still press Refresh.
+// The backend changes tickets directly in DynamoDB (number, due date, follow-ups, closed), which
+// the app's real-time subscriptions cannot see, so this re-reads on a timer instead:
+//   - every 5 seconds while a new ticket is still waiting for its number (gives up after WAIT_MS,
+//     in case the backend is down; Refresh still works),
+//   - otherwise every 20 seconds,
+//   - only while the tab is visible, and straight away when the person comes back to the tab.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listMyTickets } from "@/services/ticket.service";
 import type { TicketSummary } from "@/types/ticket.types";
 
-const POLL_MS = 5_000;
+const FAST_POLL_MS = 5_000;
+const LIVE_POLL_MS = 20_000;
 export const WAIT_MS = 3 * 60_000;
 
 export function useMyTickets(userId: string | undefined) {
@@ -50,11 +53,19 @@ export function useMyTickets(userId: string | undefined) {
     (t) => t.status === "SUBMITTED" && Date.now() - Date.parse(t.createdAt) < WAIT_MS,
   );
 
+  // Live refresh: skip while the tab is hidden, catch up as soon as it is shown again.
   useEffect(() => {
-    if (!waiting) return;
-    const timer = setInterval(() => void load(true), POLL_MS);
-    return () => clearInterval(timer);
-  }, [waiting, load]);
+    if (!userId) return;
+    const tick = () => {
+      if (!document.hidden) void load(true);
+    };
+    const timer = setInterval(tick, waiting ? FAST_POLL_MS : LIVE_POLL_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [userId, waiting, load]);
 
   const addCreated = useCallback((ticket: TicketSummary) => {
     justCreated.current.set(ticket.id, ticket);

@@ -16,9 +16,11 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
+  Users,
 } from "lucide-react";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
+import ManagePeopleDialog from "@/components/ticketing/ManagePeopleDialog";
 import PeoplePicker from "@/components/ticketing/PeoplePicker";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -183,6 +185,7 @@ export default function TaskFormPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
+  const [manageOpen, setManageOpen] = useState(false);
 
   // A clock for "overdue" and the progress bars, so they stay right without a refresh.
   const [now, setNow] = useState(() => new Date());
@@ -192,7 +195,16 @@ export default function TaskFormPage() {
   }, []);
 
   const { tickets, loading, error: listError, refresh, addCreated } = useMyTickets(userId);
-  const { people, syncedAt, loading: peopleLoading, hasClickUp } = useClickUpPeople();
+  const {
+    people,
+    syncedAt,
+    loading: peopleLoading,
+    hasClickUp,
+    members,
+    picked,
+    usingDefault,
+    reload: reloadPeople,
+  } = useClickUpPeople();
   const allowed = useMemo(() => people.map((p) => p.value), [people]);
 
   const update = <K extends keyof TicketFormValues>(key: K, value: TicketFormValues[K]) => {
@@ -257,6 +269,16 @@ export default function TaskFormPage() {
           <div className="flex items-center gap-3">
             <ClipboardList className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-bold">Task Form</h1>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => setManageOpen(true)}
+            >
+              <Users />
+              Manage people
+            </Button>
           </div>
 
           <Card>
@@ -361,6 +383,11 @@ export default function TaskFormPage() {
                     invalid={Boolean(errors.assignees)}
                     describedBy={errors.assignees ? "task-assignees-error" : undefined}
                   />
+                  {usingDefault && !peopleLoading && (
+                    <p className="text-xs text-muted-foreground">
+                      Showing everyone for now. Use Manage people to choose who appears here.
+                    </p>
+                  )}
                   <FieldError id="task-assignees-error" message={errors.assignees} />
                 </div>
 
@@ -454,6 +481,14 @@ export default function TaskFormPage() {
         </div>
       </main>
       <Footer />
+
+      <ManagePeopleDialog
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        members={members}
+        picked={picked}
+        onSaved={() => void reloadPeople()}
+      />
     </div>
   );
 }

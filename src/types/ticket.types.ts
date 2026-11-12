@@ -26,9 +26,12 @@ export const URGENCY_MINUTES: Record<UrgencyValue, number> = {
   "27H": 1620,
 };
 
-// The standard list from the spreadsheet (plus Gleed). Everyone here always appears in the
-// people picker. When the same person exists in ClickUp the picker shows them once, with a
-// "ClickUp user" tag; anyone not on ClickUp stays selectable and is given to Gleed by the backend.
+// The standard list from the spreadsheet. Everyone here always appears in the people picker.
+// When the same person exists in ClickUp the picker shows them once, with a "ClickUp user" tag;
+// anyone not on ClickUp stays selectable and is given to the fallback user
+// (TICKET_ESCALATION_USER_ID) by the backend.
+// Gleed is NOT listed on purpose: he is a ClickUp user (shown as "G"), so he comes from ClickUp.
+// Listing him here as well made him appear twice.
 export const SHEET_PEOPLE = [
   "Shaughn",
   "Marco",
@@ -42,7 +45,6 @@ export const SHEET_PEOPLE = [
   "Vehan",
   "Gert",
   "Tshepo",
-  "Gleed",
 ] as const;
 
 // Use this when a sheet name is spelled differently from the person's ClickUp name, so the two
@@ -57,6 +59,17 @@ export interface Person {
   value: string; // what is saved in `assignees` (the sheet name when there is one, else the full name)
   clickupUserId: string | null; // null = not on ClickUp
   avatarUrl: string | null;
+}
+
+/**
+ * One person on the reusable list (the only people the dropdown offers). Chosen in the
+ * "Manage people" pop-up from all ClickUp users, or added by name when they have no ClickUp account.
+ */
+export interface PickedPerson {
+  id: string; // row id in the TicketPerson table
+  displayName: string; // what the dropdown shows and what is saved in `assignees`
+  clickupUserId: string | null; // null = no ClickUp account
+  sortOrder: number;
 }
 
 /** A ClickUp workspace member as stored by the backend sync. */

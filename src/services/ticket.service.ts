@@ -1,5 +1,5 @@
 // src/services/ticket.service.ts
-// TICKETING: the only place the web app reads or writes the Ticket and ClickUpMember tables.
+// TICKETING: the only place the web app reads or writes the Ticket, ClickUpMember and TicketPerson tables.
 //
 // The browser never talks to ClickUp or Telegram. It saves a SUBMITTED ticket and the
 // backend does the rest (number, due date, ClickUp task, escalations), so the ClickUp
@@ -7,8 +7,10 @@
 // which the backend keeps in sync.
 import { client } from "@/services/schema";
 import { buildTicketInput } from "@/utils/helper/ticket";
+import { planPickedChanges, type DraftPerson } from "@/utils/helper/ticketPeople";
 import type {
   ClickUpMember,
+  PickedPerson,
   TicketFormValues,
   TicketStatus,
   TicketSubmitter,
@@ -98,4 +100,55 @@ export async function listClickUpMembers(): Promise<ClickUpMember[]> {
     nextToken = next;
   } while (nextToken);
   return members;
+}
+
+/** The reusable list: the only people the "Assign to" dropdown offers. Empty until it is set up. */
+export async function listPickedPeople(): Promise<PickedPerson[]> {
+  const people: PickedPerson[] = [];
+  let nextToken: string | null | undefined;
+  do {
+    const { data, errors, nextToken: next } = await client.models.TicketPerson.list({
+      limit: 200,
+      nextToken,
+    });
+    if (errors?.length) throw new Error(joinErrors(errors));
+    for (const p of data) {
+      people.push({
+        id: p.id,
+        displayName: p.displayName,
+        clickupUserId: p.clickupUserId ?? null,
+        sortOrder: p.sortOrder,
+      });
+    }
+    nextToken = next;
+  } while (nextToken);
+  return people;
+}
+
+/** Saves the pop-up: only the rows that actually changed are written. */
+export async function savePickedPeople(
+  current: readonly PickedPerson[],
+  draft: readonly DraftPerson[],
+): Promise<void> {
+  const plan = planPickedChanges(current, draft);
+  const results = await Promise.all([
+    ...plan.creates.map((c) =>
+      client.models.TicketPerson.create({
+        displayName: c.displayName,
+        clickupUserId: c.clickupUserId ?? undefined,
+        sortOrder: c.sortOrder,
+      }),
+    ),
+    ...plan.updates.map((u) =>
+      client.models.TicketPerson.update({
+        id: u.id,
+        displayName: u.displayName,
+        clickupUserId: u.clickupUserId,
+        sortOrder: u.sortOrder,
+      }),
+    ),
+    ...plan.deletes.map((id) => client.models.TicketPerson.delete({ id })),
+  ]);
+  const message = results.map((r) => joinErrors(r.errors)).filter(Boolean).join("; ");
+  if (message) throw new Error(message);
 }

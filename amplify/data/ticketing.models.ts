@@ -1,4 +1,4 @@
-// amplify/data/ticketing.models.ts  (MODIFIED - search "CLICKUP-PEOPLE")
+// amplify/data/ticketing.models.ts  (MODIFIED - search "REUSABLE-LIST")
 //
 // TICKETING: the task / ticket system. Mirrors how jobcards.models.ts is wired:
 // this file exports a plain object that data/resource.ts spreads into the schema.
@@ -11,13 +11,14 @@
 //      `ticketsByStatusAndSubmittedAt` index, then: assigns the unique task number,
 //      works out the due date, creates the ClickUp task, and flips the ticket to OPEN.
 //   3. Every 5 minutes the backend reads the OPEN tickets (same index, status = OPEN),
-//      forwards new ClickUp comments to Telegram, and runs the 50% / 70% escalations.
+//      forwards new ClickUp comments to Telegram, and runs the follow-ups
+//      (50% / 70% for normal tasks, an hourly "still open" report for ASAP).
 //   4. When the ClickUp task is closed the backend sets the ticket to CLOSED.
 //
 // Backend-only attributes that are NOT declared here on purpose (same approach as
-// `lockedUntil` on JobCardSubmission): `lockedUntil` (processing lease) and
+// `lockedUntil` on JobCardSubmission): `lockedUntil` (processing lease),
 // `botCommentIds` (ClickUp comment ids the system posted itself, so they are never
-// mistaken for a user update).
+// mistaken for a user update) and `lastAsapReportAt` (last hourly ASAP report).
 import { a } from "@aws-amplify/backend";
 
 export const ticketingModels = {
@@ -90,6 +91,19 @@ export const ticketingModels = {
       isActive: a.boolean(), // false once the person is removed from the workspace
     })
     .authorization((allow) => [allow.authenticated().to(["read"])]),
+
+  // TICKETING: the reusable list. These are the ONLY people the Task Form dropdown offers.
+  // Someone with the "Manage people" pop-up ticks them from all ClickUp users (or adds a name that
+  // has no ClickUp account). Shared by everybody, so any signed-in user can change it for now.
+  // To lock it to named people later, replace the rule below with a Cognito group rule.
+  // REUSABLE-LIST
+  TicketPerson: a
+    .model({
+      displayName: a.string().required(), // shown in the dropdown and saved in Ticket.assignees
+      clickupUserId: a.string(), // the ClickUpMember id; empty = no ClickUp account
+      sortOrder: a.integer().required(),
+    })
+    .authorization((allow) => [allow.authenticated()]),
 
   // Single row (id "TKT") holding the last number handed out. The backend bumps it with an
   // atomic ADD, exactly like CertificateCounter, so two tickets can never share a number.
