@@ -36,10 +36,6 @@ export const VIF_LIST_ID = getIsTestEnv()
   : VIF_LIST_ID_PROD;
 
 
-  console.log("Hostname:", window.location.hostname);
-console.log("VIF Environment:", getIsTestEnv() ? "TEST" : "PRODUCTION");
-console.log("Selected VIF List:", VIF_LIST_ID);
-
 export const USERNAME_FIELD_ID = 'daf6f996-8096-473b-b9e4-9e20f4568d63';
 export const SERVICE_FIELD_ID = '70b7bb17-88b8-44ed-9df3-2ab192e5619a';
 export const TYRE_FIELD_ID = 'df6d9886-035c-49fd-aeed-527d8c63903d';
