@@ -557,16 +557,6 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("userId")]),
 
-  XeroContacts: a
-    .model({
-      contactId: a.string().required(),
-      contactName: a.string(),
-      contactTaxNo: a.string(),
-      contactRegNo: a.string(),
-      suppliers: a.hasMany("Supplier", "xeroContactId"),
-    })
-    .authorization((allow) => [allow.authenticated()])
-    .secondaryIndexes((index) => [index("contactId"), index("contactName")]),
 
   Supplier: a
     .model({
@@ -643,55 +633,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("quoteId"), index("quoteNumber")]),
-
-  Invoice: a
-    .model({
-      invoiceId: a.string().required(), // Xero InvoiceID
-      invoiceNumber: a.string(),
-
-      // 🔗 LINK TO QUOTE
-      xeroQuoteId: a.string(), // from Xero if available
-      quoteNumber: a.string(), // your main link (important)
-      reference: a.string(), // usually where quoteNumber can live
-
-      customerID: a.string(),
-      customerName: a.string(),
-
-      invoiceDate: a.datetime(),
-      dueDate: a.datetime(),
-
-      status: a.string(), // DRAFT / AUTHORISED / PAID etc
-      invoiceAction: a.string(), // derived
-
-      currencyCode: a.string(),
-      lineItems: a.json().array(),
-
-      subTotal: a.float(),
-      taxTotal: a.float(),
-      total: a.float(),
-
-      amountPaid: a.float(),
-      amountDue: a.float(),
-
-      PoNumber: a.string(),
-
-      businessUnitvalueid: a.string(),
-      businessUnitvalue: a.string(),
-      // reuse your CRM links
-      clickUpTaskidCrm1: a.string(),
-      clickUpTaskidCrm2: a.string(),
-      clickUpTaskidCrm5: a.string(),
-      clickUpTaskidCrm7: a.string(),
-      clickUpTaskidCrm9: a.string(),
-    })
-    .authorization((allow) => [allow.authenticated()])
-    .secondaryIndexes((index) => [
-      index("invoiceId"),
-      index("invoiceNumber"),
-      index("quoteNumber"),
-      index("xeroQuoteId"),
-    ]),
-  // ── Photo change request — user submits, admin approves ───────────────────
+  
+    // ── Photo change request — user submits, admin approves ───────────────────
   PhotoChangeRequestStatus: a.enum([
     "PENDING",
     "APPROVED",
