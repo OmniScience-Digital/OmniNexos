@@ -1,4 +1,4 @@
-// amplify/data/resource.ts  
+// amplify/data/resource.ts
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { listUsers } from "../function/listUsers/resource";
 import { notifyPhotoApproval } from "../function/notifyPhotoApproval/resource";
@@ -11,7 +11,7 @@ import { ticketingModels } from "./ticketing.models"; // TICKETING: task / ticke
 import { inventoryCounts } from "../function/inventoryCounts/resource";
 
 const schema = a.schema({
-    ...ticketingModels, // TICKETING: adds Ticket, TicketCounter (see ticketing.models.ts)
+  ...ticketingModels, // TICKETING: adds Ticket, TicketCounter (see ticketing.models.ts)
   ...jobCardModels, // JOBCARD: adds JobCard, JobCardScale, JobCardModule, JobCardSubmission, JobCardTimeEntry, TelegramGroup, CalibrationCertificate, CertificateCounter
   usersList: a
     .query()
@@ -557,7 +557,6 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("userId")]),
 
-
   Supplier: a
     .model({
       xeroContactId: a.string().required(),
@@ -589,6 +588,17 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("xeroContactId")]),
+
+  XeroContacts: a
+    .model({
+      contactId: a.string().required(),
+      contactName: a.string(),
+      contactTaxNo: a.string(),
+      contactRegNo: a.string(),
+      suppliers: a.hasMany("Supplier", "xeroContactId"),
+    })
+    .authorization((allow) => [allow.authenticated()])
+    .secondaryIndexes((index) => [index("contactId"), index("contactName")]),
   xeroConfig: a
     .model({
       tenantId: a.string().required(),
@@ -633,8 +643,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.authenticated()])
     .secondaryIndexes((index) => [index("quoteId"), index("quoteNumber")]),
-  
-    // ── Photo change request — user submits, admin approves ───────────────────
+
+  // ── Photo change request — user submits, admin approves ───────────────────
   PhotoChangeRequestStatus: a.enum([
     "PENDING",
     "APPROVED",
@@ -699,14 +709,14 @@ const schema = a.schema({
       localSelfieUri: a.string(), // temp local path — cleared after S3 sync
       date: a.date().required(), // YYYY-MM-DD — for date-range queries
     })
-   .secondaryIndexes((index) => [
+    .secondaryIndexes((index) => [
       index("userId")
         .sortKeys(["clockInTime"])
         .queryField("clockRecordsByUserAndTime"),
       index("date").sortKeys(["clockInTime"]).queryField("clockRecordsByDate"),
     ])
     .authorization((allow) => [allow.authenticated()]),
-      // ── Inventory aggregation ────────────────────────────────────────────
+  // ── Inventory aggregation ────────────────────────────────────────────
   InventoryCountsCategory: a.customType({
     categoryId: a.string().required(),
     subcategoryCount: a.integer().required(),
